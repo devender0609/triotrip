@@ -144,3 +144,17 @@ select {
 
 /* link underline removal for chips */
 .btn, .chip, a[role='button'] { text-decoration: none !important; }
+
+/* Make button-like links inherit text color */
+a, a:visited { color: inherit; }
+a.btn, a[role='button'] { color: inherit; text-decoration: none; }
+
+/* === TrioTrip brand link: remove any underline/border decorations globally === */
+a.tt-brand,
+a.tt-brand:hover,
+a.tt-brand:focus,
+a.tt-brand:active,
+a.tt-brand * {
+  text-decoration: none !important;
+  border-bottom: 0 !important;
+}

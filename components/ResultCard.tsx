@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 
-/** quick map for common airline homepages; fallback = Google "airline + booking" */
+/** Airline homepages; fallback = Google "airline + booking" */
 const AIRLINE_SITE: Record<string, string> = {
   American: "https://www.aa.com",
   "American Airlines": "https://www.aa.com",
@@ -25,11 +25,12 @@ type Props = {
   pkg: any;
   index?: number;
   currency: string;
-  pax?: number; // passed into TripTrio booking
+  pax?: number;
   comparedIds?: string[];
   onToggleCompare?: (id: string) => void;
   onSavedChangeGlobal?: (count: number) => void;
   large?: boolean;
+  showHotel?: boolean; // if omitted we infer from pkg.hotels/pkg.hotel
 };
 
 export default function ResultCard({
@@ -41,6 +42,7 @@ export default function ResultCard({
   onToggleCompare,
   onSavedChangeGlobal,
   large = true,
+  showHotel,
 }: Props) {
   const id = pkg.id || `r-${index}`;
   const airline = pkg.flight?.carrier_name || pkg.flight?.carrier || "Airline";
@@ -54,33 +56,108 @@ export default function ResultCard({
 
   const outSegs = pkg.flight?.segments_out || [];
   const inSegs = pkg.flight?.segments_in || [];
-  const isRoundTrip = inSegs.length > 0;
   const stops =
     typeof pkg.flight?.stops === "number"
       ? pkg.flight.stops
       : Math.max(0, (outSegs.length || 1) - 1);
 
-  // ---------- Deeplinks ----------
+  // ----- hotel context (for deeplinks) -----
+  const hotelCheckIn =
+    pkg.hotelCheckIn || (outSegs?.[0]?.depart_time || "").slice(0, 10) || "";
+  const hotelCheckOut =
+    pkg.hotelCheckOut || (inSegs?.[0]?.arrive_time || "").slice(0, 10) || "";
+  const adults = Number(pkg.passengersAdults) || Number(pkg.passengers) || pax || 1;
+  const children = Number(pkg.passengersChildren) || 0;
+  const childrenAges: number[] = Array.isArray(pkg.passengersChildrenAges)
+    ? pkg.passengersChildrenAges
+    : [];
+
+  // ----- flight deeplinks -----
   const route = `${outSegs?.[0]?.from || pkg.origin}-${outSegs?.[outSegs.length - 1]?.to || pkg.destination}`;
   const dateOut = (outSegs?.[0]?.depart_time || "").slice(0, 10);
   const dateRet = (inSegs?.[0]?.depart_time || "").slice(0, 10);
+
+  const airlineSite =
+    AIRLINE_SITE[airline] ||
+    `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}`;
 
   const googleFlights =
     `https://www.google.com/travel/flights?q=Flights%20to%20${encodeURIComponent(route)}%20on%20${encodeURIComponent(
       dateOut
     )}` + (dateRet ? `%20return%20${encodeURIComponent(dateRet)}` : "");
 
+  // Skyscanner wants lowercase IATA + yyyymmdd
+  const fromIata = (outSegs?.[0]?.from || pkg.origin || "").toLowerCase();
+  const toIata = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toLowerCase();
+  const ssOut = (dateOut || "").replace(/-/g, "");
+  const ssRet = (dateRet || "").replace(/-/g, "");
   const skyScanner =
-    `https://www.skyscanner.com/transport/flights/${encodeURIComponent(route.replace("-", "/"))}/${dateOut}` +
-    (dateRet ? `/${dateRet}` : "") +
-    `/?adults=${pax}`;
+    (fromIata && toIata && ssOut)
+      ? `https://www.skyscanner.com/transport/flights/${fromIata}/${toIata}/${ssOut}${ssRet ? `/${ssRet}` : ""}/?adults=${pax}`
+      : "https://www.skyscanner.com/";
 
-  const airlineSite =
-    AIRLINE_SITE[airline] ||
-    `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}`;
+  // ----- hotel deeplinks (prefill search & image click target) -----
+  function hotelLinks(h: any, cityFallback: string) {
+    const city = h.city || cityFallback || "";
+    const destName = h.name ? `${h.name}, ${city}` : city;
+    const adultsCount = Math.max(1, adults);
+    const childrenCount = Math.max(0, children);
+    const childAges = childrenAges.filter((n) => Number.isFinite(n)).map(String);
 
-  // ---------- Book via TrioTrip ----------
-  async function bookViaTripTrio() {
+    // Booking.com (prefilled)
+    const b = new URL("https://www.booking.com/searchresults.html");
+    if (destName) b.searchParams.set("ss", destName);
+    if (hotelCheckIn) b.searchParams.set("checkin", hotelCheckIn);
+    if (hotelCheckOut) b.searchParams.set("checkout", hotelCheckOut);
+    b.searchParams.set("group_adults", String(adultsCount));
+    b.searchParams.set("group_children", String(childrenCount));
+    childAges.forEach((age) => b.searchParams.append("age", age));
+    b.searchParams.set("no_rooms", "1");
+    b.searchParams.set("selected_currency", pkg.currency || currency);
+
+    // Expedia (prefilled)
+    const e = new URL("https://www.expedia.com/Hotel-Search");
+    if (destName) e.searchParams.set("destination", destName);
+    if (hotelCheckIn) e.searchParams.set("checkIn", hotelCheckIn);
+    if (hotelCheckOut) e.searchParams.set("checkOut", hotelCheckOut);
+    e.searchParams.set("adults", String(adultsCount));
+    if (childrenCount > 0) {
+      e.searchParams.set("children", String(childrenCount));
+      if (childAges.length) e.searchParams.set("childAges", childAges.join(","));
+    }
+    e.searchParams.set("currency", pkg.currency || currency);
+
+    // Hotels.com (prefilled)
+    const hcx = new URL("https://www.hotels.com/Hotel-Search");
+    if (destName) hcx.searchParams.set("destination", destName);
+    if (hotelCheckIn) hcx.searchParams.set("checkIn", hotelCheckIn);
+    if (hotelCheckOut) hcx.searchParams.set("checkOut", hotelCheckOut);
+    hcx.searchParams.set("adults", String(adultsCount));
+    if (childrenCount > 0) {
+      hcx.searchParams.set("children", String(childrenCount));
+      if (childAges.length) hcx.searchParams.set("childAges", childAges.join(","));
+    }
+    hcx.searchParams.set("currency", pkg.currency || currency);
+
+    // Primary link (image click target)
+    const primary =
+      (typeof h.url === "string" && h.url) ||
+      (typeof h.website === "string" && h.website) ||
+      (typeof h.officialUrl === "string" && h.officialUrl) ||
+      b.toString();
+
+    // Map link (precise if lat/lng)
+    const maps = (typeof h.lat === "number" && typeof h.lng === "number")
+      ? `https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}`
+      : (destName
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destName)}`
+          : undefined);
+
+    return { booking: b.toString(), expedia: e.toString(), hotels: hcx.toString(), maps, primary };
+  }
+
+  // ----- Book via TrioTrip -----
+  async function bookViaTrioTrip() {
     try {
       const res = await fetch("/api/book", {
         method: "POST",
@@ -110,7 +187,7 @@ export default function ResultCard({
     }
   }
 
-  // ---------- Save (requires login) ----------
+  // ----- Save (requires login) -----
   const [saving, setSaving] = useState(false);
   function requireLoginThenSave() {
     const user = localStorage.getItem("triptrio:user");
@@ -135,45 +212,32 @@ export default function ResultCard({
 
   const isCompared = comparedIds?.includes(id);
 
-  // ---------- Hotels (pick best tier then show one row like screenshot) ----------
-  const hotels: any[] = Array.isArray(pkg.hotels) ? pkg.hotels : [];
-  const hotelTop3 = useMemo(() => {
-    if (!hotels.length) return [] as any[];
-    const arr = hotels.slice().sort((a,b)=> (Number(a?.price)||9e9) - (Number(b?.price)||9e9));
-    return arr.slice(0,3);
-  }, [hotels]);
-  const hotelPick = useMemo(() => {
-    if (!hotels.length) return null;
-    // group by star (ES5-safe)
-    const byStar = new Map<number, any[]>();
-    for (let i = 0; i < hotels.length; i++) {
-      const h = hotels[i];
-      const s = Number(h?.stars) || 0;
-      const arr = byStar.get(s) || [];
-      arr.push(h);
-      byStar.set(s, arr);
-    }
-    const entries: Array<[number, any[]]> = Array.from(byStar.entries()).sort((a, b) => b[0] - a[0]);
-    const topTier = entries.find(Boolean)?.[1] || [];
-    // choose cheapest in top tier
-    let best = topTier[0];
-    for (let i = 1; i < topTier.length; i++) {
-      if ((topTier[i]?.price || 9e9) < (best?.price || 9e9)) best = topTier[i];
-    }
-    return best || null;
-  }, [hotels]);
+  // ----- Hotels (up to 3) -----
+  const inferredShowHotel =
+    showHotel ??
+    ((Array.isArray(pkg.hotels) && pkg.hotels.length > 0) ||
+      (pkg.hotel && !pkg.hotel.filteredOutByStar));
 
-  // ---------- styles (larger like screenshot) ----------
+  const hotelsArr: any[] = inferredShowHotel
+    ? (Array.isArray(pkg.hotels) && pkg.hotels.length
+        ? pkg.hotels
+        : (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : []))
+    : [];
+  const hotelsTop3 = hotelsArr.slice(0, 3);
+
+  // ---------- styles ----------
   const fs = large ? 15 : 14;
 
   const chipBtn: React.CSSProperties = {
     textDecoration: "none",
-    height: 32,
-    padding: "0 12px",
+    color: "#0f172a",
+    height: 30,
+    padding: "0 10px",
     borderRadius: 999,
     border: "1px solid #e2e8f0",
     background: "#fff",
     fontWeight: 800,
+    lineHeight: 1,
   };
 
   const buyBtn: React.CSSProperties = {
@@ -183,6 +247,37 @@ export default function ResultCard({
     fontWeight: 900,
     background: "linear-gradient(90deg,#06b6d4,#0ea5e9)",
   };
+
+  // tiny inline SVG as last resort
+  const svgPlaceholder = `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='200'>
+      <defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
+      <stop offset='0%' stop-color='#e2e8f0'/><stop offset='100%' stop-color='#cbd5e1'/></linearGradient></defs>
+      <rect width='100%' height='100%' fill='url(#g)'/>
+      <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#475569' font-family='system-ui, sans-serif' font-size='16'>No image</text>
+    </svg>`
+  )}`;
+
+  /** City-specific fallback images (hotel/building only) */
+  function cityHotelFallbacks(city: string, name: string, i: number) {
+    const qCity = encodeURIComponent(city || "city");
+    // Prioritize queries that bias to buildings/hotels, not random nature/coffee
+    const unsplash = `https://source.unsplash.com/featured/320x200/?hotel%20building,hotel,building,architecture,${qCity}`;
+    const picsum = `https://picsum.photos/seed/${encodeURIComponent(`${city}-${name}-${i}-hotel-building`)}/320/200`;
+    const flickr = `https://loremflickr.com/320/200/hotel,building,architecture,${qCity}?lock=${i}`;
+    return { unsplash, picsum, flickr };
+  }
+
+  function chooseHotelImg(h: any, i: number) {
+    const city = h.city || pkg.destination || "city";
+    const name = h.name || "hotel";
+    const fromData =
+      (typeof h.imageUrl === "string" && /^https?:\/\//.test(h.imageUrl) && h.imageUrl) ||
+      (typeof h.photoUrl === "string" && /^https?:\/\//.test(h.photoUrl) && h.photoUrl) ||
+      "";
+    const fb = cityHotelFallbacks(city, name, i);
+    return { first: fromData || fb.unsplash, fallbacks: fb };
+  }
 
   return (
     <article
@@ -199,19 +294,19 @@ export default function ResultCard({
       }}
     >
       {/* Header */}
-      <header style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <header style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <strong style={{ fontSize: 18 }}>{airline}</strong>
           <span style={{ opacity: 0.6 }}>•</span>
           <span style={{ fontWeight: 800 }}>{stops === 0 ? "Nonstop" : `${stops} stop(s)`}</span>
           {pkg.flight?.refundable && (
-            <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 900, color: "#0f172a", background: "#e8efff", border: "1px solid #c7d2fe", borderRadius: 999, padding: "2px 8px" }}>
+            <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 900, color: "#0f172a", background: "#e8efff", border: "1px solid #c7d2fe", borderRadius: 999, padding: "2px 8px" }}>
               Refundable
             </span>
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {onToggleCompare && (
             <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 900, color: "#334155" }}>
               <input type="checkbox" checked={!!isCompared} onChange={() => onToggleCompare(id)} />
@@ -224,91 +319,225 @@ export default function ResultCard({
         </div>
       </header>
 
-      {/* Price area (buttons moved to right column only) */}
-<div style={{ fontWeight: 900, fontSize: 22 }}>
-  {Math.round(Number(price))} {pkg.currency || currency}
-</div>
+      {/* Price */}
+      <div style={{ fontWeight: 900, fontSize: 20 }}>
+        {Math.round(Number(price)).toLocaleString()} {pkg.currency || currency}
+      </div>
 
-      {/* Flight section */}
-      <section style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 14 }}>
-        <div style={{ display: "grid", gap: 8 }}>
+      {/* GRID: left = flight details, right = Book Flight (perfect top+bottom alignment) */}
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 280px",
+          gap: 14,
+          alignItems: "stretch",
+        }}
+      >
+        {/* LEFT: FLIGHT column (this defines the row height) */}
+        <div style={{ display: "grid", gap: 10 }}>
           <div style={{ fontWeight: 900, color: "#0f172a" }}>Flight</div>
 
-          {/* Outbound legs */}
+          {/* Outbound */}
           {outSegs.length > 0 && (
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8 }}>
               <div style={{ fontWeight: 900, color: "#334155" }}>Outbound</div>
               {outSegs.map((s: any, i: number) => (
-                <div key={`o${i}`} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between" }}>
-                  <div>{s.from} → {s.to}</div>
-                  <div style={{ fontWeight: 900 }}>{formatDur(s.duration_minutes)}</div>
-                </div>
-              ))}
-              {isRoundTrip && outSegs.length > 1 &&
-                outSegs.slice(0, -1).map((_s: any, i: number) => (
-                  <div key={`ol${i}`} style={{ textAlign: "center", color: "#64748b", fontWeight: 800 }}>
-                    Layover • ~{45 + i * 15}m
+                <React.Fragment key={`o${i}`}>
+                  <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 800 }}>{s.from} → {s.to}</div>
+                      <div style={{ fontSize: 12, color: "#475569" }}>
+                        {formatTime(s.depart_time)} – {formatTime(s.arrive_time)}
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: 900 }}>{formatDur(s.duration_minutes)}</div>
                   </div>
-                ))}
+                  {i < outSegs.length - 1 && (
+                    <LayoverRow
+                      arrive_time={s.arrive_time}
+                      next_depart_time={outSegs[i + 1].depart_time}
+                      at={s.to}
+                    />
+                  )}
+                </React.Fragment>
+              ))}
             </div>
           )}
 
-          {/* Return legs */}
+          {/* Return */}
           {inSegs.length > 0 && (
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8 }}>
               <div style={{ fontWeight: 900, color: "#334155" }}>Return</div>
               {inSegs.map((s: any, i: number) => (
-                <div key={`r${i}`} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between" }}>
-                  <div>{s.from} → {s.to}</div>
-                  <div style={{ fontWeight: 900 }}>{formatDur(s.duration_minutes)}</div>
-                </div>
-              ))}
-              {inSegs.length > 1 &&
-                inSegs.slice(0, -1).map((_s: any, i: number) => (
-                  <div key={`rl${i}`} style={{ textAlign: "center", color: "#64748b", fontWeight: 800 }}>
-                    Layover • ~{45 + i * 15}m
+                <React.Fragment key={`r${i}`}>
+                  <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 800 }}>{s.from} → {s.to}</div>
+                      <div style={{ fontSize: 12, color: "#475569" }}>
+                        {formatTime(s.depart_time)} – {formatTime(s.arrive_time)}
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: 900 }}>{formatDur(s.duration_minutes)}</div>
                   </div>
-                ))}
-            </div>
-          )}
-
-          {/* Hotel row (single, like screenshot) */}
-          {hotelPick && (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8 }}>
-              <div style={{ fontWeight: 900, color: "#0f172a", marginBottom: 6 }}>Hotel</div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #e2e8f0", borderRadius: 10, padding: 8 }}>
-                <div>
-                  <div style={{ fontWeight: 900 }}>{hotelPick.name} ({hotelPick.stars}★)</div>
-                </div>
-                <div style={{ fontWeight: 900 }}>
-                  {Math.round(hotelPick.price || 0)} {hotelPick.currency || pkg.currency || currency}
-                </div>
-              </div>
+                  {i < inSegs.length - 1 && (
+                    <LayoverRow
+                      arrive_time={s.arrive_time}
+                      next_depart_time={inSegs[i + 1].depart_time}
+                      at={s.to}
+                    />
+                  )}
+                </React.Fragment>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Right column: booking buttons (Flight + Hotel) */}
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 10, display: "grid", gap: 10 }}>
+        {/* RIGHT: Book Flight card, same row height, compact interior spacing */}
+        <div style={{ alignSelf: "stretch" }}>
+          <div
+            style={{
+              height: "100%",
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              padding: 10,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,                // tighter spacing
+              justifyContent: "flex-start",
+              background: "#fff",
+              boxSizing: "border-box",
+            }}
+          >
             <div style={{ fontWeight: 900, color: "#0f172a" }}>Book Flight</div>
-            <button onClick={bookViaTripTrio} style={buyBtn}>Book via TrioTrip</button>
+            <button onClick={bookViaTrioTrip} style={{ ...buyBtn, height: 34, padding: "0 12px" }}>
+              Book via TrioTrip
+            </button>
             <a href={airlineSite} target="_blank" rel="noreferrer" style={chipBtn}>Airline site</a>
             <a href={googleFlights} target="_blank" rel="noreferrer" style={chipBtn}>Google Flights</a>
             <a href={skyScanner} target="_blank" rel="noreferrer" style={chipBtn}>Skyscanner</a>
-          </div>
 
-          {hotelPick && (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 10, display: "grid", gap: 10 }}>
-              <div style={{ fontWeight: 900, color: "#0f172a" }}>Book Hotel</div>
-              <a href="https://www.booking.com" target="_blank" rel="noreferrer" style={chipBtn}>Booking.com</a>
-              <a href="https://www.hotels.com" target="_blank" rel="noreferrer" style={chipBtn}>Hotels.com</a>
-              <a href="https://www.expedia.com" target="_blank" rel="noreferrer" style={chipBtn}>Expedia</a>
+            {/* small flexible spacer to avoid looking crammed while not creating a huge blank area */}
+            <div style={{ flex: 1 }} />
+
+            {/* optional tiny footer to visually “close” the card, reducing the sense of empty space */}
+            <div style={{ fontSize: 11, color: "#64748b", textAlign: "center" }}>
+              Prices and availability may change.
             </div>
-          )}
+          </div>
         </div>
       </section>
+
+      {/* FULL-WIDTH HOTELS BELOW (city-specific fallback images; image click -> hotel site or prefilled booking) */}
+      {inferredShowHotel && hotelsTop3.length > 0 && (
+        <div
+          style={{
+            border: "2px solid #e2e8f0",
+            borderRadius: 14,
+            padding: 14,
+            display: "grid",
+            gap: 12,
+            background: "#fcfdff",
+          }}
+        >
+          <div style={{ fontWeight: 900, color: "#0f172a" }}>Hotels (top options)</div>
+
+          {hotelsTop3.map((h: any, i: number) => {
+            const city = h.city || pkg.destination || "";
+            const links = hotelLinks(h, city);
+            const { first, fallbacks } = chooseHotelImg(h, i);
+
+            return (
+              <div
+                key={`h${i}`}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "160px 1fr",
+                  gap: 12,
+                  alignItems: "center",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 12,
+                  padding: 10,
+                  background: "#fff"
+                }}
+              >
+                <a
+                  href={links.primary}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  title={`Open ${h.name || "hotel"}`}
+                >
+                  <img
+                    src={first}
+                    alt={h.name || "Hotel photo"}
+                    width={160}
+                    height={120}
+                    style={{ width: 160, height: 120, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }}
+                    loading={i === 0 ? "eager" : "lazy"}
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const el = e.currentTarget as HTMLImageElement;
+                      // cascade through city/building fallbacks only (no random objects)
+                      if (!el.dataset.step) { el.dataset.step = "1"; el.src = fallbacks.unsplash; return; }
+                      if (el.dataset.step === "1") { el.dataset.step = "2"; el.src = fallbacks.picsum; return; }
+                      if (el.dataset.step === "2") { el.dataset.step = "3"; el.src = fallbacks.flickr; return; }
+                      if (el.src !== svgPlaceholder) el.src = svgPlaceholder;
+                    }}
+                  />
+                </a>
+
+                <div style={{ display: "grid", gap: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                    <div style={{ fontWeight: 900 }}>
+                      {h.name} {typeof h.star === "number" ? `(${h.star}★)` : ""}
+                      {city ? <span style={{ marginLeft: 6, color: "#64748b", fontWeight: 700 }}>• {city}</span> : null}
+                    </div>
+                    <div style={{ fontWeight: 900 }}>
+                      {Math.round(h.price_converted || 0).toLocaleString()} {h.currency || pkg.currency || currency}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    <a href={links.primary} target="_blank" rel="noreferrer noopener" style={chipBtn}>Hotel website</a>
+                    <a href={links.booking} target="_blank" rel="noreferrer noopener" style={chipBtn}>Booking.com</a>
+                    <a href={links.hotels} target="_blank" rel="noreferrer noopener" style={chipBtn}>Hotels.com</a>
+                    <a href={links.expedia} target="_blank" rel="noreferrer noopener" style={chipBtn}>Expedia</a>
+                    {links.maps && (
+                      <a href={links.maps} target="_blank" rel="noreferrer noopener" style={chipBtn}>View on map</a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </article>
+  );
+}
+
+/* ---------- subcomponents & utils ---------- */
+
+function LayoverRow({
+  arrive_time,
+  next_depart_time,
+  at,
+}: {
+  arrive_time: string;
+  next_depart_time: string;
+  at?: string;
+}) {
+  const mins = layoverMins(arrive_time, next_depart_time);
+  return (
+    <div
+      style={{
+        textAlign: "center",
+        color: "#64748b",
+        fontWeight: 800,
+        padding: "4px 8px",
+      }}
+      aria-label="Layover"
+    >
+      Layover{at ? ` at ${at}` : ""} • {mins ? `${mins}m` : "~50m"}
+    </div>
   );
 }
 
@@ -324,4 +553,11 @@ function formatDur(min?: number) {
   const h = Math.floor(m / 60);
   const mm = m % 60;
   return `${h}h ${mm}m`;
+}
+
+function formatTime(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
