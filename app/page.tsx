@@ -1,713 +1,434 @@
 "use client";
-export const dynamic = "force-dynamic";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import ResultCard from "../components/ResultCard";
+import React, { useState } from "react";
 
-type SortKey = "best" | "cheapest" | "fastest" | "flexible";
-type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
+/** Airline homepages; fallback = Google "airline + booking" */
+const AIRLINE_SITE: Record<string, string> = {
+  American: "https://www.aa.com",
+  "American Airlines": "https://www.aa.com",
+  Delta: "https://www.delta.com",
+  "Delta Air Lines": "https://www.delta.com",
+  United: "https://www.united.com",
+  "United Airlines": "https://www.united.com",
+  Alaska: "https://www.alaskaair.com",
+  "Alaska Airlines": "https://www.alaskaair.com",
+  Southwest: "https://www.southwest.com",
+  JetBlue: "https://www.jetblue.com",
+  "JetBlue Airways": "https://www.jetblue.com",
+  "Air Canada": "https://www.aircanada.com",
+  Lufthansa: "https://www.lufthansa.com",
+  "British Airways": "https://www.britishairways.com",
+  "Air France": "https://wwws.airfrance.us",
+  KLM: "https://www.klm.us",
+};
 
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
-}
+type Props = {
+  pkg: any;
+  index?: number;
+  currency: string;
+  pax?: number;
+  comparedIds?: string[];
+  onToggleCompare?: (id: string) => void;
+  onSavedChangeGlobal?: (count: number) => void;
+  large?: boolean;
+  showHotel?: boolean; // if omitted we infer from pkg.hotels/pkg.hotel
+};
 
-function formatMoney(n: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
-  } catch {
-    return `$${n.toFixed(0)}`;
-  }
-}
+export default function ResultCard({
+  pkg,
+  index = 0,
+  currency,
+  pax = 1,
+  comparedIds,
+  onToggleCompare,
+  onSavedChangeGlobal,
+  large = true,
+  showHotel,
+}: Props) {
+  const id = pkg.id || `r-${index}`;
+  const airline = pkg.flight?.carrier_name || pkg.flight?.carrier || "Airline";
+  const price =
+    pkg.total_cost ??
+    pkg.flight_total ??
+    pkg.total_cost_flight ??
+    pkg.flight?.price ??
+    pkg.flight?.price_usd ??
+    0;
 
-function parseIntSafe(s: any, d = 0) {
-  const n = Number(s);
-  return Number.isFinite(n) ? n : d;
-}
+  const outSegs = pkg.flight?.segments_out || [];
+  const inSegs = pkg.flight?.segments_in || [];
+  const stops =
+    typeof pkg.flight?.stops === "number"
+      ? pkg.flight.stops
+      : Math.max(0, (outSegs.length || 1) - 1);
 
-export default function Page() {
-  // ---------- state ----------
-  const [originCode, setOriginCode] = useState("");
-  const [originDisplay, setOriginDisplay] = useState("");
-  const [destCode, setDestCode] = useState("");
-  const [destDisplay, setDestDisplay] = useState("");
-  const [roundTrip, setRoundTrip] = useState(true);
-  const [departDate, setDepartDate] = useState("");
-  const [returnDate, setReturnDate] = useState("");
-  const [adults, setAdults] = useState(1);
-  const [children, setChildren] = useState(0);
-  const [infants, setInfants] = useState(0);
-  const [childrenAges, setChildrenAges] = useState<number[]>([]);
-  const [cabin, setCabin] = useState<Cabin>("ECONOMY");
-  const [minBudget, setMinBudget] = useState<string>("");
-  const [maxBudget, setMaxBudget] = useState<string>("");
-  const [maxStops, setMaxStops] = useState<number>(2);
-  const [currency, setCurrency] = useState("USD");
-  const [refundable, setRefundable] = useState(false);
-  const [greener, setGreener] = useState(false);
+  // ----- passenger context -----
+  const adults = Number(pkg.passengersAdults) || Number(pkg.passengers) || pax || 1;
+  const children = Number(pkg.passengersChildren) || 0;
+  const infants = Number(pkg.passengersInfants) || 0;
+  const childrenAges: number[] = Array.isArray(pkg.childrenAges) ? pkg.childrenAges : [];
 
-  const [includeHotel, setIncludeHotel] = useState(false);
-  const [hotelCheckIn, setHotelCheckIn] = useState("");
-  const [hotelCheckOut, setHotelCheckOut] = useState("");
-  const [minHotelStar, setMinHotelStar] = useState(0);
+  // ----- dates & route -----
+  const route = `${outSegs?.[0]?.from || pkg.origin}-${outSegs?.[outSegs.length - 1]?.to || pkg.destination}`;
+  const dateOut = (outSegs?.[0]?.depart_time || "").slice(0, 10);
+  const dateRet = (inSegs?.[0]?.depart_time || "").slice(0, 10);
 
-  const [compareMode, setCompareMode] = useState(false);
-  const [comparedIds, setComparedIds] = useState<string[]>([]);
-  const [sort, setSort] = useState<SortKey>("best");
-  const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
-  const [showAll, setShowAll] = useState(false);
+  // Skyscanner wants lowercase IATA + yyyymmdd
+  const fromIata = (outSegs?.[0]?.from || pkg.origin || "").toLowerCase();
+  const toIata = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toLowerCase();
+  const ssOut = (dateOut || "").replace(/-/g, "");
+  const ssRet = (dateRet || "").replace(/-/g, "");
 
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [hotelWarning, setHotelWarning] = useState<string | null>(null);
+  // ----- Airline deeplink templates (best-effort) -----
+  const AIRLINE_DEEPLINKS: Record<string, (p: any) => string> = {
+    United: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.united.com/en/us/fsr/choose-flights?from=${from}&to=${to}` +
+      (dateOut ? `&departDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&adult=${Math.max(1, adults || 1)}` +
+      (children ? `&child=${children}` : "") +
+      (infants ? `&infantLap=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
 
-  const [savedCount, setSavedCount] = useState(0);
-  const [searchKey, setSearchKey] = useState(0);
+    Delta: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.delta.com/flight-search/book-a-flight` +
+      `?fromCity=${from}&toCity=${to}` +
+      (dateOut ? `&departureDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&tripType=${dateRet ? "RT" : "OW"}` +
+      `&adultPassengersCount=${Math.max(1, adults || 1)}` +
+      (children ? `&childPassengersCount=${children}` : "") +
+      (infants ? `&infantInLapPassengersCount=${infants}` : "") +
+      (cabin ? `&cabinClass=${encodeURIComponent(cabin)}` : ""),
 
-  // ---------- effects ----------
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("triptrio:saved") || "[]");
-      setSavedCount(Array.isArray(saved) ? saved.length : 0);
-    } catch {}
-  }, []);
+    American: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.aa.com/booking/find-flights` +
+      `?tripType=${dateRet ? "roundTrip" : "oneWay"}` +
+      `&fromCity=${from}&toCity=${to}` +
+      (dateOut ? `&departDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&passengerCount=${Math.max(1, (adults || 1) + (children || 0) + (infants || 0))}` +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
 
-  // keep children ages arr sized
-  useEffect(() => {
-    setChildrenAges((prev) => {
-      const next = prev.slice(0, children);
-      while (next.length < children) next.push(8);
-      return next;
-    });
-  }, [children]);
+    Alaska: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.alaskaair.com/planbook/shopping` +
+      `?from=${from}&to=${to}` +
+      (dateOut ? `&departureDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&adultCount=${Math.max(1, adults || 1)}` +
+      (children ? `&childCount=${children}` : "") +
+      (infants ? `&infantInLapCount=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
 
-  // if one-way, clear return date
-  useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
+    JetBlue: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.jetblue.com/booking/flights` +
+      `?from=${from}&to=${to}` +
+      (dateOut ? `&depart=${dateOut}` : "") +
+      (dateRet ? `&return=${dateRet}` : "") +
+      `&ad=${Math.max(1, adults || 1)}` +
+      (children ? `&ch=${children}` : "") +
+      (infants ? `&inLap=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
 
-  // >>> Hotels: do NOT auto-populate dates; clear when toggled OFF <<<
-  useEffect(() => {
-    // Only user selection should set hotel dates; never auto-fill from flight dates.
-    if (!includeHotel) {
-      setHotelCheckIn("");
-      setHotelCheckOut("");
-    }
-  }, [includeHotel]);
+    Southwest: ({ from, to, dateOut, dateRet, adults }) =>
+      `https://www.southwest.com/air/booking/select.html` +
+      `?originationAirportCode=${from}&destinationAirportCode=${to}` +
+      (dateOut ? `&departureDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&adultPassengersCount=${Math.max(1, adults || 1)}` +
+      `&tripType=${dateRet ? "roundtrip" : "oneway"}`,
 
-  function swapOriginDest() {
-    setOriginCode((oc) => { const dc = destCode; setDestCode(oc); return dc; });
-    setOriginDisplay((od) => { const dd = destDisplay; setDestDisplay(od); return dd; });
-  }
+    "Air Canada": ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.aircanada.com/ca/en/aco/home/book/flights.html` +
+      `?org0=${from}&dest0=${to}` +
+      (dateOut ? `&date0=${dateOut}` : "") +
+      (dateRet ? `&date1=${dateRet}` : "") +
+      `&adults=${Math.max(1, adults || 1)}` +
+      (children ? `&children=${children}` : "") +
+      (infants ? `&infant=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
 
-  // ---------- validations ----------
-  const todayLocal = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString().slice(0, 10);
-  }, []);
+    Lufthansa: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.lufthansa.com/us/en/flight-search` +
+      `?origin=${from}&destination=${to}` +
+      (dateOut ? `&outboundDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&adults=${Math.max(1, adults || 1)}` +
+      (children ? `&children=${children}` : "") +
+      (infants ? `&infants=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
 
-  function validate() {
-    if (!originCode || !destCode) throw new Error("Please choose origin and destination airports.");
-    if (originCode === destCode) throw new Error("Origin and destination cannot be the same.");
-    if (!departDate) throw new Error("Please choose a departure date.");
-    if (roundTrip && !returnDate) throw new Error("Please choose a return date or switch to One Way.");
-    if (Number(minBudget) < 0) throw new Error("Min budget cannot be negative.");
-    if (maxBudget !== "" && Number(maxBudget) < 0) throw new Error("Max budget cannot be negative.");
-    if (Number(minBudget) !== 0 && Number(maxBudget) !== 0 && Number(minBudget) > Number(maxBudget)) {
-      throw new Error("Min budget cannot exceed max budget.");
-    }
-    if (adults + children + infants <= 0) throw new Error("Please select at least 1 passenger.");
-  }
+    "British Airways": ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.britishairways.com/travel/home/public/en_us/` +
+      `?from=${from}&to=${to}` +
+      (dateOut ? `&depDate=${dateOut}` : "") +
+      (dateRet ? `&retDate=${dateRet}` : "") +
+      `&ad=${Math.max(1, adults || 1)}` +
+      (children ? `&ch=${children}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
 
-  // ---------- submit ----------
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setHotelWarning(null);
-    try {
-      validate();
-    } catch (err: any) {
-      setError(err?.message || "Please check your inputs.");
-      return;
-    }
+    "Air France": ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://wwws.airfrance.us/en/search/` +
+      `?origin=${from}&destination=${to}` +
+      (dateOut ? `&outboundDate=${dateOut}` : "") +
+      (dateRet ? `&inboundDate=${dateRet}` : "") +
+      `&adults=${Math.max(1, adults || 1)}` +
+      (children ? `&children=${children}` : "") +
+      (cabin ? `&cabinClass=${encodeURIComponent(cabin)}` : ""),
 
-    setLoading(true);
-    setResults(null);
+    KLM: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.klm.us/search` +
+      `?origin=${from}&destination=${to}` +
+      (dateOut ? `&outboundDate=${dateOut}` : "") +
+      (dateRet ? `&inboundDate=${dateRet}` : "") +
+      `&adults=${Math.max(1, adults || 1)}` +
+      (children ? `&children=${children}` : "") +
+      (cabin ? `&cabinClass=${encodeURIComponent(cabin)}` : ""),
+  };
 
-    const payload = {
-      origin: originCode,
-      destination: destCode,
-      roundTrip,
-      departDate,
-      returnDate: roundTrip ? returnDate : "",
-      passengers: adults + children + infants,
-      passengersAdults: adults,
-      passengersChildren: children,
-      passengersInfants: infants,
-      childrenAges,
-      cabin,
-      refundable,
-      greener,
-      currency,
-      minBudget: minBudget !== "" ? Number(minBudget) : undefined,
-      maxBudget: maxBudget !== "" ? Number(maxBudget) : undefined,
-      maxStops,
-      includeHotel,
-      hotelCheckIn: includeHotel ? hotelCheckIn : "",
-      hotelCheckOut: includeHotel ? hotelCheckOut : "",
-      minHotelStar,
-      sort,
-      sortBasis,
+  function buildAirlineDeepLink() {
+    const carrier = airline;
+    const params = {
+      from: (outSegs?.[0]?.from || pkg.origin || "").toUpperCase(),
+      to: (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase(),
+      dateOut,
+      dateRet,
+      adults,
+      children,
+      infants,
+      cabin: (pkg.cabin || pkg.cabinClass || "ECONOMY").toString(),
     };
-
-    try {
-      const res = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`Search failed (${res.status})`);
-      const json = await res.json();
-      if (!Array.isArray(json?.results)) throw new Error("Unexpected response.");
-      // preserve the user selections on each result for link deep-fills
-      const withCtx = json.results.map((r: any) => ({ ...r, ...payload }));
-      setResults(withCtx);
-      setSearchKey((k) => k + 1);
-      if (includeHotel && (!hotelCheckIn || !hotelCheckOut)) {
-        setHotelWarning("Hotel is selected but check-in/out dates are not set. Booking sites will ask for dates.");
-      }
-    } catch (err: any) {
-      setError(err?.message || "Search failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    const f = AIRLINE_DEEPLINKS[carrier];
+    if (typeof f === "function") return f(params);
+    return AIRLINE_SITE[carrier] || `https://www.google.com/search?q=${encodeURIComponent(carrier + " booking")}`;
   }
 
-  // ---------- helpers ----------
-  const chip: React.CSSProperties = {
-    padding: "8px 10px",
-    borderRadius: 12,
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    fontWeight: 900,
-    fontSize: 14,
-  };
-  const chipActive: React.CSSProperties = {
-    borderColor: "#0ea5e9",
-    boxShadow: "0 0 0 2px rgba(14,165,233,.15) inset",
-  };
-  const primaryBtn: React.CSSProperties = {
-    height: 46,
-    padding: "0 18px",
-    border: "none",
-    fontWeight: 900,
-    color: "#fff",
-    background: "linear-gradient(90deg,#06b6d4,#0ea5e9)",
-    borderRadius: 12,
-    boxShadow: "0 8px 24px rgba(2,6,23,.25)",
-    lineHeight: 1,
-    whiteSpace: "nowrap",
-    cursor: "pointer",
-  };
-  const secondaryBtn: React.CSSProperties = {
-    height: 46,
-    padding: "0 16px",
-    fontWeight: 800,
-    background: "#fff",
-    border: "2px solid #7dd3fc",
-    color: "#0369a1",
-    borderRadius: 12,
-    cursor: "pointer",
-    lineHeight: 1,
-    whiteSpace: "nowrap",
-  };
+  // ----- external links (flights) -----
+  const airlineSite = buildAirlineDeepLink();
 
-  const segBase: React.CSSProperties = {
-    height: 40,
-    padding: "0 12px",
-    borderRadius: 10,
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    fontWeight: 800,
-    cursor: "pointer",
-  };
-  const segStyle = (active: boolean): React.CSSProperties =>
-    active
-      ? { ...segBase, background: "linear-gradient(90deg,#06b6d4,#0ea5e9)", color: "#fff", border: "none" }
-      : segBase;
+  const googleFlights =
+    `https://www.google.com/travel/flights?q=` +
+    encodeURIComponent(
+      `${(outSegs?.[0]?.from || pkg.origin || "").toUpperCase()} to ${(outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase()} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${Math.max(1, adults + children + infants)} travelers`
+    );
 
-  // ---------- UI ----------
-  return (
-    <div className={compareMode ? 'compare-mode-on' : undefined} style={{ padding: 12, display: "grid", gap: 14 }}>
-      {/* HERO */}
-      <section>
-        <h1 style={{ margin: "0 0 6px", fontWeight: 900, fontSize: 32, letterSpacing: "-0.02em" }}>
-          Find your Top-3 travel picks
-        </h1>
-        <p style={{ margin: 0, opacity: 0.75 }}>
-          Smarter results, fewer tabs. Book with your preferred sites pre-filled.
-        </p>
-      </section>
+  const skyScanner =
+    fromIata && toIata && ssOut
+      ? `https://www.skyscanner.com/transport/flights/${fromIata}/${toIata}/${ssOut}${ssRet ? `/${ssRet}` : ""}/?adults=${Math.max(
+          1,
+          adults
+        )}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
+      : "https://www.skyscanner.com/";
 
-      {/* FORM */}
-      <form onSubmit={onSubmit} style={s.panel}>
-        {/* Row 1: From/To + dates */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 10 }}>
-          <div>
-            <label style={s.label}>From</label>
-            <AirportInput
-              id="from"
-              code={originCode}
-              initialDisplay={originDisplay}
-              onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }}
-            />
-          </div>
-          <div>
-            <label style={s.label}>To</label>
-            <AirportInput
-              id="to"
-              code={destCode}
-              initialDisplay={destDisplay}
-              onChangeCode={(code, display) => { setDestCode(code); setDestDisplay(display); }}
-            />
-          </div>
+  // ----- hotel deeplinks (prefill search & image click target) -----
+  const hotelCheckIn: string = pkg.hotelCheckIn || "";
+  const hotelCheckOut: string = pkg.hotelCheckOut || "";
+  const currency: string = pkg.currency || "USD";
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <button type="button" title="Swap" onClick={swapOriginDest} style={s.swapBtn}>⇆</button>
-            <div style={{ minWidth: 170 }}>
-              <label style={s.label}>Depart</label>
-              <input
-                type="date"
-                style={s.input}
-                value={departDate}
-                onChange={(e) => setDepartDate(e.target.value)}
-                min={todayLocal}
-                max={roundTrip && returnDate ? returnDate : undefined}
-              />
-            </div>
-            <div style={{ minWidth: 170 }}>
-              <label style={s.label}>
-                Return
-                <span style={{ opacity: 0.6, marginLeft: 6 }}>(or switch to one-way)</span>
-              </label>
-              <input
-                type="date"
-                style={{ ...s.input, opacity: roundTrip ? 1 : 0.5 }}
-                value={roundTrip ? returnDate : ""}
-                onChange={(e) => setReturnDate(e.target.value)}
-                min={departDate || todayLocal}
-                disabled={!roundTrip}
-              />
-            </div>
-            <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <button type="button" style={segStyle(roundTrip)} onClick={() => setRoundTrip(true)}>Round trip</button>
-              <button type="button" style={segStyle(!roundTrip)} onClick={() => setRoundTrip(false)}>One way</button>
-            </div>
-          </div>
-        </div>
+  function hotelLinks(h: any, cityFallback: string) {
+    const city = h.city || cityFallback || "";
+    const destName = h.name ? `${h.name}, ${city}` : city;
+    const adultsCount = Math.max(1, adults);
+    const childrenCount = Math.max(0, children);
+    const childAges = childrenAges.filter((n) => Number.isFinite(n)).map(String);
 
-        {/* Row 2: Pax + cabin + stops + flags */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 10 }}>
-          <div>
-            <label style={s.label}>Passengers</label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <NumberInput label="Adults" value={adults} onChange={(n) => setAdults(clamp(n, 0, 9))} />
-              <NumberInput label="Children" value={children} onChange={(n) => setChildren(clamp(n, 0, 8))} />
-              <NumberInput label="Infants" value={infants} onChange={(n) => setInfants(clamp(n, 0, 4))} />
-            </div>
+    // Booking.com (prefilled)
+    const b = new URL("https://www.booking.com/searchresults.html");
+    if (destName) b.searchParams.set("ss", destName);
+    if (hotelCheckIn) b.searchParams.set("checkin", hotelCheckIn);
+    if (hotelCheckOut) b.searchParams.set("checkout", hotelCheckOut);
+    b.searchParams.set("group_adults", String(adultsCount));
+    b.searchParams.set("group_children", String(childrenCount));
+    childAges.forEach((age) => b.searchParams.append("age", age));
+    b.searchParams.set("no_rooms", "1");
+    b.searchParams.set("selected_currency", currency);
 
-            {children > 0 && (
-              <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {childrenAges.map((age, i) => (
-                  <NumberInput key={i} label={`Child ${i + 1} age`} value={age} onChange={(n) => {
-                    setChildrenAges((prev) => {
-                      const next = prev.slice();
-                      next[i] = clamp(n, 0, 17);
-                      return next;
-                    });
-                  }} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label style={s.label}>Class</label>
-            <select value={cabin} onChange={(e) => setCabin(e.target.value as Cabin)} style={s.select}>
-              <option value="ECONOMY">Economy</option>
-              <option value="PREMIUM_ECONOMY">Premium Economy</option>
-              <option value="BUSINESS">Business</option>
-              <option value="FIRST">First</option>
-            </select>
-
-            <div style={{ marginTop: 8 }}>
-              <label style={s.label}>Max stops</label>
-              <select value={maxStops} onChange={(e) => setMaxStops(parseIntSafe(e.target.value, 2))} style={s.select}>
-                <option value={0}>Nonstop only</option>
-                <option value={1}>Up to 1 stop</option>
-                <option value={2}>Up to 2 stops</option>
-              </select>
-            </div>
-
-            <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <input type="checkbox" checked={refundable} onChange={(e) => setRefundable(e.target.checked)} />
-                Refundable
-              </label>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <input type="checkbox" checked={greener} onChange={(e) => setGreener(e.target.checked)} />
-                Greener first
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <label style={s.label}>Budget & currency</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                type="number"
-                placeholder="Min"
-                style={s.input}
-                value={minBudget}
-                onChange={(e) => setMinBudget(e.target.value)}
-                min={0}
-              />
-              <input
-                type="number"
-                placeholder="Max"
-                style={s.input}
-                value={maxBudget}
-                onChange={(e) => setMaxBudget(e.target.value)}
-                min={0}
-              />
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={s.select}>
-                <option>USD</option><option>EUR</option><option>GBP</option><option>CAD</option><option>AUD</option><option>INR</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Row 3: Hotels */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <input
-                type="checkbox"
-                checked={includeHotel}
-                onChange={(e) => setIncludeHotel(e.target.checked)}
-              />
-              Include hotel
-            </label>
-          </div>
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ minWidth: 170 }}>
-              <label style={s.label}>Check-in</label>
-              <input
-                type="date"
-                style={s.input}
-                value={hotelCheckIn}
-                onChange={(e) => setHotelCheckIn(e.target.value)}
-                placeholder="mm/dd/yyyy"
-                disabled={!includeHotel}
-              />
-            </div>
-            <div style={{ minWidth: 170 }}>
-              <label style={s.label}>Check-out</label>
-              <input
-                type="date"
-                style={s.input}
-                value={hotelCheckOut}
-                onChange={(e) => setHotelCheckOut(e.target.value)}
-                placeholder="mm/dd/yyyy"
-                disabled={!includeHotel}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={s.label}>Min hotel stars</label>
-            <select
-              value={minHotelStar}
-              onChange={(e) => setMinHotelStar(parseIntSafe(e.target.value, 0))}
-              style={s.select}
-              disabled={!includeHotel}
-            >
-              <option value={0}>Any</option>
-              <option value={3}>3★+</option>
-              <option value={4}>4★+</option>
-              <option value={5}>5★</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Row 4: Sort basis */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ fontWeight: 800 }}>Price basis:</span>
-          <div style={{ display: "inline-flex", gap: 6 }}>
-            <button type="button" style={segStyle(sortBasis === "flightOnly")} onClick={() => setSortBasis("flightOnly")}>Flight only</button>
-            <button type="button" style={segStyle(sortBasis === "bundle")} onClick={() => setSortBasis("bundle")}>Bundle total</button>
-          </div>
-        </div>
-
-        {/* Submit row */}
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button type="submit" style={primaryBtn}>{loading ? "Searching…" : "Search"}</button>
-          <button type="button" style={{ ...secondaryBtn, marginLeft: 10 }} onClick={() => window.location.reload()}>
-            Reset
-          </button>
-        </div>
-      </form>
-
-      {/* TOOLBAR */}
-      <div style={s.toolbar}>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }} role="tablist" aria-label="Sort">
-          {(["best", "cheapest", "fastest", "flexible"] as const).map((k) => (
-            <button key={k} role="tab" aria-selected={sort === k}
-              style={{ ...chip, ...(sort === k ? chipActive : {}) }}
-              onClick={() => setSort(k)}
-            >
-              {k[0].toUpperCase() + k.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <button className="btn ghost" type="button" onClick={() => setCompareMode((v) => !v)}>
-            {compareMode ? "Exit Compare" : "Compare"}
-          </button>
-          <button className="btn ghost" type="button" onClick={() => setShowAll((v) => !v)}>
-            {showAll ? "Show Top-3" : "Show All"}
-          </button>
-          <span style={{ opacity: 0.6 }}>
-            Saved: <strong>{savedCount}</strong>
-          </span>
-        </div>
-      </div>
-
-      {hotelWarning && (
-        <div className="compare-hint" style={{ maxWidth: 760 }}>
-          {hotelWarning}
-        </div>
-      )}
-
-      {/* RESULTS */}
-      <section style={{ display: "grid", gap: 12 }}>
-        {error && (
-          <div role="alert" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: 12 }}>
-            {String(error)}
-          </div>
-        )}
-
-        {!loading && !error && (!results || results.length === 0) && (
-          <div style={{ opacity: 0.7 }}>No results yet — try a search.</div>
-        )}
-
-        {loading && <div>Loading…</div>}
-
-        {Array.isArray(results) && results.length > 0 && (
-          <>
-            {results
-              .slice(0, showAll ? results.length : 3)
-              .map((pkg, i) => (
-                <ResultCard
-                  key={pkg.id || i}
-                  pkg={pkg}
-                  index={i}
-                  currency={currency}
-                  pax={adults + children + infants}
-                  comparedIds={compareMode ? comparedIds : undefined}
-                  onToggleCompare={compareMode ? toggleCompare : undefined}
-                  onSavedChangeGlobal={(count) => setSavedCount(count)}
-                  showHotel={includeHotel ? true : undefined}
-                />
-              ))}
-          </>
-        )}
-      </section>
-    </div>
-  );
-
-  // ---------- compare helpers ----------
-  function toggleCompare(id: string) {
-    setComparedIds((prev) => {
-      const has = prev.includes(id);
-      if (has) return prev.filter((x) => x !== id);
-      return [...prev, id];
-    });
-  }
-}
-
-// ---------- small components ----------
-function NumberInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
-  return (
-    <label style={{ display: "grid", gap: 4 }}>
-      <span style={{ fontSize: 12, fontWeight: 800, opacity: 0.7 }}>{label}</span>
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(parseIntSafe(e.target.value, value))}
-        style={s.input}
-      />
-    </label>
-  );
-}
-
-function AirportInput({
-  id,
-  code,
-  initialDisplay,
-  onChangeCode,
-}: {
-  id: string;
-  code: string;
-  initialDisplay: string;
-  onChangeCode: (code: string, display: string) => void;
-}) {
-  const [q, setQ] = useState(initialDisplay || "");
-  const [suggest, setSuggest] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function searchAirports(term: string) {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/airports?query=${encodeURIComponent(term)}`);
-      const js = await res.json();
-      setSuggest(Array.isArray(js?.airports) ? js.airports : []);
-    } catch {
-      setSuggest([]);
-    } finally {
-      setLoading(false);
+    // Expedia (prefilled)
+    const e = new URL("https://www.expedia.com/Hotel-Search");
+    if (destName) e.searchParams.set("destination", destName);
+    if (hotelCheckIn) e.searchParams.set("checkIn", hotelCheckIn);
+    if (hotelCheckOut) e.searchParams.set("checkOut", hotelCheckOut);
+    e.searchParams.set("adults", String(adultsCount));
+    if (childrenCount > 0) {
+      e.searchParams.set("children", String(childrenCount));
+      if (childAges.length) e.searchParams.set("childAges", childAges.join(","));
     }
+    e.searchParams.set("currency", currency);
+
+    // Hotels.com (prefilled)
+    const hcx = new URL("https://www.hotels.com/Hotel-Search");
+    if (destName) hcx.searchParams.set("destination", destName);
+    if (hotelCheckIn) hcx.searchParams.set("checkIn", hotelCheckIn);
+    if (hotelCheckOut) hcx.searchParams.set("checkOut", hotelCheckOut);
+    hcx.searchParams.set("adults", String(adultsCount));
+    if (childrenCount > 0) {
+      hcx.searchParams.set("children", String(childrenCount));
+      if (childAges.length) hcx.searchParams.set("childAges", childAges.join(","));
+    }
+    hcx.searchParams.set("currency", currency);
+
+    // Primary link (image click target)
+    const primary =
+      (typeof h.url === "string" && h.url) ||
+      (typeof h.website == "string" && h.website) ||
+      (typeof h.officialUrl === "string" && h.officialUrl) ||
+      b.toString();
+
+    // Map link (precise if lat/lng)
+    const maps =
+      typeof h.lat === "number" && typeof h.lng === "number"
+        ? `https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}`
+        : destName
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destName)}`
+        : undefined;
+
+    return { booking: b.toString(), expedia: e.toString(), hotels: hcx.toString(), maps, primary };
   }
 
-  useEffect(() => {
-    if (q && q.length >= 2) {
-      const t = setTimeout(() => searchAirports(q), 200);
-      return () => clearTimeout(t);
-    } else {
-      setSuggest([]);
-    }
-  }, [q]);
+  /** Inline SVG fallback for hotel/image thumb */
+  const blankImg = `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 200'>
+      <defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
+      <stop offset='0%' stop-color='#e2e8f0'/><stop offset='100%' stop-color='#cbd5e1'/></linearGradient></defs>
+      <rect width='100%' height='100%' fill='url(#g)'/>
+      <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#475569' font-family='system-ui, sans-serif' font-size='16'>No image</text>
+    </svg>`
+  )}`;
 
-  useEffect(() => {
-    setQ(initialDisplay || code || "");
-  }, [initialDisplay, code]);
+  /** City-specific fallback images (hotel/building only) */
+  function cityHotelFallbacks(city: string, name: string, i: number) {
+    const qCity = encodeURIComponent(city || "city");
+    // Prioritize queries that bias to buildings/hotels, not random nature/coffee
+    const unsplash = `https://source.unsplash.com/featured/320x200/?hotel%20building,hotel,building,architecture,${qCity}`;
+    const picsum = `https://picsum.photos/seed/${encodeURIComponent(`${city}-${name}-${i}-hotel-building`)}/320/200`;
+    const flickr = `https://loremflickr.com/320/200/hotel,building,architecture,${qCity}?lock=${i}`;
+    return { unsplash, picsum, flickr };
+  }
 
-  return (
-    <div style={{ position: "relative" }}>
-      <label style={s.label} htmlFor={`ap-${id}`}>Airport or city</label>
-      <input
-        id={`ap-${id}`}
-        style={s.input}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder="City or Airport (e.g., AUS / Austin)"
-        autoComplete="off"
-      />
-      {open && suggest.length > 0 && (
-        <div style={s.suggest}>
-          {suggest.map((a) => {
-            const display = `${a.city}, ${a.country} (${a.iata})`;
-            return (
-              <button
-                type="button"
-                key={a.iata}
-                onClick={() => { onChangeCode(a.iata, display); setQ(display); setOpen(false); }}
-                style={s.suggestItem}
-              >
-                <div style={{ fontWeight: 900 }}>{a.city} ({a.iata})</div>
-                <div style={{ opacity: 0.7, fontSize: 12 }}>{a.country} — {a.name}</div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {loading && <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Searching…</div>}
-    </div>
-  );
-}
+  function chooseHotelImg(h: any, i: number) {
+    const city = h.city || pkg.destination || "city";
+    const name = h.name || "hotel";
+    const fromData =
+      (typeof h.imageUrl === "string" && /^https?:\/\//.test(h.imageUrl) && h.imageUrl) ||
+      (typeof h.photoUrl === "string" && /^https?:\/\//.test(h.photoUrl) && h.photoUrl) ||
+      "";
+    const fb = cityHotelFallbacks(city, name, i);
+    return { first: fromData || fb.unsplash, fallbacks: fb };
+  }
 
-// ---------- styles ----------
-const s = {
-  panel: {
+  // ----- compare state -----
+  const isCompared = Array.isArray(comparedIds) ? comparedIds.includes(id) : false;
+
+  // A visual style that reacts to compare-state (no redeclare)
+  const cardStyle: React.CSSProperties = {
     background: "#fff",
-    border: "1px solid #e5e7eb",
+    border: isCompared ? "2px solid #0ea5e9" : "1px solid #e5e7eb",
     borderRadius: 16,
-    boxShadow: "0 6px 18px rgba(2,6,23,.06)",
     padding: 14,
     display: "grid",
     gap: 12,
-  } as React.CSSProperties,
-  label: {
-    display: "inline-block",
-    fontSize: 12,
-    fontWeight: 800,
-    opacity: 0.7,
-    marginBottom: 4,
-  } as React.CSSProperties,
-  input: {
-    width: "100%",
-    height: 40,
-    borderRadius: 10,
-    border: "1px solid #cbd5e1",
-    padding: "0 10px",
-    fontWeight: 800,
-  } as React.CSSProperties,
-  select: {
-    width: "100%",
-    height: 40,
-    borderRadius: 10,
-    border: "1px solid #cbd5e1",
-    padding: "0 10px",
-    fontWeight: 800,
-  } as React.CSSProperties,
-  swapBtn: {
-    height: 40,
-    width: 40,
-    borderRadius: 10,
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    fontWeight: 900,
-    cursor: "pointer",
-  } as React.CSSProperties,
-  suggest: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: "100%",
-    marginTop: 6,
-    background: "#fff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
-    boxShadow: "0 12px 28px rgba(2,6,23,.14)",
-    zIndex: 30,
-    display: "grid",
-    gap: 4,
-    padding: 6,
-    maxHeight: 300,
-    overflow: "auto",
-  } as React.CSSProperties,
-  suggestItem: {
-    display: "grid",
-    gap: 2,
-    textAlign: "left",
-    background: "#fff",
-    borderRadius: 10,
-    border: "1px solid #e2e8f0",
-    padding: 10,
-    cursor: "pointer",
-  } as React.CSSProperties,
-  toolbar: {
-    display: "flex",
-    justifyContent: "space-between",
-    background: "#fff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 16,
-    padding: 12,
-    alignItems: "center",
-  } as React.CSSProperties,
+    fontSize: large ? 16 : 14,
+    boxShadow: isCompared ? "0 0 0 4px rgba(14,165,233,.15) inset" : "0 6px 18px rgba(2,6,23,.06)",
+    cursor: onToggleCompare ? "pointer" : "default",
+  };
+
+  return (
+    <article
+      data-offer-id={id}
+      onClick={(e) => {
+        if (onToggleCompare) {
+          const target = e.target as HTMLElement;
+          const isInteractive = target.closest(
+            'a,button,input,select,textarea,[role="button"],[role="tab"],[role="link"]'
+          );
+          if (!isInteractive) onToggleCompare(id);
+        }
+      }}
+      style={cardStyle}
+    >
+      {/* Header */}
+      <header style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <strong style={{ fontSize: 18 }}>{airline}</strong>
+          <span style={{ opacity: 0.6 }}>•</span>
+          <span style={{ fontWeight: 800 }}>{stops === 0 ? "Nonstop" : `${stops} stop(s)`}</span>
+          {pkg.flight?.refundable && (
+            <span style={{ marginLeft: 6, fontSize: 12, padding: "2px 6px", borderRadius: 8, background: "#ecfeff", color: "#0e7490", fontWeight: 800 }}>
+              Refundable
+            </span>
+          )}
+        </div>
+        <div style={{ fontWeight: 900, fontSize: 18 }}>
+          {formatMoney(price, currency)}
+        </div>
+      </header>
+
+      {/* Links row */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <a href={airlineSite} target="_blank" rel="noreferrer" style={chipBtn}>Airline site</a>
+        <a href={googleFlights} target="_blank" rel="noreferrer" style={chipBtn}>Google Flights</a>
+        <a href={skyScanner} target="_blank" rel="noreferrer" style={chipBtn}>Skyscanner</a>
+      </div>
+
+      {/* Hotel suggestions (if any) */}
+      {(showHotel ?? !!(pkg.hotels || pkg.hotel)) && Array.isArray(pkg.hotels) && pkg.hotels.length > 0 && (
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ fontWeight: 900, opacity: 0.8 }}>Hotels</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+            {pkg.hotels.slice(0, 3).map((h: any, i: number) => {
+              const img = chooseHotelImg(h, i);
+              const links = hotelLinks(h, pkg.destination || "");
+              return (
+                <article key={h.id || i} style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+                  <a href={links.primary} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={img.first}
+                      alt={h.name || "Hotel"}
+                      style={{ width: "100%", height: 160, objectFit: "cover", background: "#f1f5f9" }}
+                      onError={(e) => {
+                        const asImg = e.currentTarget as HTMLImageElement;
+                        asImg.onerror = null;
+                        asImg.src = blankImg;
+                      }}
+                    />
+                  </a>
+                  <div style={{ padding: 10, display: "grid", gap: 8 }}>
+                    <div style={{ fontWeight: 900 }}>{h.name || "Hotel"}</div>
+                    <div style={{ opacity: 0.7, fontSize: 13 }}>{h.city || pkg.destination}</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <a href={links.booking} target="_blank" rel="noreferrer noopener" style={chipBtn}>Booking.com</a>
+                      <a href={links.expedia} target="_blank" rel="noreferrer noopener" style={chipBtn}>Expedia</a>
+                      <a href={links.hotels} target="_blank" rel="noreferrer noopener" style={chipBtn}>Hotels.com</a>
+                      {links.maps && (
+                        <a href={links.maps} target="_blank" rel="noreferrer noopener" style={chipBtn}>Map</a>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function formatMoney(n: number, c: string) {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: c }).format(n);
+  } catch {
+    return `$${(n || 0).toFixed(0)}`;
+  }
+}
+
+const chipBtn: React.CSSProperties = {
+  padding: "8px 10px",
+  borderRadius: 12,
+  border: "1px solid #e2e8f0",
+  background: "#fff",
+  fontWeight: 900,
+  fontSize: 14,
+  textDecoration: "none",
+  display: "inline-block",
 };
