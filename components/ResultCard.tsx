@@ -14,6 +14,7 @@ const AIRLINE_SITE: Record<string, string> = {
   "Alaska Airlines": "https://www.alaskaair.com",
   Southwest: "https://www.southwest.com",
   JetBlue: "https://www.jetblue.com",
+  "JetBlue Airways": "https://www.jetblue.com",
   Lufthansa: "https://www.lufthansa.com",
   AirCanada: "https://www.aircanada.com",
   "Air Canada": "https://www.aircanada.com",
@@ -62,12 +63,11 @@ export default function ResultCard({
       : Math.max(0, (outSegs.length || 1) - 1);
 
   // ----- hotel context (for deeplinks) -----
-  const hotelCheckIn =
-    pkg.hotelCheckIn || (outSegs?.[0]?.depart_time || "").slice(0, 10) || "";
-  const hotelCheckOut =
-    pkg.hotelCheckOut || (inSegs?.[0]?.arrive_time || "").slice(0, 10) || "";
+  const hotelCheckIn = pkg.hotelCheckIn || "";
+  const hotelCheckOut = pkg.hotelCheckOut || "";
   const adults = Number(pkg.passengersAdults) || Number(pkg.passengers) || pax || 1;
   const children = Number(pkg.passengersChildren) || 0;
+  const infants = Number(pkg.passengersInfants) || 0;
   const childrenAges: number[] = Array.isArray(pkg.passengersChildrenAges)
     ? pkg.passengersChildrenAges
     : [];
@@ -82,9 +82,10 @@ export default function ResultCard({
     `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}`;
 
   const googleFlights =
-    `https://www.google.com/travel/flights?q=Flights%20to%20${encodeURIComponent(route)}%20on%20${encodeURIComponent(
-      dateOut
-    )}` + (dateRet ? `%20return%20${encodeURIComponent(dateRet)}` : "");
+    `https://www.google.com/travel/flights?q=` +
+    encodeURIComponent(
+      `${(outSegs?.[0]?.from || pkg.origin || "").toUpperCase()} to ${(outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase()} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${Math.max(1, adults + children + infants)} travelers`
+    );
 
   // Skyscanner wants lowercase IATA + yyyymmdd
   const fromIata = (outSegs?.[0]?.from || pkg.origin || "").toLowerCase();
@@ -93,7 +94,7 @@ export default function ResultCard({
   const ssRet = (dateRet || "").replace(/-/g, "");
   const skyScanner =
     (fromIata && toIata && ssOut)
-      ? `https://www.skyscanner.com/transport/flights/${fromIata}/${toIata}/${ssOut}${ssRet ? `/${ssRet}` : ""}/?adults=${pax}`
+      ? `https://www.skyscanner.com/transport/flights/${fromIata}/${toIata}/${ssOut}${ssRet ? `/${ssRet}` : ""}/?adults=${Math.max(1, adults)}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
       : "https://www.skyscanner.com/";
 
   // ----- hotel deeplinks (prefill search & image click target) -----
@@ -210,23 +211,21 @@ export default function ResultCard({
     }
   }
 
-  const isCompared = comparedIds?.includes(id);
+  // ----- compare visuals & click-to-compare -----
+  const isCompared = Array.isArray(comparedIds) ? comparedIds.includes(id) : false;
 
-  // ----- Hotels (up to 3) -----
-  const inferredShowHotel =
-    showHotel ??
-    ((Array.isArray(pkg.hotels) && pkg.hotels.length > 0) ||
-      (pkg.hotel && !pkg.hotel.filteredOutByStar));
-
-  const hotelsArr: any[] = inferredShowHotel
-    ? (Array.isArray(pkg.hotels) && pkg.hotels.length
-        ? pkg.hotels
-        : (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : []))
-    : [];
-  const hotelsTop3 = hotelsArr.slice(0, 3);
-
-  // ---------- styles ----------
   const fs = large ? 15 : 14;
+  const cardStyle: React.CSSProperties = {
+    background: "#fff",
+    border: isCompared ? "2px solid #0ea5e9" : "1px solid #e5e7eb",
+    borderRadius: 16,
+    padding: 14,
+    display: "grid",
+    gap: 12,
+    fontSize: fs,
+    boxShadow: isCompared ? "0 0 0 4px rgba(14,165,233,.15) inset" : "0 6px 18px rgba(2,6,23,.06)",
+    cursor: onToggleCompare ? "pointer" : "default",
+  };
 
   const chipBtn: React.CSSProperties = {
     textDecoration: "none",
@@ -261,7 +260,6 @@ export default function ResultCard({
   /** City-specific fallback images (hotel/building only) */
   function cityHotelFallbacks(city: string, name: string, i: number) {
     const qCity = encodeURIComponent(city || "city");
-    // Prioritize queries that bias to buildings/hotels, not random nature/coffee
     const unsplash = `https://source.unsplash.com/featured/320x200/?hotel%20building,hotel,building,architecture,${qCity}`;
     const picsum = `https://picsum.photos/seed/${encodeURIComponent(`${city}-${name}-${i}-hotel-building`)}/320/200`;
     const flickr = `https://loremflickr.com/320/200/hotel,building,architecture,${qCity}?lock=${i}`;
@@ -270,7 +268,7 @@ export default function ResultCard({
 
   function chooseHotelImg(h: any, i: number) {
     const city = h.city || pkg.destination || "city";
-    const name = h.name || "hotel";
+       const name = h.name || "hotel";
     const fromData =
       (typeof h.imageUrl === "string" && /^https?:\/\//.test(h.imageUrl) && h.imageUrl) ||
       (typeof h.photoUrl === "string" && /^https?:\/\//.test(h.photoUrl) && h.photoUrl) ||
@@ -282,16 +280,14 @@ export default function ResultCard({
   return (
     <article
       data-offer-id={id}
-      style={{
-        background: "#fff",
-        border: "1px solid #e5e7eb",
-        borderRadius: 16,
-        padding: 14,
-        display: "grid",
-        gap: 12,
-        fontSize: fs,
-        boxShadow: "0 6px 18px rgba(2,6,23,.06)",
+      onClick={(e) => {
+        if (!onToggleCompare) return;
+        const target = e.target as HTMLElement;
+        const isInteractive = target.closest('a,button,input,select,textarea,[role="button"],[role="tab"],[role="link"]');
+        if (!isInteractive) onToggleCompare(id);
       }}
+      style={cardStyle}
+      aria-pressed={isCompared}
     >
       {/* Header */}
       <header style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
@@ -309,11 +305,18 @@ export default function ResultCard({
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {onToggleCompare && (
             <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 900, color: "#334155" }}>
-              <input type="checkbox" checked={!!isCompared} onChange={() => onToggleCompare(id)} />
+              <input
+                type="checkbox"
+                checked={!!isCompared}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onToggleCompare?.(id);
+                }}
+              />
               Compare
             </label>
           )}
-          <button onClick={requireLoginThenSave} disabled={saving} style={chipBtn}>
+          <button onClick={(e) => { e.stopPropagation(); requireLoginThenSave(); }} disabled={saving} style={chipBtn}>
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
@@ -324,7 +327,7 @@ export default function ResultCard({
         {Math.round(Number(price)).toLocaleString()} {pkg.currency || currency}
       </div>
 
-      {/* GRID: left = flight details, right = Book Flight (perfect top+bottom alignment) */}
+      {/* GRID: left = flight details, right = Book Flight */}
       <section
         style={{
           display: "grid",
@@ -333,7 +336,7 @@ export default function ResultCard({
           alignItems: "stretch",
         }}
       >
-        {/* LEFT: FLIGHT column (this defines the row height) */}
+        {/* LEFT: FLIGHT column */}
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ fontWeight: 900, color: "#0f172a" }}>Flight</div>
 
@@ -392,7 +395,7 @@ export default function ResultCard({
           )}
         </div>
 
-        {/* RIGHT: Book Flight card, same row height, compact interior spacing */}
+        {/* RIGHT: Book Flight card */}
         <div style={{ alignSelf: "stretch" }}>
           <div
             style={{
@@ -402,24 +405,21 @@ export default function ResultCard({
               padding: 10,
               display: "flex",
               flexDirection: "column",
-              gap: 8,                // tighter spacing
+              gap: 8,
               justifyContent: "flex-start",
               background: "#fff",
               boxSizing: "border-box",
             }}
           >
             <div style={{ fontWeight: 900, color: "#0f172a" }}>Book Flight</div>
-            <button onClick={bookViaTrioTrip} style={{ ...buyBtn, height: 34, padding: "0 12px" }}>
+            <button onClick={(e) => { e.stopPropagation(); bookViaTrioTrip(); }} style={{ ...buyBtn, height: 34, padding: "0 12px" }}>
               Book via TrioTrip
             </button>
-            <a href={airlineSite} target="_blank" rel="noreferrer" style={chipBtn}>Airline site</a>
-            <a href={googleFlights} target="_blank" rel="noreferrer" style={chipBtn}>Google Flights</a>
-            <a href={skyScanner} target="_blank" rel="noreferrer" style={chipBtn}>Skyscanner</a>
+            <a href={airlineSite} target="_blank" rel="noreferrer" style={chipBtn} onClick={(e) => e.stopPropagation()}>Airline site</a>
+            <a href={googleFlights} target="_blank" rel="noreferrer" style={chipBtn} onClick={(e) => e.stopPropagation()}>Google Flights</a>
+            <a href={skyScanner} target="_blank" rel="noreferrer" style={chipBtn} onClick={(e) => e.stopPropagation()}>Skyscanner</a>
 
-            {/* small flexible spacer to avoid looking crammed while not creating a huge blank area */}
             <div style={{ flex: 1 }} />
-
-            {/* optional tiny footer to visually “close” the card, reducing the sense of empty space */}
             <div style={{ fontSize: 11, color: "#64748b", textAlign: "center" }}>
               Prices and availability may change.
             </div>
@@ -427,8 +427,8 @@ export default function ResultCard({
         </div>
       </section>
 
-      {/* FULL-WIDTH HOTELS BELOW (city-specific fallback images; image click -> hotel site or prefilled booking) */}
-      {inferredShowHotel && hotelsTop3.length > 0 && (
+      {/* HOTELS */}
+      {(showHotel ?? ((Array.isArray(pkg.hotels) && pkg.hotels.length > 0) || (pkg.hotel && !pkg.hotel.filteredOutByStar))) && (
         <div
           style={{
             border: "2px solid #e2e8f0",
@@ -441,73 +441,75 @@ export default function ResultCard({
         >
           <div style={{ fontWeight: 900, color: "#0f172a" }}>Hotels (top options)</div>
 
-          {hotelsTop3.map((h: any, i: number) => {
-            const city = h.city || pkg.destination || "";
-            const links = hotelLinks(h, city);
-            const { first, fallbacks } = chooseHotelImg(h, i);
+          {(Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels : (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : []))
+            .slice(0, 3)
+            .map((h: any, i: number) => {
+              const city = h.city || pkg.destination || "";
+              const links = hotelLinks(h, city);
+              const { first, fallbacks } = chooseHotelImg(h, i);
 
-            return (
-              <div
-                key={`h${i}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "160px 1fr",
-                  gap: 12,
-                  alignItems: "center",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 12,
-                  padding: 10,
-                  background: "#fff"
-                }}
-              >
-                <a
-                  href={links.primary}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  title={`Open ${h.name || "hotel"}`}
+              return (
+                <div
+                  key={`h${i}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "160px 1fr",
+                    gap: 12,
+                    alignItems: "center",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 12,
+                    padding: 10,
+                    background: "#fff"
+                  }}
                 >
-                  <img
-                    src={first}
-                    alt={h.name || "Hotel photo"}
-                    width={160}
-                    height={120}
-                    style={{ width: 160, height: 120, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }}
-                    loading={i === 0 ? "eager" : "lazy"}
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      const el = e.currentTarget as HTMLImageElement;
-                      // cascade through city/building fallbacks only (no random objects)
-                      if (!el.dataset.step) { el.dataset.step = "1"; el.src = fallbacks.unsplash; return; }
-                      if (el.dataset.step === "1") { el.dataset.step = "2"; el.src = fallbacks.picsum; return; }
-                      if (el.dataset.step === "2") { el.dataset.step = "3"; el.src = fallbacks.flickr; return; }
-                      if (el.src !== svgPlaceholder) el.src = svgPlaceholder;
-                    }}
-                  />
-                </a>
+                  <a
+                    href={links.primary}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    title={`Open ${h.name || "hotel"}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <img
+                      src={first}
+                      alt={h.name || "Hotel photo"}
+                      width={160}
+                      height={120}
+                      style={{ width: 160, height: 120, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }}
+                      loading={i === 0 ? "eager" : "lazy"}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const el = e.currentTarget as HTMLImageElement;
+                        if (!el.dataset.step) { el.dataset.step = "1"; el.src = fallbacks.unsplash; return; }
+                        if (el.dataset.step === "1") { el.dataset.step = "2"; el.src = fallbacks.picsum; return; }
+                        if (el.dataset.step === "2") { el.dataset.step = "3"; el.src = fallbacks.flickr; return; }
+                        if (el.src !== svgPlaceholder) el.src = svgPlaceholder;
+                      }}
+                    />
+                  </a>
 
-                <div style={{ display: "grid", gap: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                    <div style={{ fontWeight: 900 }}>
-                      {h.name} {typeof h.star === "number" ? `(${h.star}★)` : ""}
-                      {city ? <span style={{ marginLeft: 6, color: "#64748b", fontWeight: 700 }}>• {city}</span> : null}
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                      <div style={{ fontWeight: 900 }}>
+                        {h.name} {typeof h.star === "number" ? `(${h.star}★)` : ""}
+                        {city ? <span style={{ marginLeft: 6, color: "#64748b", fontWeight: 700 }}>• {city}</span> : null}
+                      </div>
+                      <div style={{ fontWeight: 900 }}>
+                        {Math.round(h.price_converted || 0).toLocaleString()} {h.currency || pkg.currency || currency}
+                      </div>
                     </div>
-                    <div style={{ fontWeight: 900 }}>
-                      {Math.round(h.price_converted || 0).toLocaleString()} {h.currency || pkg.currency || currency}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                      <a href={links.primary} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>Hotel website</a>
+                      <a href={links.booking} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>Booking.com</a>
+                      <a href={links.hotels} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>Hotels.com</a>
+                      <a href={links.expedia} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>Expedia</a>
+                      {links.maps && (
+                        <a href={links.maps} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>View on map</a>
+                      )}
                     </div>
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                    <a href={links.primary} target="_blank" rel="noreferrer noopener" style={chipBtn}>Hotel website</a>
-                    <a href={links.booking} target="_blank" rel="noreferrer noopener" style={chipBtn}>Booking.com</a>
-                    <a href={links.hotels} target="_blank" rel="noreferrer noopener" style={chipBtn}>Hotels.com</a>
-                    <a href={links.expedia} target="_blank" rel="noreferrer noopener" style={chipBtn}>Expedia</a>
-                    {links.maps && (
-                      <a href={links.maps} target="_blank" rel="noreferrer noopener" style={chipBtn}>View on map</a>
-                    )}
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       )}
     </article>

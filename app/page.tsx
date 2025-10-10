@@ -144,13 +144,16 @@ export default function Page() {
     });
   }, [children]);
 
+  // If one-way, clear return date
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
 
+  // ✅ Hotel: DO NOT auto-populate dates. Clear both when toggled OFF.
   useEffect(() => {
-    if (!includeHotel) return;
-    if (!hotelCheckIn && departDate) setHotelCheckIn(departDate);
-    if (!hotelCheckOut && roundTrip && returnDate) setHotelCheckOut(returnDate);
-  }, [includeHotel, departDate, returnDate, roundTrip, hotelCheckIn, hotelCheckOut]);
+    if (!includeHotel) {
+      setHotelCheckIn("");
+      setHotelCheckOut("");
+    }
+  }, [includeHotel]);
 
   function swapOriginDest() {
     setOriginCode((oc) => { const dc = destCode; setDestCode(oc); return dc; });
@@ -221,7 +224,9 @@ export default function Page() {
       if (!r.ok) throw new Error(j?.error || "Search failed");
 
       setHotelWarning(j?.hotelWarning || null);
-      setResults(Array.isArray(j.results) ? j.results : []);
+      // preserve selections on each result for deep-linking
+      const merged = (Array.isArray(j.results) ? j.results : []).map((res: any) => ({ ...res, ...payload }));
+      setResults(merged);
       setComparedIds([]);
     } catch (e: any) {
       setError(e?.message || "Search failed");
@@ -499,7 +504,7 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Children ages — compact inputs */}
+        {/* Children ages */}
         {children > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {Array.from({ length: children }).map((_, i) => (
@@ -607,11 +612,25 @@ export default function Page() {
           </div>
           <div>
             <label style={s.label}>Hotel check-in</label>
-            <input type="date" style={s.input} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} disabled={!includeHotel} min={departDate || todayLocal} />
+            <input
+              type="date"
+              style={s.input}
+              value={hotelCheckIn}
+              onChange={(e) => setHotelCheckIn(e.target.value)}
+              disabled={!includeHotel}
+              min={departDate || todayLocal}
+            />
           </div>
           <div>
             <label style={s.label}>Hotel check-out</label>
-            <input type="date" style={s.input} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)} disabled={!includeHotel} min={hotelCheckIn || departDate || todayLocal} />
+            <input
+              type="date"
+              style={s.input}
+              value={hotelCheckOut}
+              onChange={(e) => setHotelCheckOut(e.target.value)}
+              disabled={!includeHotel}
+              min={hotelCheckIn || departDate || todayLocal}
+            />
           </div>
           <div>
             <label style={s.label}>Min hotel stars</label>
@@ -737,21 +756,6 @@ export default function Page() {
                   <td key={p.id + "green"} style={ctd}>{p.flight?.greener ? "Yes" : "—"}</td>
                 ))}
               </tr>
-              {includeHotel && (
-                <tr>
-                  <td style={ctd}>Hotel</td>
-                  {comparedPkgs.map((p: any) => {
-                    const h = p.hotel && !p.hotel.filteredOutByStar ? p.hotel : null;
-                    return (
-                      <td key={p.id + "hotel"} style={ctd}>
-                        {h
-                          ? `${h.name} (${h.star}★) • ${Math.round(h.price_converted || 0).toLocaleString()} ${h.currency || p.currency || ""}`
-                          : "—"}
-                      </td>
-                    );
-                  })}
-                </tr>
-              )}
             </tbody>
           </table>
           <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -807,7 +811,7 @@ export default function Page() {
               onToggleCompare={compareMode ? toggleCompare : undefined}
               onSavedChangeGlobal={(count) => setSavedCount(count)}
               large
-              showHotel={includeHotel}   // <— hotel only when includeHotel is checked
+              showHotel={includeHotel}   // hotel only when includeHotel is checked
             />
           ))}
         </div>
