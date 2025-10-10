@@ -14,11 +14,12 @@ const AIRLINE_SITE: Record<string, string> = {
   "Alaska Airlines": "https://www.alaskaair.com",
   Southwest: "https://www.southwest.com",
   JetBlue: "https://www.jetblue.com",
-  Lufthansa: "https://www.lufthansa.com",
-  AirCanada: "https://www.aircanada.com",
+  "JetBlue Airways": "https://www.jetblue.com",
   "Air Canada": "https://www.aircanada.com",
-  British: "https://www.britishairways.com",
+  Lufthansa: "https://www.lufthansa.com",
   "British Airways": "https://www.britishairways.com",
+  "Air France": "https://wwws.airfrance.us",
+  KLM: "https://www.klm.us",
 };
 
 type Props = {
@@ -50,7 +51,7 @@ export default function ResultCard({
     pkg.total_cost ??
     pkg.flight_total ??
     pkg.total_cost_flight ??
-    pkg.flight?.price_usd_converted ??
+    pkg.flight?.price ??
     pkg.flight?.price_usd ??
     0;
 
@@ -61,43 +62,169 @@ export default function ResultCard({
       ? pkg.flight.stops
       : Math.max(0, (outSegs.length || 1) - 1);
 
-  // ----- hotel context (for deeplinks) -----
-  const hotelCheckIn =
-    pkg.hotelCheckIn || (outSegs?.[0]?.depart_time || "").slice(0, 10) || "";
-  const hotelCheckOut =
-    pkg.hotelCheckOut || (inSegs?.[0]?.arrive_time || "").slice(0, 10) || "";
+  // ----- passenger context -----
   const adults = Number(pkg.passengersAdults) || Number(pkg.passengers) || pax || 1;
   const children = Number(pkg.passengersChildren) || 0;
-  const childrenAges: number[] = Array.isArray(pkg.passengersChildrenAges)
-    ? pkg.passengersChildrenAges
-    : [];
+  const infants = Number(pkg.passengersInfants) || 0;
+  const childrenAges: number[] = Array.isArray(pkg.childrenAges) ? pkg.childrenAges : [];
 
-  // ----- flight deeplinks -----
+  // ----- dates & route -----
   const route = `${outSegs?.[0]?.from || pkg.origin}-${outSegs?.[outSegs.length - 1]?.to || pkg.destination}`;
   const dateOut = (outSegs?.[0]?.depart_time || "").slice(0, 10);
   const dateRet = (inSegs?.[0]?.depart_time || "").slice(0, 10);
-
-  const airlineSite =
-    AIRLINE_SITE[airline] ||
-    `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}`;
-
-  const googleFlights =
-    `https://www.google.com/travel/flights?q=` +
-    encodeURIComponent(
-      `${from || ""} to ${to || route} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax} travelers`
-    );
 
   // Skyscanner wants lowercase IATA + yyyymmdd
   const fromIata = (outSegs?.[0]?.from || pkg.origin || "").toLowerCase();
   const toIata = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toLowerCase();
   const ssOut = (dateOut || "").replace(/-/g, "");
   const ssRet = (dateRet || "").replace(/-/g, "");
+
+  // ----- Airline deeplink templates (best-effort) -----
+  const AIRLINE_DEEPLINKS: Record<string, (p: any) => string> = {
+    United: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.united.com/en/us/fsr/choose-flights?from=${from}&to=${to}` +
+      (dateOut ? `&departDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&adult=${Math.max(1, adults || 1)}` +
+      (children ? `&child=${children}` : "") +
+      (infants ? `&infantLap=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
+
+    Delta: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.delta.com/flight-search/book-a-flight` +
+      `?fromCity=${from}&toCity=${to}` +
+      (dateOut ? `&departureDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&tripType=${dateRet ? "RT" : "OW"}` +
+      `&adultPassengersCount=${Math.max(1, adults || 1)}` +
+      (children ? `&childPassengersCount=${children}` : "") +
+      (infants ? `&infantInLapPassengersCount=${infants}` : "") +
+      (cabin ? `&cabinClass=${encodeURIComponent(cabin)}` : ""),
+
+    American: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.aa.com/booking/find-flights` +
+      `?tripType=${dateRet ? "roundTrip" : "oneWay"}` +
+      `&fromCity=${from}&toCity=${to}` +
+      (dateOut ? `&departDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&passengerCount=${Math.max(1, (adults || 1) + (children || 0) + (infants || 0))}` +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
+
+    Alaska: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.alaskaair.com/planbook/shopping` +
+      `?from=${from}&to=${to}` +
+      (dateOut ? `&departureDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&adultCount=${Math.max(1, adults || 1)}` +
+      (children ? `&childCount=${children}` : "") +
+      (infants ? `&infantInLapCount=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
+
+    JetBlue: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.jetblue.com/booking/flights` +
+      `?from=${from}&to=${to}` +
+      (dateOut ? `&depart=${dateOut}` : "") +
+      (dateRet ? `&return=${dateRet}` : "") +
+      `&ad=${Math.max(1, adults || 1)}` +
+      (children ? `&ch=${children}` : "") +
+      (infants ? `&inLap=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
+
+    Southwest: ({ from, to, dateOut, dateRet, adults }) =>
+      `https://www.southwest.com/air/booking/select.html` +
+      `?originationAirportCode=${from}&destinationAirportCode=${to}` +
+      (dateOut ? `&departureDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&adultPassengersCount=${Math.max(1, adults || 1)}` +
+      `&tripType=${dateRet ? "roundtrip" : "oneway"}`,
+
+    "Air Canada": ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.aircanada.com/ca/en/aco/home/book/flights.html` +
+      `?org0=${from}&dest0=${to}` +
+      (dateOut ? `&date0=${dateOut}` : "") +
+      (dateRet ? `&date1=${dateRet}` : "") +
+      `&adults=${Math.max(1, adults || 1)}` +
+      (children ? `&children=${children}` : "") +
+      (infants ? `&infant=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
+
+    Lufthansa: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.lufthansa.com/us/en/flight-search` +
+      `?origin=${from}&destination=${to}` +
+      (dateOut ? `&outboundDate=${dateOut}` : "") +
+      (dateRet ? `&returnDate=${dateRet}` : "") +
+      `&adults=${Math.max(1, adults || 1)}` +
+      (children ? `&children=${children}` : "") +
+      (infants ? `&infants=${infants}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
+
+    "British Airways": ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.britishairways.com/travel/home/public/en_us/` +
+      `?from=${from}&to=${to}` +
+      (dateOut ? `&depDate=${dateOut}` : "") +
+      (dateRet ? `&retDate=${dateRet}` : "") +
+      `&ad=${Math.max(1, adults || 1)}` +
+      (children ? `&ch=${children}` : "") +
+      (cabin ? `&cabin=${encodeURIComponent(cabin)}` : ""),
+
+    "Air France": ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://wwws.airfrance.us/en/search/` +
+      `?origin=${from}&destination=${to}` +
+      (dateOut ? `&outboundDate=${dateOut}` : "") +
+      (dateRet ? `&inboundDate=${dateRet}` : "") +
+      `&adults=${Math.max(1, adults || 1)}` +
+      (children ? `&children=${children}` : "") +
+      (cabin ? `&cabinClass=${encodeURIComponent(cabin)}` : ""),
+
+    KLM: ({ from, to, dateOut, dateRet, adults, children, infants, cabin }) =>
+      `https://www.klm.us/search` +
+      `?origin=${from}&destination=${to}` +
+      (dateOut ? `&outboundDate=${dateOut}` : "") +
+      (dateRet ? `&inboundDate=${dateRet}` : "") +
+      `&adults=${Math.max(1, adults || 1)}` +
+      (children ? `&children=${children}` : "") +
+      (cabin ? `&cabinClass=${encodeURIComponent(cabin)}` : ""),
+  };
+
+  function buildAirlineDeepLink() {
+    const carrier = airline;
+    const params = {
+      from: (outSegs?.[0]?.from || pkg.origin || "").toUpperCase(),
+      to: (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase(),
+      dateOut,
+      dateRet,
+      adults,
+      children,
+      infants,
+      cabin: (pkg.cabin || pkg.cabinClass || "ECONOMY").toString(),
+    };
+    const f = AIRLINE_DEEPLINKS[carrier];
+    if (typeof f === "function") return f(params);
+    return AIRLINE_SITE[carrier] || `https://www.google.com/search?q=${encodeURIComponent(carrier + " booking")}`;
+  }
+
+  // ----- external links (flights) -----
+  const airlineSite = buildAirlineDeepLink();
+
+  const googleFlights =
+    `https://www.google.com/travel/flights?q=` +
+    encodeURIComponent(
+      `${(outSegs?.[0]?.from || pkg.origin || "").toUpperCase()} to ${(outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase()} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${Math.max(1, adults + children + infants)} travelers`
+    );
+
   const skyScanner =
-    (fromIata && toIata && ssOut)
-      ? `https://www.skyscanner.com/transport/flights/${fromIata}/${toIata}/${ssOut}${ssRet ? `/${ssRet}` : ""}/?adults=${Math.max(1, adults)}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
+    fromIata && toIata && ssOut
+      ? `https://www.skyscanner.com/transport/flights/${fromIata}/${toIata}/${ssOut}${ssRet ? `/${ssRet}` : ""}/?adults=${Math.max(
+          1,
+          adults
+        )}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
       : "https://www.skyscanner.com/";
 
   // ----- hotel deeplinks (prefill search & image click target) -----
+  const hotelCheckIn: string = pkg.hotelCheckIn || "";
+  const hotelCheckOut: string = pkg.hotelCheckOut || "";
+  const currency: string = pkg.currency || "USD";
+
   function hotelLinks(h: any, cityFallback: string) {
     const city = h.city || cityFallback || "";
     const destName = h.name ? `${h.name}, ${city}` : city;
@@ -114,7 +241,7 @@ export default function ResultCard({
     b.searchParams.set("group_children", String(childrenCount));
     childAges.forEach((age) => b.searchParams.append("age", age));
     b.searchParams.set("no_rooms", "1");
-    b.searchParams.set("selected_currency", pkg.currency || currency);
+    b.searchParams.set("selected_currency", currency);
 
     // Expedia (prefilled)
     const e = new URL("https://www.expedia.com/Hotel-Search");
@@ -126,7 +253,7 @@ export default function ResultCard({
       e.searchParams.set("children", String(childrenCount));
       if (childAges.length) e.searchParams.set("childAges", childAges.join(","));
     }
-    e.searchParams.set("currency", pkg.currency || currency);
+    e.searchParams.set("currency", currency);
 
     // Hotels.com (prefilled)
     const hcx = new URL("https://www.hotels.com/Hotel-Search");
@@ -138,120 +265,29 @@ export default function ResultCard({
       hcx.searchParams.set("children", String(childrenCount));
       if (childAges.length) hcx.searchParams.set("childAges", childAges.join(","));
     }
-    hcx.searchParams.set("currency", pkg.currency || currency);
+    hcx.searchParams.set("currency", currency);
 
     // Primary link (image click target)
     const primary =
       (typeof h.url === "string" && h.url) ||
-      (typeof h.website === "string" && h.website) ||
+      (typeof h.website == "string" && h.website) ||
       (typeof h.officialUrl === "string" && h.officialUrl) ||
       b.toString();
 
     // Map link (precise if lat/lng)
-    const maps = (typeof h.lat === "number" && typeof h.lng === "number")
-      ? `https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}`
-      : (destName
-          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destName)}`
-          : undefined);
+    const maps =
+      typeof h.lat === "number" && typeof h.lng === "number"
+        ? `https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}`
+        : destName
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destName)}`
+        : undefined;
 
     return { booking: b.toString(), expedia: e.toString(), hotels: hcx.toString(), maps, primary };
   }
 
-  // ----- Book via TrioTrip -----
-  async function bookViaTrioTrip() {
-    try {
-      const res = await fetch("/api/book", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          offer: {
-            currency: pkg.currency || currency,
-            total_cost: price,
-            flight: {
-              carrier_name: airline,
-              origin: outSegs?.[0]?.from || pkg.origin,
-              destination: outSegs?.[outSegs.length - 1]?.to || pkg.destination,
-              price_usd: price,
-            },
-            pax,
-          },
-        }),
-      });
-      const j = await res.json();
-      if (!res.ok || !j?.bookingUrl) throw new Error(j?.error || "Failed to create booking");
-      const url = new URL(j.bookingUrl);
-      url.searchParams.set("pax", String(pax));
-      url.searchParams.set("count", String(pax));
-      window.location.href = url.toString();
-    } catch (e: any) {
-      alert(e?.message || "Booking failed");
-    }
-  }
-
-  // ----- Save (requires login) -----
-  const [saving, setSaving] = useState(false);
-  function requireLoginThenSave() {
-    const user = localStorage.getItem("triptrio:user");
-    if (!user) {
-      if (confirm("Please sign in to save this option. Go to login page now?")) {
-        window.location.href = "/login";
-      }
-      return;
-    }
-    try {
-      setSaving(true);
-      const saved = JSON.parse(localStorage.getItem("triptrio:saved") || "[]");
-      const next = Array.isArray(saved) ? saved : [];
-      if (!next.find((x: any) => x?.id === id)) next.push({ id, airline, price });
-      localStorage.setItem("triptrio:saved", JSON.stringify(next));
-      window.dispatchEvent(new Event("triptrio:saved:changed"));
-      onSavedChangeGlobal?.(next.length);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const isCompared = comparedIds?.includes(id);
-
-  // ----- Hotels (up to 3) -----
-  const inferredShowHotel =
-    showHotel ??
-    ((Array.isArray(pkg.hotels) && pkg.hotels.length > 0) ||
-      (pkg.hotel && !pkg.hotel.filteredOutByStar));
-
-  const hotelsArr: any[] = inferredShowHotel
-    ? (Array.isArray(pkg.hotels) && pkg.hotels.length
-        ? pkg.hotels
-        : (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : []))
-    : [];
-  const hotelsTop3 = hotelsArr.slice(0, 3);
-
-  // ---------- styles ----------
-  const fs = large ? 15 : 14;
-
-  const chipBtn: React.CSSProperties = {
-    textDecoration: "none",
-    color: "#0f172a",
-    height: 30,
-    padding: "0 10px",
-    borderRadius: 999,
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    fontWeight: 800,
-    lineHeight: 1,
-  };
-
-  const buyBtn: React.CSSProperties = {
-    ...chipBtn,
-    border: "none",
-    color: "#fff",
-    fontWeight: 900,
-    background: "linear-gradient(90deg,#06b6d4,#0ea5e9)",
-  };
-
-  // tiny inline SVG as last resort
-  const svgPlaceholder = `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='200'>
+  /** Inline SVG fallback for hotel/image thumb */
+  const blankImg = `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 200'>
       <defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
       <stop offset='0%' stop-color='#e2e8f0'/><stop offset='100%' stop-color='#cbd5e1'/></linearGradient></defs>
       <rect width='100%' height='100%' fill='url(#g)'/>
@@ -280,8 +316,10 @@ export default function ResultCard({
     return { first: fromData || fb.unsplash, fallbacks: fb };
   }
 
-  
+  // ----- compare state -----
   const isCompared = Array.isArray(comparedIds) ? comparedIds.includes(id) : false;
+
+  // A visual style that reacts to compare-state (no redeclare)
   const cardStyle: React.CSSProperties = {
     background: "#fff",
     border: isCompared ? "2px solid #0ea5e9" : "1px solid #e5e7eb",
@@ -289,20 +327,23 @@ export default function ResultCard({
     padding: 14,
     display: "grid",
     gap: 12,
-    fontSize: fs,
+    fontSize: large ? 16 : 14,
     boxShadow: isCompared ? "0 0 0 4px rgba(14,165,233,.15) inset" : "0 6px 18px rgba(2,6,23,.06)",
     cursor: onToggleCompare ? "pointer" : "default",
   };
-return (
-    <article onClick={(e) => {
+
+  return (
+    <article
+      data-offer-id={id}
+      onClick={(e) => {
         if (onToggleCompare) {
-          // click anywhere toggles compare unless a link/button is clicked
           const target = e.target as HTMLElement;
-          const isInteractive = target.closest('a,button,input,select,textarea,[role="button"],[role="tab"],[role="link"]');
+          const isInteractive = target.closest(
+            'a,button,input,select,textarea,[role="button"],[role="tab"],[role="link"]'
+          );
           if (!isInteractive) onToggleCompare(id);
         }
       }}
-      data-offer-id={id}
       style={cardStyle}
     >
       {/* Header */}
@@ -312,264 +353,82 @@ return (
           <span style={{ opacity: 0.6 }}>•</span>
           <span style={{ fontWeight: 800 }}>{stops === 0 ? "Nonstop" : `${stops} stop(s)`}</span>
           {pkg.flight?.refundable && (
-            <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 900, color: "#0f172a", background: "#e8efff", border: "1px solid #c7d2fe", borderRadius: 999, padding: "2px 8px" }}>
+            <span style={{ marginLeft: 6, fontSize: 12, padding: "2px 6px", borderRadius: 8, background: "#ecfeff", color: "#0e7490", fontWeight: 800 }}>
               Refundable
             </span>
           )}
         </div>
-
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {onToggleCompare && (
-            <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 900, color: "#334155" }}>
-              <input type="checkbox" checked={!!isCompared} onChange={() => onToggleCompare(id)} />
-              Compare
-            </label>
-          )}
-          <button onClick={requireLoginThenSave} disabled={saving} style={chipBtn}>
-            {saving ? "Saving…" : "Save"}
-          </button>
+        <div style={{ fontWeight: 900, fontSize: 18 }}>
+          {formatMoney(price, currency)}
         </div>
       </header>
 
-      {/* Price */}
-      <div style={{ fontWeight: 900, fontSize: 20 }}>
-        {Math.round(Number(price)).toLocaleString()} {pkg.currency || currency}
+      {/* Links row */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <a href={airlineSite} target="_blank" rel="noreferrer" style={chipBtn}>Airline site</a>
+        <a href={googleFlights} target="_blank" rel="noreferrer" style={chipBtn}>Google Flights</a>
+        <a href={skyScanner} target="_blank" rel="noreferrer" style={chipBtn}>Skyscanner</a>
       </div>
 
-      {/* GRID: left = flight details, right = Book Flight (perfect top+bottom alignment) */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 280px",
-          gap: 14,
-          alignItems: "stretch",
-        }}
-      >
-        {/* LEFT: FLIGHT column (this defines the row height) */}
+      {/* Hotel suggestions (if any) */}
+      {(showHotel ?? !!(pkg.hotels || pkg.hotel)) && Array.isArray(pkg.hotels) && pkg.hotels.length > 0 && (
         <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ fontWeight: 900, color: "#0f172a" }}>Flight</div>
-
-          {/* Outbound */}
-          {outSegs.length > 0 && (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8 }}>
-              <div style={{ fontWeight: 900, color: "#334155" }}>Outbound</div>
-              {outSegs.map((s: any, i: number) => (
-                <React.Fragment key={`o${i}`}>
-                  <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                    <div>
-                      <div style={{ fontWeight: 800 }}>{s.from} → {s.to}</div>
-                      <div style={{ fontSize: 12, color: "#475569" }}>
-                        {formatTime(s.depart_time)} – {formatTime(s.arrive_time)}
-                      </div>
-                    </div>
-                    <div style={{ fontWeight: 900 }}>{formatDur(s.duration_minutes)}</div>
-                  </div>
-                  {i < outSegs.length - 1 && (
-                    <LayoverRow
-                      arrive_time={s.arrive_time}
-                      next_depart_time={outSegs[i + 1].depart_time}
-                      at={s.to}
+          <div style={{ fontWeight: 900, opacity: 0.8 }}>Hotels</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+            {pkg.hotels.slice(0, 3).map((h: any, i: number) => {
+              const img = chooseHotelImg(h, i);
+              const links = hotelLinks(h, pkg.destination || "");
+              return (
+                <article key={h.id || i} style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+                  <a href={links.primary} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={img.first}
+                      alt={h.name || "Hotel"}
+                      style={{ width: "100%", height: 160, objectFit: "cover", background: "#f1f5f9" }}
+                      onError={(e) => {
+                        const asImg = e.currentTarget as HTMLImageElement;
+                        asImg.onerror = null;
+                        asImg.src = blankImg;
+                      }}
                     />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-
-          {/* Return */}
-          {inSegs.length > 0 && (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8 }}>
-              <div style={{ fontWeight: 900, color: "#334155" }}>Return</div>
-              {inSegs.map((s: any, i: number) => (
-                <React.Fragment key={`r${i}`}>
-                  <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                    <div>
-                      <div style={{ fontWeight: 800 }}>{s.from} → {s.to}</div>
-                      <div style={{ fontSize: 12, color: "#475569" }}>
-                        {formatTime(s.depart_time)} – {formatTime(s.arrive_time)}
-                      </div>
+                  </a>
+                  <div style={{ padding: 10, display: "grid", gap: 8 }}>
+                    <div style={{ fontWeight: 900 }}>{h.name || "Hotel"}</div>
+                    <div style={{ opacity: 0.7, fontSize: 13 }}>{h.city || pkg.destination}</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <a href={links.booking} target="_blank" rel="noreferrer noopener" style={chipBtn}>Booking.com</a>
+                      <a href={links.expedia} target="_blank" rel="noreferrer noopener" style={chipBtn}>Expedia</a>
+                      <a href={links.hotels} target="_blank" rel="noreferrer noopener" style={chipBtn}>Hotels.com</a>
+                      {links.maps && (
+                        <a href={links.maps} target="_blank" rel="noreferrer noopener" style={chipBtn}>Map</a>
+                      )}
                     </div>
-                    <div style={{ fontWeight: 900 }}>{formatDur(s.duration_minutes)}</div>
                   </div>
-                  {i < inSegs.length - 1 && (
-                    <LayoverRow
-                      arrive_time={s.arrive_time}
-                      next_depart_time={inSegs[i + 1].depart_time}
-                      at={s.to}
-                    />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT: Book Flight card, same row height, compact interior spacing */}
-        <div style={{ alignSelf: "stretch" }}>
-          <div
-            style={{
-              height: "100%",
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 10,
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,                // tighter spacing
-              justifyContent: "flex-start",
-              background: "#fff",
-              boxSizing: "border-box",
-            }}
-          >
-            <div style={{ fontWeight: 900, color: "#0f172a" }}>Book Flight</div>
-            <button onClick={bookViaTrioTrip} style={{ ...buyBtn, height: 34, padding: "0 12px" }}>
-              Book via TrioTrip
-            </button>
-            <a href={airlineSite} target="_blank" rel="noreferrer" style={chipBtn}>Airline site</a>
-            <a href={googleFlights} target="_blank" rel="noreferrer" style={chipBtn}>Google Flights</a>
-            <a href={skyScanner} target="_blank" rel="noreferrer" style={chipBtn}>Skyscanner</a>
-
-            {/* small flexible spacer to avoid looking crammed while not creating a huge blank area */}
-            <div style={{ flex: 1 }} />
-
-            {/* optional tiny footer to visually “close” the card, reducing the sense of empty space */}
-            <div style={{ fontSize: 11, color: "#64748b", textAlign: "center" }}>
-              Prices and availability may change.
-            </div>
+                </article>
+              );
+            })}
           </div>
-        </div>
-      </section>
-
-      {/* FULL-WIDTH HOTELS BELOW (city-specific fallback images; image click -> hotel site or prefilled booking) */}
-      {inferredShowHotel && hotelsTop3.length > 0 && (
-        <div
-          style={{
-            border: "2px solid #e2e8f0",
-            borderRadius: 14,
-            padding: 14,
-            display: "grid",
-            gap: 12,
-            background: "#fcfdff",
-          }}
-        >
-          <div style={{ fontWeight: 900, color: "#0f172a" }}>Hotels (top options)</div>
-
-          {hotelsTop3.map((h: any, i: number) => {
-            const city = h.city || pkg.destination || "";
-            const links = hotelLinks(h, city);
-            const { first, fallbacks } = chooseHotelImg(h, i);
-
-            return (
-              <div
-                key={`h${i}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "160px 1fr",
-                  gap: 12,
-                  alignItems: "center",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 12,
-                  padding: 10,
-                  background: "#fff"
-                }}
-              >
-                <a
-                  href={links.primary}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  title={`Open ${h.name || "hotel"}`}
-                >
-                  <img
-                    src={first}
-                    alt={h.name || "Hotel photo"}
-                    width={160}
-                    height={120}
-                    style={{ width: 160, height: 120, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }}
-                    loading={i === 0 ? "eager" : "lazy"}
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      const el = e.currentTarget as HTMLImageElement;
-                      // cascade through city/building fallbacks only (no random objects)
-                      if (!el.dataset.step) { el.dataset.step = "1"; el.src = fallbacks.unsplash; return; }
-                      if (el.dataset.step === "1") { el.dataset.step = "2"; el.src = fallbacks.picsum; return; }
-                      if (el.dataset.step === "2") { el.dataset.step = "3"; el.src = fallbacks.flickr; return; }
-                      if (el.src !== svgPlaceholder) el.src = svgPlaceholder;
-                    }}
-                  />
-                </a>
-
-                <div style={{ display: "grid", gap: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                    <div style={{ fontWeight: 900 }}>
-                      {h.name} {typeof h.star === "number" ? `(${h.star}★)` : ""}
-                      {city ? <span style={{ marginLeft: 6, color: "#64748b", fontWeight: 700 }}>• {city}</span> : null}
-                    </div>
-                    <div style={{ fontWeight: 900 }}>
-                      {Math.round(h.price_converted || 0).toLocaleString()} {h.currency || pkg.currency || currency}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                    <a href={links.primary} target="_blank" rel="noreferrer noopener" style={chipBtn}>Hotel website</a>
-                    <a href={links.booking} target="_blank" rel="noreferrer noopener" style={chipBtn}>Booking.com</a>
-                    <a href={links.hotels} target="_blank" rel="noreferrer noopener" style={chipBtn}>Hotels.com</a>
-                    <a href={links.expedia} target="_blank" rel="noreferrer noopener" style={chipBtn}>Expedia</a>
-                    {links.maps && (
-                      <a href={links.maps} target="_blank" rel="noreferrer noopener" style={chipBtn}>View on map</a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
         </div>
       )}
     </article>
   );
 }
 
-/* ---------- subcomponents & utils ---------- */
-
-function LayoverRow({
-  arrive_time,
-  next_depart_time,
-  at,
-}: {
-  arrive_time: string;
-  next_depart_time: string;
-  at?: string;
-}) {
-  const mins = layoverMins(arrive_time, next_depart_time);
-  return (
-    <div
-      style={{
-        textAlign: "center",
-        color: "#64748b",
-        fontWeight: 800,
-        padding: "4px 8px",
-      }}
-      aria-label="Layover"
-    >
-      Layover{at ? ` at ${at}` : ""} • {mins ? `${mins}m` : "~50m"}
-    </div>
-  );
+function formatMoney(n: number, c: string) {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: c }).format(n);
+  } catch {
+    return `$${(n || 0).toFixed(0)}`;
+  }
 }
 
-function layoverMins(prevArr: string, nextDep: string) {
-  const a = Date.parse(prevArr);
-  const d = Date.parse(nextDep);
-  if (!Number.isFinite(a) || !Number.isFinite(d) || d <= a) return undefined;
-  return Math.round((d - a) / 60000);
-}
-
-function formatDur(min?: number) {
-  const m = Number(min) || 0;
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return `${h}h ${mm}m`;
-}
-
-function formatTime(iso?: string) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+const chipBtn: React.CSSProperties = {
+  padding: "8px 10px",
+  borderRadius: 12,
+  border: "1px solid #e2e8f0",
+  background: "#fff",
+  fontWeight: 900,
+  fontSize: 14,
+  textDecoration: "none",
+  display: "inline-block",
+};
