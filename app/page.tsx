@@ -204,7 +204,7 @@ export default function Page() {
     color: "#fff",
     background: "linear-gradient(90deg,#06b6d4,#0ea5e9)",
     borderRadius: 12,
-    boxShadow: "0 8px 24px rgba(14,165,233,.25)",
+    boxShadow: "0 8px 24px rgba(2,6,23,.25)",
     lineHeight: 1,
     whiteSpace: "nowrap",
     cursor: "pointer",
