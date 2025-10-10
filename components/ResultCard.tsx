@@ -31,7 +31,7 @@ type Props = {
   onToggleCompare?: (id: string) => void;
   onSavedChangeGlobal?: (count: number) => void;
   large?: boolean;
-  showHotel?: boolean; // if omitted we infer from pkg.hotels/pkg.hotel
+  showHotel?: boolean;
 };
 
 export default function ResultCard({
@@ -87,7 +87,7 @@ export default function ResultCard({
       `${(outSegs?.[0]?.from || pkg.origin || "").toUpperCase()} to ${(outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase()} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${Math.max(1, adults + children + infants)} travelers`
     );
 
-  // Skyscanner wants lowercase IATA + yyyymmdd
+  // Skyscanner needs lowercase IATA + yyyymmdd
   const fromIata = (outSegs?.[0]?.from || pkg.origin || "").toLowerCase();
   const toIata = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toLowerCase();
   const ssOut = (dateOut || "").replace(/-/g, "");
@@ -105,7 +105,7 @@ export default function ResultCard({
     const childrenCount = Math.max(0, children);
     const childAges = childrenAges.filter((n) => Number.isFinite(n)).map(String);
 
-    // Booking.com (prefilled)
+    // Booking.com
     const b = new URL("https://www.booking.com/searchresults.html");
     if (destName) b.searchParams.set("ss", destName);
     if (hotelCheckIn) b.searchParams.set("checkin", hotelCheckIn);
@@ -116,7 +116,7 @@ export default function ResultCard({
     b.searchParams.set("no_rooms", "1");
     b.searchParams.set("selected_currency", pkg.currency || currency);
 
-    // Expedia (prefilled)
+    // Expedia
     const e = new URL("https://www.expedia.com/Hotel-Search");
     if (destName) e.searchParams.set("destination", destName);
     if (hotelCheckIn) e.searchParams.set("checkIn", hotelCheckIn);
@@ -128,7 +128,7 @@ export default function ResultCard({
     }
     e.searchParams.set("currency", pkg.currency || currency);
 
-    // Hotels.com (prefilled)
+    // Hotels.com
     const hcx = new URL("https://www.hotels.com/Hotel-Search");
     if (destName) hcx.searchParams.set("destination", destName);
     if (hotelCheckIn) hcx.searchParams.set("checkIn", hotelCheckIn);
@@ -140,24 +140,24 @@ export default function ResultCard({
     }
     hcx.searchParams.set("currency", pkg.currency || currency);
 
-    // Primary link (image click target)
-    const primary =
-      (typeof h.url === "string" && h.url) ||
-      (typeof h.website === "string" && h.website) ||
-      (typeof h.officialUrl === "string" && h.officialUrl) ||
-      b.toString();
-
-    // Map link (precise if lat/lng)
+    // Map link
     const maps = (typeof h.lat === "number" && typeof h.lng === "number")
       ? `https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}`
       : (destName
           ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destName)}`
           : undefined);
 
+    // Primary link (image click)
+    const primary =
+      (typeof h.url === "string" && h.url) ||
+      (typeof h.website === "string" && h.website) ||
+      (typeof h.officialUrl === "string" && h.officialUrl) ||
+      b.toString();
+
     return { booking: b.toString(), expedia: e.toString(), hotels: hcx.toString(), maps, primary };
   }
 
-  // ----- Book via TrioTrip -----
+  // ----- Book via TrioTrip (placeholder server API) -----
   async function bookViaTrioTrip() {
     try {
       const res = await fetch("/api/book", {
@@ -188,7 +188,7 @@ export default function ResultCard({
     }
   }
 
-  // ----- Save (requires login) -----
+  // Save
   const [saving, setSaving] = useState(false);
   function requireLoginThenSave() {
     const user = localStorage.getItem("triptrio:user");
@@ -211,7 +211,7 @@ export default function ResultCard({
     }
   }
 
-  // ----- compare visuals & click-to-compare -----
+  // compare state
   const isCompared = Array.isArray(comparedIds) ? comparedIds.includes(id) : false;
 
   const fs = large ? 15 : 14;
@@ -227,19 +227,7 @@ export default function ResultCard({
     cursor: onToggleCompare ? "pointer" : "default",
   };
 
-  const chipBtn: React.CSSProperties = {
-    textDecoration: "none",
-    color: "#0f172a",
-    height: 30,
-    padding: "0 10px",
-    borderRadius: 999,
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    fontWeight: 800,
-    lineHeight: 1,
-  };
-
-  // tiny inline SVG as last resort
+  // images fallback
   const svgPlaceholder = `data:image/svg+xml;utf8,${encodeURIComponent(
     `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='200'>
       <defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
@@ -249,7 +237,6 @@ export default function ResultCard({
     </svg>`
   )}`;
 
-  /** City-specific fallback images (hotel/building only) */
   function cityHotelFallbacks(city: string, name: string, i: number) {
     const qCity = encodeURIComponent(city || "city");
     const unsplash = `https://source.unsplash.com/featured/320x200/?hotel%20building,hotel,building,architecture,${qCity}`;
@@ -257,7 +244,6 @@ export default function ResultCard({
     const flickr = `https://loremflickr.com/320/200/hotel,building,architecture,${qCity}?lock=${i}`;
     return { unsplash, picsum, flickr };
   }
-
   function chooseHotelImg(h: any, i: number) {
     const city = h.city || pkg.destination || "city";
     const name = h.name || "hotel";
@@ -309,7 +295,8 @@ export default function ResultCard({
               Compare
             </label>
           )}
-          <button onClick={(e) => { e.stopPropagation(); requireLoginThenSave(); }} disabled={saving} style={chipBtn}>
+          <button onClick={(e) => { e.stopPropagation(); requireLoginThenSave(); }} disabled={saving}
+            style={{ textDecoration: "none", color: "#0f172a", height: 30, padding: "0 10px", borderRadius: 999, border: "1px solid #e2e8f0", background: "#fff", fontWeight: 800, lineHeight: 1 }}>
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
@@ -320,16 +307,9 @@ export default function ResultCard({
         {Math.round(Number(price)).toLocaleString()} {pkg.currency || currency}
       </div>
 
-      {/* GRID: left = flight details, right = Book Flight */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 280px",
-          gap: 14,
-          alignItems: "stretch",
-        }}
-      >
-        {/* LEFT: FLIGHT column */}
+      {/* GRID: left flight, right booking */}
+      <section style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 14, alignItems: "stretch" }}>
+        {/* LEFT: Flight detail */}
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ fontWeight: 900, color: "#0f172a" }}>Flight</div>
 
@@ -388,7 +368,7 @@ export default function ResultCard({
           )}
         </div>
 
-        {/* RIGHT: Book Flight card */}
+        {/* RIGHT: Book Flight */}
         <div style={{ alignSelf: "stretch" }}>
           <div
             style={{
@@ -406,17 +386,19 @@ export default function ResultCard({
           >
             <div style={{ fontWeight: 900, color: "#0f172a" }}>Book Flight</div>
 
-            {/* ✅ Animated booking buttons (class-based) */}
-            <button
-              onClick={(e) => { e.stopPropagation(); bookViaTrioTrip(); }}
-              className="book-link book-link--primary"
-              style={{ minHeight: 34 }}
-            >
+            {/* Animated booking buttons */}
+            <button onClick={(e) => { e.stopPropagation(); bookViaTrioTrip(); }} className="book-link book-link--primary" style={{ minHeight: 34 }}>
               Book via TrioTrip
             </button>
-            <a href={airlineSite} target="_blank" rel="noreferrer" className="book-link book-link--airline" onClick={(e) => e.stopPropagation()}>Airline site</a>
-            <a href={googleFlights} target="_blank" rel="noreferrer" className="book-link book-link--gflights" onClick={(e) => e.stopPropagation()}>Google Flights</a>
-            <a href={skyScanner} target="_blank" rel="noreferrer" className="book-link book-link--skyscanner" onClick={(e) => e.stopPropagation()}>Skyscanner</a>
+            <a href={airlineSite} target="_blank" rel="noreferrer" className="book-link book-link--airline" onClick={(e) => e.stopPropagation()}>
+              Airline site
+            </a>
+            <a href={googleFlights} target="_blank" rel="noreferrer" className="book-link book-link--gflights" onClick={(e) => e.stopPropagation()}>
+              Google Flights
+            </a>
+            <a href={skyScanner} target="_blank" rel="noreferrer" className="book-link book-link--skyscanner" onClick={(e) => e.stopPropagation()}>
+              Skyscanner
+            </a>
 
             <div style={{ flex: 1 }} />
             <div style={{ fontSize: 11, color: "#64748b", textAlign: "center" }}>
@@ -497,12 +479,11 @@ export default function ResultCard({
                       </div>
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                      <a href={links.primary} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>Hotel website</a>
-                      <a href={links.booking} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>Booking.com</a>
-                      <a href={links.hotels} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>Hotels.com</a>
-                      <a href={links.expedia} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>Expedia</a>
+                      <a href={links.booking} target="_blank" rel="noreferrer noopener" className="book-link book-link--booking" onClick={(e) => e.stopPropagation()}>Booking.com</a>
+                      <a href={links.hotels} target="_blank" rel="noreferrer noopener" className="book-link book-link--hotels" onClick={(e) => e.stopPropagation()}>Hotels.com</a>
+                      <a href={links.expedia} target="_blank" rel="noreferrer noopener" className="book-link book-link--expedia" onClick={(e) => e.stopPropagation()}>Expedia</a>
                       {links.maps && (
-                        <a href={links.maps} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>View on map</a>
+                        <a href={links.maps} target="_blank" rel="noreferrer noopener" className="book-link book-link--maps" onClick={(e) => e.stopPropagation()}>Map</a>
                       )}
                     </div>
                   </div>
@@ -515,28 +496,16 @@ export default function ResultCard({
   );
 }
 
-/* ---------- subcomponents & utils ---------- */
+/* ---------- helpers ---------- */
 
 function LayoverRow({
   arrive_time,
   next_depart_time,
   at,
-}: {
-  arrive_time: string;
-  next_depart_time: string;
-  at?: string;
-}) {
+}: { arrive_time: string; next_depart_time: string; at?: string; }) {
   const mins = layoverMins(arrive_time, next_depart_time);
   return (
-    <div
-      style={{
-        textAlign: "center",
-        color: "#64748b",
-        fontWeight: 800,
-        padding: "4px 8px",
-      }}
-      aria-label="Layover"
-    >
+    <div style={{ textAlign: "center", color: "#64748b", fontWeight: 800, padding: "4px 8px" }} aria-label="Layover">
       Layover{at ? ` at ${at}` : ""} • {mins ? `${mins}m` : "~50m"}
     </div>
   );
@@ -555,7 +524,6 @@ function formatDur(min?: number) {
   const mm = m % 60;
   return `${h}h ${mm}m`;
 }
-
 function formatTime(iso?: string) {
   if (!iso) return "";
   const d = new Date(iso);

@@ -6,180 +6,156 @@
 *::after { box-sizing: border-box; }
 html, body { padding: 0; margin: 0; height: 100%; }
 
-/* ==== Theme tokens (richer palette, still on-brand) ==== */
-:root {
-  --bg1: #f8fafc;        /* slate-50 */
-  --bg2: #ffffff;        /* white */
-  --ink: #0f172a;        /* slate-900 */
-  --muted: #64748b;      /* slate-500/600 */
-  --line: #e2e8f0;       /* slate-200 */
-
-  --brand: #0ea5e9;      /* sky-500 */
-  --brand-2: #06b6d4;    /* cyan-500 */
-  --brand-3: #38bdf8;    /* sky-400 */
-  --brand-4: #0891b2;    /* cyan-600 (deeper) */
-
-  --accent-1: #a78bfa;   /* violet-400 */
-  --accent-2: #f472b6;   /* pink-400 */
-  --accent-3: #22c55e;   /* green-500 */
-
-  --ring: rgba(14,165,233,.35);
+/* ==== Theme tokens ==== */
+:root{
+  --bg1:#f8fafc; --bg2:#ffffff;
+  --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --brand:#0ea5e9; --brand-2:#06b6d4; --brand-3:#38bdf8; --brand-4:#0891b2;
+  --accent-1:#a78bfa; --accent-2:#f472b6; --accent-3:#22c55e;
+  --ring:rgba(14,165,233,.35);
 }
 
 /* App baseline */
-.tt-body {
+.tt-body{
   background:
     radial-gradient(1200px 600px at 10% -10%, #e0f2fe 0%, rgba(224,242,254,0) 60%),
     radial-gradient(1000px 500px at 110% 10%, #cffafe 0%, rgba(207,250,254,0) 60%),
     var(--bg1);
-  color: var(--ink);
+  color:var(--ink);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  line-height: 1.45;
+  line-height:1.45;
 }
+.tt-main{ min-height:100vh; width:100%; max-width:1200px; padding:24px 20px 60px; margin:0 auto; }
 
-.tt-main {
-  min-height: 100vh;
-  width: 100%;
-  max-width: 1200px;
-  padding: 24px 20px 60px;
-  margin: 0 auto;
-}
-
-/* Header background + logo blend (tries to hide white box) */
-header {
+/* Header + logo blend */
+header{
   background: linear-gradient(90deg, rgba(6,182,212,.10), rgba(14,165,233,.10));
-  border-bottom: 1px solid var(--line);
+  border-bottom:1px solid var(--line);
 }
-header .tt-logo {
-  /* If the source logo has a white rectangular box, this helps blend it. */
-  mix-blend-mode: multiply;          /* light bg + non-transparent PNG */
-  filter: drop-shadow(0 0 0 rgba(0,0,0,0));
-  /* Best fix is replacing with a transparent PNG/SVG; this just softens the white box. */
+header .tt-logo,
+header img.tt-logo {
+  /* Soften a white rectangle around non-transparent logos */
+  mix-blend-mode: multiply;
+  background: transparent !important;
+  border: 0 !important;
+  /* Mild tone adjustment helps blend on light backgrounds */
+  filter: brightness(0.98) saturate(1.05);
 }
 
 /* Utility buttons */
-.btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  border: 1px solid var(--line);
-  background: #fff; color: var(--ink);
-  padding: 10px 14px; border-radius: 12px;
-  text-decoration: none; font-weight: 800; cursor: pointer;
+.btn{
+  display:inline-flex; align-items:center; gap:8px;
+  border:1px solid var(--line);
+  background:#fff; color:var(--ink);
+  padding:10px 14px; border-radius:12px;
+  text-decoration:none; font-weight:800; cursor:pointer;
   transition: transform .06s ease, box-shadow .12s ease, filter .12s ease;
-  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.10);
+  box-shadow:0 6px 18px rgba(2,132,199,0.10);
 }
-.btn:hover { transform: translateY(-1px); filter: brightness(1.03); }
-.btn:active { transform: translateY(0); }
-.btn.primary {
-  background: linear-gradient(90deg, var(--brand-2), var(--brand));
-  border: none; color: #fff;
-}
-.btn.ghost {
-  background: #fff; color: var(--brand);
-  border: 2px solid #7dd3fc; box-shadow: none;
-}
-.btn.small { padding: 8px 10px; font-size: 13px; }
+.btn:hover{ transform:translateY(-1px); filter:brightness(1.03); }
+.btn:active{ transform:translateY(0); }
+.btn.primary{ background:linear-gradient(90deg,var(--brand-2),var(--brand)); border:none; color:#fff; }
+.btn.ghost{ background:#fff; color:var(--brand); border:2px solid #7dd3fc; box-shadow:none; }
+.btn.small{ padding:8px 10px; font-size:13px; }
+
+/* Header-specific tweaks for Saved/Login pills (if present) */
+header .btn.primary{ background:linear-gradient(90deg,#22c55e,#0ea5e9); }
+header .btn.ghost{ border-color:#93c5fd; color:#2563eb; }
 
 /* Cards */
-.card {
-  background: var(--bg2);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 16px;
-  margin: 14px 0;
-  box-shadow: 0 8px 24px rgba(2,132,199,.06);
+.card{
+  background:var(--bg2); border:1px solid var(--line);
+  border-radius:16px; padding:16px; margin:14px 0;
+  box-shadow:0 8px 24px rgba(2,132,199,.06);
 }
 
 /* Inputs */
-input, select, button, textarea { font: inherit; }
-input[type="text"], input[type="date"], .select, .input {
-  background: #fff; color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 12px; padding: 12px 14px;
-  outline: none; font-size: 16px;
+input, select, button, textarea{ font:inherit; }
+input[type="text"], input[type="date"], .select, .input{
+  background:#fff; color:var(--ink);
+  border:1px solid var(--line);
+  border-radius:12px; padding:12px 14px;
+  outline:none; font-size:16px;
 }
-input[type="text"]:focus, input[type="date"]:focus, .select:focus, .input:focus {
-  border-color: #7dd3fc; box-shadow: 0 0 0 3px var(--ring);
+input[type="text"]:focus, input[type="date"]:focus, .select:focus, .input:focus{
+  border-color:#7dd3fc; box-shadow:0 0 0 3px var(--ring);
 }
-select { appearance: auto; color: var(--ink); background-color: #fff; }
+select{ appearance:auto; color:var(--ink); background-color:#fff; }
+
+/* Hide number arrows for targeted fields only */
+.no-spin::-webkit-outer-spin-button,
+.no-spin::-webkit-inner-spin-button{ -webkit-appearance: none; margin:0; }
+input[type="number"].no-spin{ -moz-appearance:textfield; appearance:textfield; }
 
 /* Simple grid helper */
-.container-wide { display: grid; grid-template-columns: 1fr; gap: 16px; }
-@media (min-width: 1024px) { .container-wide { grid-template-columns: 320px 1fr; gap: 24px; } }
-
-/* Tiny chips (legacy) */
-.chip { background: #e0f2fe; color: #0369a1; padding: 4px 8px; font-size: 12px; border-radius: 999px; margin-right: 6px; }
+.container-wide{ display:grid; grid-template-columns:1fr; gap:16px; }
+@media (min-width:1024px){ .container-wide{ grid-template-columns:320px 1fr; gap:24px; } }
 
 /* Links */
-a, a:visited { color: inherit; }
-.btn, .chip, a[role='button'] { text-decoration: none !important; }
+a, a:visited{ color:inherit; }
+.btn, .chip, a[role='button']{ text-decoration:none !important; }
 a.tt-brand, a.tt-brand:hover, a.tt-brand:focus, a.tt-brand:active,
-a.tt-brand * { text-decoration: none !important; border-bottom: 0 !important; }
+a.tt-brand *{ text-decoration:none !important; border-bottom:0 !important; }
 
-/* ======== TOOLBAR TABS (bolder, animated) ======== */
-.toolbar-chip {
-  display: inline-flex; align-items: center; justify-content: center;
-  height: 38px; padding: 0 18px; border-radius: 999px;
-  border: 2px solid #cbd5e1;
-  background: linear-gradient(180deg,#ffffff,#f8fafc);
-  color: var(--ink); font-weight: 900; font-size: 16px;
-  box-shadow: 0 6px 18px rgba(2,132,199,.06);
-  cursor: pointer;
+/* ===== Toolbar tabs ===== */
+.toolbar-chip{
+  display:inline-flex; align-items:center; justify-content:center;
+  height:38px; padding:0 18px; border-radius:999px;
+  border:2px solid #cbd5e1; background:linear-gradient(180deg,#ffffff,#f8fafc);
+  color:var(--ink); font-weight:900; font-size:16px;
+  box-shadow:0 6px 18px rgba(2,132,199,.06); cursor:pointer;
   transition: transform .08s ease, box-shadow .12s ease, filter .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
 }
-.toolbar-chip:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 26px rgba(14,165,233,.15);
-  border-color: #94a3b8;
+.toolbar-chip:hover{ transform:translateY(-1px); box-shadow:0 10px 26px rgba(14,165,233,.15); border-color:#94a3b8; }
+.toolbar-chip:active{ transform:translateY(0); }
+.toolbar-chip--active{
+  background:linear-gradient(90deg,var(--brand-2),var(--brand));
+  color:#fff; border-color:transparent; box-shadow:0 10px 26px rgba(14,165,233,.25);
 }
-.toolbar-chip:active { transform: translateY(0); }
-.toolbar-chip--active {
-  background: linear-gradient(90deg,var(--brand-2),var(--brand));
-  color: #fff; border-color: transparent;
-  box-shadow: 0 10px 26px rgba(14,165,233,.25);
-}
-.toolbar-chip:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+.toolbar-chip:focus-visible{ outline:3px solid var(--ring); outline-offset:2px; }
 
-/* ======== COMPARE toggle: animated when checked (no layout change) ======== */
-@keyframes pulse-border {
-  0% { box-shadow: 0 0 0 0 rgba(14,165,233,.45); }
-  70% { box-shadow: 0 0 0 8px rgba(14,165,233,0); }
-  100% { box-shadow: 0 0 0 0 rgba(14,165,233,0); }
+/* ===== Compare toggle (animated) ===== */
+@keyframes pulse-border{
+  0%{ box-shadow:0 0 0 0 rgba(14,165,233,.45); }
+  70%{ box-shadow:0 0 0 8px rgba(14,165,233,0); }
+  100%{ box-shadow:0 0 0 0 rgba(14,165,233,0); }
 }
-.compare-toggle {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 10px; border-radius: 999px;
-  transition: background .2s ease, color .2s ease;
+.compare-toggle{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px;
+  transition:background .2s ease, color .2s ease, transform .12s ease;
 }
-.compare-toggle:hover { background: #f1f5f9; }
-.compare-toggle:has(input:checked) {
-  background: linear-gradient(90deg,var(--brand-3),var(--brand-2));
-  color: #fff;
-  animation: pulse-border 1.2s ease-out 1;
+.compare-toggle:hover{ background:#f1f5f9; }
+.compare-toggle:has(input:checked){
+  background:linear-gradient(90deg,var(--brand-3),var(--brand-2)); color:#fff;
+  animation:pulse-border 1.2s ease-out 1;
 }
 
-/* ======== BOOKING LINKS: animated pills (ResultCard) ======== */
-.book-link {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-height: 36px; padding: 0 14px; border-radius: 999px;
-  background: linear-gradient(180deg,#ffffff,#f8fafc);
-  border: 1px solid #cbd5e1; color: var(--ink); font-weight: 900;
+/* ===== Booking links (animated pills) ===== */
+.book-link{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-height:36px; padding:0 14px; border-radius:999px;
+  background:linear-gradient(180deg,#ffffff,#f8fafc);
+  border:1px solid #cbd5e1; color:var(--ink); font-weight:900;
   transition: transform .08s ease, box-shadow .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
-  box-shadow: 0 6px 16px rgba(2,132,199,.06);
+  box-shadow:0 6px 16px rgba(2,132,199,.06);
+  text-decoration:none !important; /* no underlines */
 }
-.book-link:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(14,165,233,.18);
-  border-color: #94a3b8;
-}
-.book-link--primary {
-  background: linear-gradient(90deg,var(--brand-2),var(--brand));
-  color: #fff; border: none;
-}
-.book-link--airline { background: linear-gradient(90deg,#10b981,#22c55e); color: #fff; border: none; }
-.book-link--gflights { background: linear-gradient(90deg,#a78bfa,#60a5fa); color: #fff; border: none; }
-.book-link--skyscanner { background: linear-gradient(90deg,#06b6d4,#3b82f6); color: #fff; border: none; }
-.book-link:active { transform: translateY(0); }
+.book-link:hover{ transform:translateY(-2px); box-shadow:0 16px 40px rgba(14,165,233,.18); border-color:#94a3b8; }
+.book-link:active{ transform:translateY(0); }
 
-/* ===== Compare-mode helpers (no layout change) ===== */
-.compare-mode-on .result-card { cursor: pointer; }
-.result-card--compared { box-shadow: 0 0 0 6px rgba(14,165,233,.10) inset; }
+/* Flight link variants */
+.book-link--primary{ background:linear-gradient(90deg,var(--brand-2),var(--brand)); color:#fff; border:none; }
+.book-link--airline{ background:linear-gradient(90deg,#10b981,#22c55e); color:#fff; border:none; }
+.book-link--gflights{ background:linear-gradient(90deg,#a78bfa,#60a5fa); color:#fff; border:none; }
+.book-link--skyscanner{ background:linear-gradient(90deg,#06b6d4,#3b82f6); color:#fff; border:none; }
+
+/* Hotel link variants */
+.book-link--booking{ background:linear-gradient(90deg,#2563eb,#1d4ed8); color:#fff; border:none; }   /* Booking.com blue */
+.book-link--hotels{ background:linear-gradient(90deg,#ef4444,#dc2626); color:#fff; border:none; }    /* Hotels.com red */
+.book-link--expedia{ background:linear-gradient(90deg,#f59e0b,#f97316); color:#fff; border:none; }   /* Expedia amber/orange */
+.book-link--maps{ background:linear-gradient(90deg,#10b981,#22c55e); color:#fff; border:none; }      /* Maps green */
+
+/* Compare-mode cursor/outline */
+.compare-mode-on .result-card{ cursor:pointer; }
+.result-card--compared{ box-shadow:0 0 0 6px rgba(14,165,233,.10) inset; }

@@ -144,7 +144,7 @@ export default function Page() {
   // If one-way, clear return date
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
 
-  // Hotel: DO NOT auto-populate dates. Clear both when toggled OFF.
+  // Hotel dates should not auto-populate when toggled off
   useEffect(() => {
     if (!includeHotel) {
       setHotelCheckIn("");
@@ -288,7 +288,7 @@ export default function Page() {
     [results, comparedIds]
   );
 
-  /* ---------- styles (no layout changes) ---------- */
+  /* ---------- styles ---------- */
   const s = {
     panel: {
       background: "#fff",
@@ -319,9 +319,7 @@ export default function Page() {
     } as React.CSSProperties,
     row: { display: "grid", gap: 12, alignItems: "end" } as React.CSSProperties,
     two: { gridTemplateColumns: "1fr 54px 1fr" } as React.CSSProperties,
-    datesPassengers: {
-      gridTemplateColumns: "170px 1fr 1fr 1fr 1fr 1fr",
-    } as React.CSSProperties,
+    datesPassengers: { gridTemplateColumns: "170px 1fr 1fr 1fr 1fr 1fr" } as React.CSSProperties,
     four: { gridTemplateColumns: "1fr 1fr 1fr 1fr" } as React.CSSProperties,
     three: { gridTemplateColumns: "1fr 1fr 1fr" } as React.CSSProperties,
 
@@ -349,56 +347,22 @@ export default function Page() {
       margin: "0 auto",
       fontSize: 15,
     } as React.CSSProperties,
-    error: {
-      borderColor: "#fecaca",
-      background: "#fef2f2",
-      color: "#991b1b",
-      fontWeight: 900,
-    } as React.CSSProperties,
-    warn: {
-      borderColor: "#fde68a",
-      background: "#fffbeb",
-      color: "#92400e",
-      fontWeight: 800,
-    } as React.CSSProperties,
+    error: { borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 900 } as React.CSSProperties,
+    warn: { borderColor: "#fde68a", background: "#fffbeb", color: "#92400e", fontWeight: 800 } as React.CSSProperties,
   };
 
   const primaryBtn: React.CSSProperties = {
-    height: 46,
-    padding: "0 18px",
-    border: "none",
-    fontWeight: 900,
-    color: "#fff",
-    background: "linear-gradient(90deg,#06b6d4,#0ea5e9)",
-    borderRadius: 10,
-    minWidth: 130,
-    fontSize: 15,
-    cursor: "pointer",
+    height: 46, padding: "0 18px", border: "none", fontWeight: 900, color: "#fff",
+    background: "linear-gradient(90deg,#06b6d4,#0ea5e9)", borderRadius: 10, minWidth: 130, fontSize: 15, cursor: "pointer",
   };
   const secondaryBtn: React.CSSProperties = {
-    height: 46,
-    padding: "0 16px",
-    fontWeight: 800,
-    background: "#fff",
-    border: "2px solid #7dd3fc",
-    color: "#0369a1",
-    borderRadius: 12,
-    cursor: "pointer",
-    lineHeight: 1,
-    whiteSpace: "nowrap",
+    height: 46, padding: "0 16px", fontWeight: 800, background: "#fff", border: "2px solid #7dd3fc",
+    color: "#0369a1", borderRadius: 12, cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap",
   };
 
   const segBase: React.CSSProperties = {
-    height: 44,
-    padding: "0 14px",
-    borderRadius: 10,
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    fontWeight: 900,
-    fontSize: 15,
-    lineHeight: 1,
-    whiteSpace: "nowrap",
-    cursor: "pointer",
+    height: 44, padding: "0 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff",
+    fontWeight: 900, fontSize: 15, lineHeight: 1, whiteSpace: "nowrap", cursor: "pointer",
   };
   const segStyle = (active: boolean): React.CSSProperties =>
     active
@@ -490,19 +454,22 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Children ages */}
+        {/* Children ages (no arrows, 1–17 only) */}
         {children > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {Array.from({ length: children }).map((_, i) => (
               <div key={i} style={{ display: "grid", gap: 6 }}>
                 <label style={s.label}>Child {i + 1} age</label>
                 <input
+                  className="no-spin"
                   type="number"
-                  min={0}
+                  min={1}
                   max={17}
-                  value={childrenAges[i] ?? 0}
+                  placeholder="1–17"
+                  value={Math.max(1, Math.min(17, Number(childrenAges[i] ?? 8)))}
                   onChange={(e) => {
-                    const v = Math.max(0, Math.min(17, Number(e.target.value) || 0));
+                    const raw = Number(e.target.value);
+                    const v = Math.max(1, Math.min(17, Number.isFinite(raw) ? raw : 8));
                     setChildrenAges((prev) => {
                       const next = prev.slice();
                       next[i] = v;
@@ -634,8 +601,8 @@ export default function Page() {
           <div>
             <label style={s.label}>Sort by (basis)</label>
             <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <button type="button" style={segStyle(sortBasis === "flightOnly")} onClick={() => setSortBasis("flightOnly")}>Flight only</button>
-              <button type="button" style={segStyle(sortBasis === "bundle")} onClick={() => setSortBasis("bundle")}>Bundle total</button>
+              <button type="button" style={segStyle("flightOnly" === sortBasis)} onClick={() => setSortBasis("flightOnly")}>Flight only</button>
+              <button type="button" style={segStyle("bundle" === sortBasis)} onClick={() => setSortBasis("bundle")}>Bundle total</button>
             </div>
           </div>
         </div>
@@ -664,26 +631,14 @@ export default function Page() {
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button
-            className={`toolbar-chip ${!showAll ? "toolbar-chip--active" : ""}`}
-            onClick={() => setShowAll(false)}
-            title="Show top 3"
-          >
-            Top-3
-          </button>
-          <button
-            className={`toolbar-chip ${showAll ? "toolbar-chip--active" : ""}`}
-            onClick={() => setShowAll(true)}
-            title="Show all"
-          >
-            All
-          </button>
+          <button className={`toolbar-chip ${!showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(false)} title="Show top 3">Top-3</button>
+          <button className={`toolbar-chip ${showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(true)} title="Show all">All</button>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button className="toolbar-chip" onClick={() => window.print()}>Print</button>
           <SavedChip count={savedCount} />
-          {/* ✅ animated compare toggle */}
+          {/* Animated compare toggle */}
           <label className="compare-toggle" style={{ fontWeight: 900, color: "#334155" }}>
             <input type="checkbox" checked={compareMode} onChange={(e) => setCompareMode(e.target.checked)} /> Compare
           </label>
