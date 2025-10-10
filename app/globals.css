@@ -6,22 +6,33 @@
 *::after { box-sizing: border-box; }
 html, body { padding: 0; margin: 0; height: 100%; }
 
+/* ==== Theme tokens (richer palette, still on-brand) ==== */
+:root {
+  --bg1: #f8fafc;        /* slate-50 */
+  --bg2: #ffffff;        /* white */
+  --ink: #0f172a;        /* slate-900 */
+  --muted: #64748b;      /* slate-500/600 */
+  --line: #e2e8f0;       /* slate-200 */
+
+  --brand: #0ea5e9;      /* sky-500 */
+  --brand-2: #06b6d4;    /* cyan-500 */
+  --brand-3: #38bdf8;    /* sky-400 */
+  --brand-4: #0891b2;    /* cyan-600 (deeper) */
+
+  --accent-1: #a78bfa;   /* violet-400 */
+  --accent-2: #f472b6;   /* pink-400 */
+  --accent-3: #22c55e;   /* green-500 */
+
+  --ring: rgba(14,165,233,.35);
+}
+
 /* App baseline */
 .tt-body {
-  --bg1: #f8fafc;       /* slate-50 */
-  --bg2: #ffffff;       /* white */
-  --text: #0f172a;      /* slate-900 */
-  --muted: #475569;     /* slate-600 */
-  --brand: #0ea5e9;     /* sky-500 */
-  --brand-2: #06b6d4;   /* cyan-500 */
-  --line: #e2e8f0;      /* slate-200 */
-  --ring: rgba(14,165,233,.35);
-
   background:
     radial-gradient(1200px 600px at 10% -10%, #e0f2fe 0%, rgba(224,242,254,0) 60%),
     radial-gradient(1000px 500px at 110% 10%, #cffafe 0%, rgba(207,250,254,0) 60%),
     var(--bg1);
-  color: var(--text);
+  color: var(--ink);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   line-height: 1.45;
 }
@@ -34,19 +45,25 @@ html, body { padding: 0; margin: 0; height: 100%; }
   margin: 0 auto;
 }
 
+/* Header background + logo blend (tries to hide white box) */
+header {
+  background: linear-gradient(90deg, rgba(6,182,212,.10), rgba(14,165,233,.10));
+  border-bottom: 1px solid var(--line);
+}
+header .tt-logo {
+  /* If the source logo has a white rectangular box, this helps blend it. */
+  mix-blend-mode: multiply;          /* light bg + non-transparent PNG */
+  filter: drop-shadow(0 0 0 rgba(0,0,0,0));
+  /* Best fix is replacing with a transparent PNG/SVG; this just softens the white box. */
+}
+
 /* Utility buttons */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: inline-flex; align-items: center; gap: 8px;
   border: 1px solid var(--line);
-  background: #fff;
-  color: var(--text);
-  padding: 10px 14px;
-  border-radius: 12px;
-  text-decoration: none;
-  font-weight: 800;
-  cursor: pointer;
+  background: #fff; color: var(--ink);
+  padding: 10px 14px; border-radius: 12px;
+  text-decoration: none; font-weight: 800; cursor: pointer;
   transition: transform .06s ease, box-shadow .12s ease, filter .12s ease;
   box-shadow: 0 6px 18px rgba(2, 132, 199, 0.10);
 }
@@ -54,18 +71,15 @@ html, body { padding: 0; margin: 0; height: 100%; }
 .btn:active { transform: translateY(0); }
 .btn.primary {
   background: linear-gradient(90deg, var(--brand-2), var(--brand));
-  border: none;
-  color: #fff;
+  border: none; color: #fff;
 }
 .btn.ghost {
-  background: #fff;
-  color: var(--brand);
-  border: 2px solid #7dd3fc;
-  box-shadow: none;
+  background: #fff; color: var(--brand);
+  border: 2px solid #7dd3fc; box-shadow: none;
 }
 .btn.small { padding: 8px 10px; font-size: 13px; }
 
-/* Card baseline */
+/* Cards */
 .card {
   background: var(--bg2);
   border: 1px solid var(--line);
@@ -75,112 +89,42 @@ html, body { padding: 0; margin: 0; height: 100%; }
   box-shadow: 0 8px 24px rgba(2,132,199,.06);
 }
 
-/* Form inputs baseline */
+/* Inputs */
 input, select, button, textarea { font: inherit; }
 input[type="text"], input[type="date"], .select, .input {
-  background: #fff;
-  color: var(--text);
+  background: #fff; color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px 14px;
-  outline: none;
-  font-size: 16px;       /* slightly larger */
+  border-radius: 12px; padding: 12px 14px;
+  outline: none; font-size: 16px;
 }
 input[type="text"]:focus, input[type="date"]:focus, .select:focus, .input:focus {
-  border-color: #7dd3fc;
-  box-shadow: 0 0 0 3px var(--ring);
+  border-color: #7dd3fc; box-shadow: 0 0 0 3px var(--ring);
 }
+select { appearance: auto; color: var(--ink); background-color: #fff; }
 
-/* Simple grid helpers */
+/* Simple grid helper */
 .container-wide { display: grid; grid-template-columns: 1fr; gap: 16px; }
-@media (min-width: 1024px) {
-  .container-wide { grid-template-columns: 320px 1fr; gap: 24px; }
-}
+@media (min-width: 1024px) { .container-wide { grid-template-columns: 320px 1fr; gap: 24px; } }
 
-/* Chips/pills (generic) */
-.chip {
-  background: #e0f2fe;
-  color: #0369a1;
-  padding: 4px 8px;
-  font-size: 12px;
-  border-radius: 999px;
-  margin-right: 6px;
-}
+/* Tiny chips (legacy) */
+.chip { background: #e0f2fe; color: #0369a1; padding: 4px 8px; font-size: 12px; border-radius: 999px; margin-right: 6px; }
 
-/* Buttons: focus & disabled states */
-.btn:focus-visible { outline: 3px solid rgba(125, 211, 252, 0.65); outline-offset: 2px; }
-.btn:disabled, .btn[disabled] { opacity: .5; cursor: not-allowed; box-shadow: none; transform: none; }
-
-/* Selects: ensure text/arrow contrast on Windows */
-select { appearance: auto; color: var(--text); background-color: #fff; }
-
-/* link underline removal for chips */
-.btn, .chip, a[role='button'] { text-decoration: none !important; }
-
-/* Make button-like links inherit text color */
+/* Links */
 a, a:visited { color: inherit; }
-a.btn, a[role='button'] { color: inherit; text-decoration: none; }
-
-/* Brand link cleanup */
-a.tt-brand,
-a.tt-brand:hover,
-a.tt-brand:focus,
-a.tt-brand:active,
+.btn, .chip, a[role='button'] { text-decoration: none !important; }
+a.tt-brand, a.tt-brand:hover, a.tt-brand:focus, a.tt-brand:active,
 a.tt-brand * { text-decoration: none !important; border-bottom: 0 !important; }
 
-/* Theming refresh */
-:root {
-  --bg: #f8fafc;
-  --bg2: #ffffff;
-  --ink: #0f172a;
-  --muted: #64748b;
-  --brand: #0ea5e9;
-  --brand-2: #06b6d4;
-  --ring: rgba(14,165,233,.35);
-}
-
-html, body {
-  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 220px);
-  color: var(--ink);
-}
-
-/* Header background */
-header {
-  background: linear-gradient(90deg, rgba(6,182,212,.08), rgba(14,165,233,.08));
-  border-bottom: 1px solid #e2e8f0;
-}
-
-/* Inputs */
-input, select {
-  border-radius: 12px;
-  border: 1px solid #cbd5e1;
-  padding: 12px 14px;
-}
-input:focus, select:focus { outline: none; box-shadow: 0 0 0 3px var(--ring); border-color: var(--brand); }
-
-/* Remove underlines from brand and booking links explicitly */
-a.tt-brand, a.tt-brand:hover, a.tt-brand:focus, a.tt-brand:active,
-a.book-link, a.book-link:hover, a.book-link:focus, a.book-link:active {
-  text-decoration: none !important;
-  border-bottom: 0 !important;
-}
-
-/* ===== Toolbar (sort) chip styles – BOLDER but same layout ===== */
+/* ======== TOOLBAR TABS (bolder, animated) ======== */
 .toolbar-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 38px;                 /* slightly taller */
-  padding: 0 18px;              /* slightly wider */
-  border-radius: 999px;
-  border: 2px solid #cbd5e1;    /* thicker outline */
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 38px; padding: 0 18px; border-radius: 999px;
+  border: 2px solid #cbd5e1;
   background: linear-gradient(180deg,#ffffff,#f8fafc);
-  color: #0f172a;
-  font-weight: 900;
-  font-size: 16px;              /* bigger label */
+  color: var(--ink); font-weight: 900; font-size: 16px;
   box-shadow: 0 6px 18px rgba(2,132,199,.06);
-  transition: transform .08s ease, box-shadow .12s ease, filter .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
   cursor: pointer;
+  transition: transform .08s ease, box-shadow .12s ease, filter .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
 }
 .toolbar-chip:hover {
   transform: translateY(-1px);
@@ -189,16 +133,53 @@ a.book-link, a.book-link:hover, a.book-link:focus, a.book-link:active {
 }
 .toolbar-chip:active { transform: translateY(0); }
 .toolbar-chip--active {
-  background: linear-gradient(90deg,#06b6d4,#0ea5e9);
-  color: #fff;
-  border-color: transparent;
+  background: linear-gradient(90deg,var(--brand-2),var(--brand));
+  color: #fff; border-color: transparent;
   box-shadow: 0 10px 26px rgba(14,165,233,.25);
 }
-.toolbar-chip:focus-visible {
-  outline: 3px solid var(--ring);
-  outline-offset: 2px;
+.toolbar-chip:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+
+/* ======== COMPARE toggle: animated when checked (no layout change) ======== */
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(14,165,233,.45); }
+  70% { box-shadow: 0 0 0 8px rgba(14,165,233,0); }
+  100% { box-shadow: 0 0 0 0 rgba(14,165,233,0); }
+}
+.compare-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 999px;
+  transition: background .2s ease, color .2s ease;
+}
+.compare-toggle:hover { background: #f1f5f9; }
+.compare-toggle:has(input:checked) {
+  background: linear-gradient(90deg,var(--brand-3),var(--brand-2));
+  color: #fff;
+  animation: pulse-border 1.2s ease-out 1;
 }
 
-/* ===== Compare-mode helpers (non-intrusive) ===== */
+/* ======== BOOKING LINKS: animated pills (ResultCard) ======== */
+.book-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 36px; padding: 0 14px; border-radius: 999px;
+  background: linear-gradient(180deg,#ffffff,#f8fafc);
+  border: 1px solid #cbd5e1; color: var(--ink); font-weight: 900;
+  transition: transform .08s ease, box-shadow .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  box-shadow: 0 6px 16px rgba(2,132,199,.06);
+}
+.book-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(14,165,233,.18);
+  border-color: #94a3b8;
+}
+.book-link--primary {
+  background: linear-gradient(90deg,var(--brand-2),var(--brand));
+  color: #fff; border: none;
+}
+.book-link--airline { background: linear-gradient(90deg,#10b981,#22c55e); color: #fff; border: none; }
+.book-link--gflights { background: linear-gradient(90deg,#a78bfa,#60a5fa); color: #fff; border: none; }
+.book-link--skyscanner { background: linear-gradient(90deg,#06b6d4,#3b82f6); color: #fff; border: none; }
+.book-link:active { transform: translateY(0); }
+
+/* ===== Compare-mode helpers (no layout change) ===== */
 .compare-mode-on .result-card { cursor: pointer; }
 .result-card--compared { box-shadow: 0 0 0 6px rgba(14,165,233,.10) inset; }

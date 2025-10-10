@@ -683,7 +683,8 @@ export default function Page() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button className="toolbar-chip" onClick={() => window.print()}>Print</button>
           <SavedChip count={savedCount} />
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 900, color: "#334155" }}>
+          {/* ✅ animated compare toggle */}
+          <label className="compare-toggle" style={{ fontWeight: 900, color: "#334155" }}>
             <input type="checkbox" checked={compareMode} onChange={(e) => setCompareMode(e.target.checked)} /> Compare
           </label>
         </div>

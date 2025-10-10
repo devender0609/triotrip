@@ -217,7 +217,7 @@ export default function ResultCard({
   const fs = large ? 15 : 14;
   const cardStyle: React.CSSProperties = {
     background: "#fff",
-    border: isCompared ? "2px solid #0ea5e9" : "1px solid #e5e7eb",
+    border: isCompared ? "2px solid #0ea5e9" : "1px solid #e2e7eb",
     borderRadius: 16,
     padding: 14,
     display: "grid",
@@ -237,14 +237,6 @@ export default function ResultCard({
     background: "#fff",
     fontWeight: 800,
     lineHeight: 1,
-  };
-
-  const buyBtn: React.CSSProperties = {
-    ...chipBtn,
-    border: "none",
-    color: "#fff",
-    fontWeight: 900,
-    background: "linear-gradient(90deg,#06b6d4,#0ea5e9)",
   };
 
   // tiny inline SVG as last resort
@@ -413,12 +405,18 @@ export default function ResultCard({
             }}
           >
             <div style={{ fontWeight: 900, color: "#0f172a" }}>Book Flight</div>
-            <button onClick={(e) => { e.stopPropagation(); bookViaTrioTrip(); }} style={{ ...buyBtn, height: 34, padding: "0 12px" }}>
+
+            {/* ✅ Animated booking buttons (class-based) */}
+            <button
+              onClick={(e) => { e.stopPropagation(); bookViaTrioTrip(); }}
+              className="book-link book-link--primary"
+              style={{ minHeight: 34 }}
+            >
               Book via TrioTrip
             </button>
-            <a href={airlineSite} target="_blank" rel="noreferrer" style={chipBtn} onClick={(e) => e.stopPropagation()}>Airline site</a>
-            <a href={googleFlights} target="_blank" rel="noreferrer" style={chipBtn} onClick={(e) => e.stopPropagation()}>Google Flights</a>
-            <a href={skyScanner} target="_blank" rel="noreferrer" style={chipBtn} onClick={(e) => e.stopPropagation()}>Skyscanner</a>
+            <a href={airlineSite} target="_blank" rel="noreferrer" className="book-link book-link--airline" onClick={(e) => e.stopPropagation()}>Airline site</a>
+            <a href={googleFlights} target="_blank" rel="noreferrer" className="book-link book-link--gflights" onClick={(e) => e.stopPropagation()}>Google Flights</a>
+            <a href={skyScanner} target="_blank" rel="noreferrer" className="book-link book-link--skyscanner" onClick={(e) => e.stopPropagation()}>Skyscanner</a>
 
             <div style={{ flex: 1 }} />
             <div style={{ fontSize: 11, color: "#64748b", textAlign: "center" }}>
@@ -499,12 +497,12 @@ export default function ResultCard({
                       </div>
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                      <a href={links.primary} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>Hotel website</a>
-                      <a href={links.booking} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>Booking.com</a>
-                      <a href={links.hotels} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>Hotels.com</a>
-                      <a href={links.expedia} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>Expedia</a>
+                      <a href={links.primary} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>Hotel website</a>
+                      <a href={links.booking} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>Booking.com</a>
+                      <a href={links.hotels} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>Hotels.com</a>
+                      <a href={links.expedia} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>Expedia</a>
                       {links.maps && (
-                        <a href={links.maps} target="_blank" rel="noreferrer noopener" style={chipBtn} onClick={(e) => e.stopPropagation()}>View on map</a>
+                        <a href={links.maps} target="_blank" rel="noreferrer noopener" className="book-link" onClick={(e) => e.stopPropagation()}>View on map</a>
                       )}
                     </div>
                   </div>
