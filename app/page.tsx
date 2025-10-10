@@ -71,9 +71,7 @@ export default function Page() {
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
 
   // Hotels: do NOT auto-populate; clear when toggled OFF
-  useEffect(() => {
-    if (!includeHotel) { setHotelCheckIn(""); setHotelCheckOut(""); }
-  }, [includeHotel]);
+  useEffect(() => { if (!includeHotel) { setHotelCheckIn(""); setHotelCheckOut(""); } }, [includeHotel]);
 
   // ---------- helpers ----------
   function swapOriginDest() {
@@ -160,7 +158,7 @@ export default function Page() {
         <h1 style={{ margin: "0 0 6px", fontWeight: 900, fontSize: 36, letterSpacing: "-0.02em" }}>
           Find your perfect trip
         </h1>
-        {/* Replace paragraph with the pill line as in your screenshot */}
+        {/* Pills like your figure */}
         <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
           <span className="tt-pill tt-pill-primary">Top-3 picks</span>
           <span className="tt-dot">•</span><span className="tt-pill">Smarter</span>
@@ -203,7 +201,7 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Row 2: Trip type then dates (to the right) */}
+        {/* Row 2: Trip type then dates */}
         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 10, alignItems: "center" }}>
           <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button type="button" style={segStyle(roundTrip)} onClick={() => setRoundTrip(true)}>Round trip</button>
@@ -231,7 +229,7 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Row 3: Passengers + Budget (moved here) + Class/Stops/Flags */}
+        {/* Row 3: Passengers + Budget + Class/Stops/Flags + Hotels */}
         <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr", gap: 10 }}>
           {/* Passengers + Budget */}
           <div>
@@ -356,7 +354,7 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Row 4: Sort basis */}
+        {/* Row 4: Price basis */}
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ fontWeight: 800, fontSize: 15 }}>Price basis:</span>
           <div style={{ display: "inline-flex", gap: 6 }}>
@@ -403,7 +401,7 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Compare summary drawer */}
+      {/* Compare summary */}
       {compareMode && comparedIds.length > 0 && Array.isArray(results) && (
         <div className="card" style={{ padding: 12 }}>
           <div style={{ fontWeight: 900, marginBottom: 8 }}>Compare selections</div>
@@ -492,7 +490,7 @@ export default function Page() {
   }
 }
 
-/* small helper for number entry with bigger font */
+/* helper component for number entry with bigger font */
 function NumberInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
   return (
     <label style={{ display: "grid", gap: 6 }}>
@@ -508,6 +506,12 @@ function NumberInput({ label, value, onChange }: { label: string; value: number;
       />
     </label>
   );
+}
+
+/* money formatter used in Compare table */
+function formatMoney(n: number, c: string) {
+  try { return new Intl.NumberFormat("en-US", { style: "currency", currency: c }).format(n || 0); }
+  catch { return `$${(n || 0).toFixed(0)}`; }
 }
 
 // ---------- table cell styles ----------
