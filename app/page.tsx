@@ -334,7 +334,7 @@ export default function Page() {
       alignItems: "center",
       justifyContent: "space-between",
       background: "#fff",
-      border: "1px solid #e5e7eb",
+      border: "1px solid #e2e8f0",
       borderRadius: 16,
       padding: 10,
       gap: 10,
@@ -347,7 +347,7 @@ export default function Page() {
     msg: {
       padding: 12,
       background: "#fff",
-      border: "1px solid #e5e7eb",
+      border: "1px solid #e2e8f0",
       borderRadius: 12,
       maxWidth: 1240,
       margin: "0 auto",
@@ -423,7 +423,6 @@ export default function Page() {
       : segBase;
 
   return (
-    {/* ✅ only change: this className enables whole-card click UX in Compare mode */}
     <div className={compareMode ? "compare-mode-on" : undefined} style={{ padding: 12, display: "grid", gap: 14 }}>
       {/* HERO */}
       <section>
@@ -455,7 +454,7 @@ export default function Page() {
               onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }}
             />
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center" }} aria-hidden>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center" }} aria-hidden>
             <button type="button" title="Swap origin & destination" onClick={swapOriginDest} style={{ height: 46, width: 46, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}>⇄</button>
           </div>
           <div>
