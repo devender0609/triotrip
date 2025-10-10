@@ -82,9 +82,10 @@ export default function ResultCard({
     `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}`;
 
   const googleFlights =
-    `https://www.google.com/travel/flights?q=Flights%20to%20${encodeURIComponent(route)}%20on%20${encodeURIComponent(
-      dateOut
-    )}` + (dateRet ? `%20return%20${encodeURIComponent(dateRet)}` : "");
+    `https://www.google.com/travel/flights?q=` +
+    encodeURIComponent(
+      `${from || ""} to ${to || route} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax} travelers`
+    );
 
   // Skyscanner wants lowercase IATA + yyyymmdd
   const fromIata = (outSegs?.[0]?.from || pkg.origin || "").toLowerCase();
@@ -93,7 +94,7 @@ export default function ResultCard({
   const ssRet = (dateRet || "").replace(/-/g, "");
   const skyScanner =
     (fromIata && toIata && ssOut)
-      ? `https://www.skyscanner.com/transport/flights/${fromIata}/${toIata}/${ssOut}${ssRet ? `/${ssRet}` : ""}/?adults=${pax}`
+      ? `https://www.skyscanner.com/transport/flights/${fromIata}/${toIata}/${ssOut}${ssRet ? `/${ssRet}` : ""}/?adults=${Math.max(1, adults)}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
       : "https://www.skyscanner.com/";
 
   // ----- hotel deeplinks (prefill search & image click target) -----
@@ -279,19 +280,30 @@ export default function ResultCard({
     return { first: fromData || fb.unsplash, fallbacks: fb };
   }
 
-  return (
-    <article
-      data-offer-id={id}
-      style={{
-        background: "#fff",
-        border: "1px solid #e5e7eb",
-        borderRadius: 16,
-        padding: 14,
-        display: "grid",
-        gap: 12,
-        fontSize: fs,
-        boxShadow: "0 6px 18px rgba(2,6,23,.06)",
+  
+  const isCompared = Array.isArray(comparedIds) ? comparedIds.includes(id) : false;
+  const cardStyle: React.CSSProperties = {
+    background: "#fff",
+    border: isCompared ? "2px solid #0ea5e9" : "1px solid #e5e7eb",
+    borderRadius: 16,
+    padding: 14,
+    display: "grid",
+    gap: 12,
+    fontSize: fs,
+    boxShadow: isCompared ? "0 0 0 4px rgba(14,165,233,.15) inset" : "0 6px 18px rgba(2,6,23,.06)",
+    cursor: onToggleCompare ? "pointer" : "default",
+  };
+return (
+    <article onClick={(e) => {
+        if (onToggleCompare) {
+          // click anywhere toggles compare unless a link/button is clicked
+          const target = e.target as HTMLElement;
+          const isInteractive = target.closest('a,button,input,select,textarea,[role="button"],[role="tab"],[role="link"]');
+          if (!isInteractive) onToggleCompare(id);
+        }
       }}
+      data-offer-id={id}
+      style={cardStyle}
     >
       {/* Header */}
       <header style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>

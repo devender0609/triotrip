@@ -147,12 +147,15 @@ export default function Page() {
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
 
   useEffect(() => {
-    if (!includeHotel) return;
-    if (!hotelCheckIn && departDate) setHotelCheckIn(departDate);
-    if (!hotelCheckOut && roundTrip && returnDate) setHotelCheckOut(returnDate);
-  }, [includeHotel, departDate, returnDate, roundTrip, hotelCheckIn, hotelCheckOut]);
+    // Do NOT auto-populate hotel dates; only user selections should set these.
+    // If includeHotel is turned OFF, clear any hotel dates so inputs show placeholders.
+    if (!includeHotel) {
+      setHotelCheckIn("");
+      setHotelCheckOut("");
+    }
+  }, [includeHotel]);
 
-  function swapOriginDest() {
+function swapOriginDest() {
     setOriginCode((oc) => { const dc = destCode; setDestCode(oc); return dc; });
     setOriginDisplay((od) => { const dd = destDisplay; setDestDisplay(od); return dd; });
   }
@@ -418,7 +421,7 @@ export default function Page() {
       : segBase;
 
   return (
-    <div style={{ padding: 12, display: "grid", gap: 14 }}>
+    <div className={compareMode ? 'compare-mode-on' : undefined} style={{ padding: 12, display: \"grid\", gap: 14 }}>
       {/* HERO */}
       <section>
         <h1 style={{ margin: "0 0 6px", fontWeight: 900, fontSize: 32, letterSpacing: "-0.02em" }}>
@@ -607,11 +610,11 @@ export default function Page() {
           </div>
           <div>
             <label style={s.label}>Hotel check-in</label>
-            <input type="date" style={s.input} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} disabled={!includeHotel} min={departDate || todayLocal} />
+            <input type="date" style={s.input} value={hotelCheckIn} onChange={(e) = placeholder="mm/dd/yyyy" > setHotelCheckIn(e.target.value)} disabled={!includeHotel} min={departDate || todayLocal} />
           </div>
           <div>
             <label style={s.label}>Hotel check-out</label>
-            <input type="date" style={s.input} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)} disabled={!includeHotel} min={hotelCheckIn || departDate || todayLocal} />
+            <input type="date" style={s.input} value={hotelCheckOut} onChange={(e) = placeholder="mm/dd/yyyy" > setHotelCheckOut(e.target.value)} disabled={!includeHotel} min={hotelCheckIn || departDate || todayLocal} />
           </div>
           <div>
             <label style={s.label}>Min hotel stars</label>

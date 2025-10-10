@@ -229,3 +229,19 @@ a.book-link, a.book-link:hover, a.book-link:focus, a.book-link:active {
   text-decoration: none !important;
   border-bottom: 0 !important;
 }
+
+
+/* Extra accents */
+:root {
+  --accent: #22c55e; /* green-500 */
+  --accent-2: #84cc16; /* lime-500 */
+}
+
+/* Compare mode hint border */
+.compare-mode-on .compare-hint {
+  background: rgba(14,165,233,.08);
+  border: 1px dashed #7dd3fc;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
