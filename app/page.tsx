@@ -546,6 +546,29 @@ export default function Page() {
   }
 }
 
+/* ------- small helper component we forgot earlier ------- */
+function NumberInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <label style={{ display: "grid", gap: 4 }}>
+      <span style={{ fontSize: 12, fontWeight: 800, opacity: 0.7 }}>{label}</span>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(parseIntSafe(e.target.value, value))}
+        style={s.input}
+      />
+    </label>
+  );
+}
+
 // ---------- styles ----------
 const s = {
   panel: {
