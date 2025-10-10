@@ -14,7 +14,6 @@ html, body { padding: 0; margin: 0; height: 100%; }
   --muted: #475569;     /* slate-600 */
   --brand: #0ea5e9;     /* sky-500 */
   --brand-2: #06b6d4;   /* cyan-500 */
-  --brand-3: #38bdf8;   /* sky-400 */
   --line: #e2e8f0;      /* slate-200 */
   --ring: rgba(14,165,233,.35);
 
@@ -85,7 +84,7 @@ input[type="text"], input[type="date"], .select, .input {
   border-radius: 12px;
   padding: 12px 14px;
   outline: none;
-  font-size: 16px;    /* ⬆ a bit bigger */
+  font-size: 16px;       /* slightly larger */
 }
 input[type="text"]:focus, input[type="date"]:focus, .select:focus, .input:focus {
   border-color: #7dd3fc;
@@ -98,27 +97,14 @@ input[type="text"]:focus, input[type="date"]:focus, .select:focus, .input:focus 
   .container-wide { grid-template-columns: 320px 1fr; gap: 24px; }
 }
 
-/* Chips/pills (general purpose – used by some components) */
+/* Chips/pills (generic) */
 .chip {
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
-  color: #0f172a;
-  padding: 8px 14px;
-  font-size: 15px;  /* ⬆ a bit bigger */
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 4px 8px;
+  font-size: 12px;
   border-radius: 999px;
-  border: 1px solid #cbd5e1;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 900;
-  box-shadow: 0 6px 18px rgba(2,132,199,.06);
-  transition: box-shadow .12s ease, transform .06s ease, background .12s ease, color .12s ease;
-}
-.chip:hover { transform: translateY(-1px); }
-.chip.active {
-  background: linear-gradient(90deg, var(--brand-2), var(--brand));
-  border: none;
-  color: #fff;
-  box-shadow: 0 8px 22px rgba(14,165,233,.20);
+  margin-right: 6px;
 }
 
 /* Buttons: focus & disabled states */
@@ -174,7 +160,44 @@ input:focus, select:focus { outline: none; box-shadow: 0 0 0 3px var(--ring); bo
 
 /* Remove underlines from brand and booking links explicitly */
 a.tt-brand, a.tt-brand:hover, a.tt-brand:focus, a.tt-brand:active,
-a.book-link, a.book-link:hover, a.book-link:focus, a.book-link:active { text-decoration: none !important; border-bottom: 0 !important; }
+a.book-link, a.book-link:hover, a.book-link:focus, a.book-link:active {
+  text-decoration: none !important;
+  border-bottom: 0 !important;
+}
+
+/* ===== Toolbar (sort) chip styles – BOLDER but same layout ===== */
+.toolbar-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;                 /* slightly taller */
+  padding: 0 18px;              /* slightly wider */
+  border-radius: 999px;
+  border: 2px solid #cbd5e1;    /* thicker outline */
+  background: linear-gradient(180deg,#ffffff,#f8fafc);
+  color: #0f172a;
+  font-weight: 900;
+  font-size: 16px;              /* bigger label */
+  box-shadow: 0 6px 18px rgba(2,132,199,.06);
+  transition: transform .08s ease, box-shadow .12s ease, filter .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
+  cursor: pointer;
+}
+.toolbar-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(14,165,233,.15);
+  border-color: #94a3b8;
+}
+.toolbar-chip:active { transform: translateY(0); }
+.toolbar-chip--active {
+  background: linear-gradient(90deg,#06b6d4,#0ea5e9);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 10px 26px rgba(14,165,233,.25);
+}
+.toolbar-chip:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
 
 /* ===== Compare-mode helpers (non-intrusive) ===== */
 .compare-mode-on .result-card { cursor: pointer; }

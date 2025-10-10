@@ -104,7 +104,6 @@ export default function Page() {
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
   const [compareMode, setCompareMode] = useState(false);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
-
   useEffect(() => { if (!compareMode) setComparedIds([]); }, [compareMode]);
 
   const [showAll, setShowAll] = useState(false);
@@ -120,9 +119,7 @@ export default function Page() {
       try {
         const arr = JSON.parse(localStorage.getItem("triptrio:saved") || "[]");
         setSavedCount(Array.isArray(arr) ? arr.length : 0);
-      } catch {
-        setSavedCount(0);
-      }
+      } catch { setSavedCount(0); }
     };
     load();
     const handler = () => load();
@@ -147,7 +144,7 @@ export default function Page() {
   // If one-way, clear return date
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
 
-  // ✅ Hotel: DO NOT auto-populate dates. Clear both when toggled OFF.
+  // Hotel: DO NOT auto-populate dates. Clear both when toggled OFF.
   useEffect(() => {
     if (!includeHotel) {
       setHotelCheckIn("");
@@ -224,7 +221,6 @@ export default function Page() {
       if (!r.ok) throw new Error(j?.error || "Search failed");
 
       setHotelWarning(j?.hotelWarning || null);
-      // preserve selections on each result for deep-linking
       const merged = (Array.isArray(j.results) ? j.results : []).map((res: any) => ({ ...res, ...payload }));
       setResults(merged);
       setComparedIds([]);
@@ -292,7 +288,7 @@ export default function Page() {
     [results, comparedIds]
   );
 
-  /* ---------- styles ---------- */
+  /* ---------- styles (no layout changes) ---------- */
   const s = {
     panel: {
       background: "#fff",
@@ -303,23 +299,23 @@ export default function Page() {
       gap: 14,
       maxWidth: 1240,
       margin: "0 auto",
-      fontSize: 15,
+      fontSize: 16,
     } as React.CSSProperties,
     label: {
       fontWeight: 900,
       color: "#334155",
       display: "block",
       marginBottom: 6,
-      fontSize: 14,
+      fontSize: 15,
     } as React.CSSProperties,
     input: {
-      height: 46,
-      padding: "0 12px",
+      height: 50,
+      padding: "0 14px",
       border: "1px solid #e2e8f0",
-      borderRadius: 10,
+      borderRadius: 12,
       width: "100%",
       background: "#fff",
-      fontSize: 15,
+      fontSize: 16,
     } as React.CSSProperties,
     row: { display: "grid", gap: 12, alignItems: "end" } as React.CSSProperties,
     two: { gridTemplateColumns: "1fr 54px 1fr" } as React.CSSProperties,
@@ -367,19 +363,6 @@ export default function Page() {
     } as React.CSSProperties,
   };
 
-  const chip: React.CSSProperties = {
-    height: 34,
-    padding: "0 14px",
-    borderRadius: 999,
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    fontWeight: 900,
-    fontSize: 14,
-  };
-  const chipActive: React.CSSProperties = {
-    borderColor: "#0ea5e9",
-    boxShadow: "0 0 0 2px rgba(14,165,233,.15) inset",
-  };
   const primaryBtn: React.CSSProperties = {
     height: 46,
     padding: "0 18px",
@@ -406,13 +389,13 @@ export default function Page() {
   };
 
   const segBase: React.CSSProperties = {
-    height: 42,
-    padding: "0 12px",
+    height: 44,
+    padding: "0 14px",
     borderRadius: 10,
     border: "1px solid #e2e8f0",
     background: "#fff",
     fontWeight: 900,
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 1,
     whiteSpace: "nowrap",
     cursor: "pointer",
@@ -454,8 +437,11 @@ export default function Page() {
               onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }}
             />
           </div>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center" }} aria-hidden>
-            <button type="button" title="Swap origin & destination" onClick={swapOriginDest} style={{ height: 46, width: 46, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}>⇄</button>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center" }} aria-hidden>
+            <button type="button" title="Swap origin & destination" onClick={swapOriginDest}
+              style={{ height: 46, width: 46, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}>
+              ⇄
+            </button>
           </div>
           <div>
             <label style={s.label}>Destination</label>
@@ -665,21 +651,37 @@ export default function Page() {
       <div style={s.toolbar}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }} role="tablist" aria-label="Sort">
           {(["best", "cheapest", "fastest", "flexible"] as const).map((k) => (
-            <button key={k} role="tab" aria-selected={sort === k}
-              style={{ ...chip, ...(sort === k ? chipActive : {}) }}
-              onClick={() => setSort(k)}>
+            <button
+              key={k}
+              role="tab"
+              aria-selected={sort === k}
+              className={`toolbar-chip ${sort === k ? "toolbar-chip--active" : ""}`}
+              onClick={() => setSort(k)}
+            >
               {k === "best" ? "Best overall" : k[0].toUpperCase() + k.slice(1)}
             </button>
           ))}
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button style={{ ...chip, ...(!showAll ? chipActive : {}) }} onClick={() => setShowAll(false)} title="Show top 3">Top-3</button>
-          <button style={{ ...chip, ...(showAll ? chipActive : {}) }} onClick={() => setShowAll(true)} title="Show all">All</button>
+          <button
+            className={`toolbar-chip ${!showAll ? "toolbar-chip--active" : ""}`}
+            onClick={() => setShowAll(false)}
+            title="Show top 3"
+          >
+            Top-3
+          </button>
+          <button
+            className={`toolbar-chip ${showAll ? "toolbar-chip--active" : ""}`}
+            onClick={() => setShowAll(true)}
+            title="Show all"
+          >
+            All
+          </button>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button style={chip} onClick={() => window.print()}>Print</button>
+          <button className="toolbar-chip" onClick={() => window.print()}>Print</button>
           <SavedChip count={savedCount} />
           <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 900, color: "#334155" }}>
             <input type="checkbox" checked={compareMode} onChange={(e) => setCompareMode(e.target.checked)} /> Compare
@@ -811,7 +813,7 @@ export default function Page() {
               onToggleCompare={compareMode ? toggleCompare : undefined}
               onSavedChangeGlobal={(count) => setSavedCount(count)}
               large
-              showHotel={includeHotel}   // hotel only when includeHotel is checked
+              showHotel={includeHotel}
             />
           ))}
         </div>
