@@ -158,3 +158,74 @@ a.tt-brand * {
   text-decoration: none !important;
   border-bottom: 0 !important;
 }
+
+
+/* === TrioTrip theming refresh (added) === */
+:root {
+  --bg: #f8fafc;
+  --bg2: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --brand: #0ea5e9;       /* sky-500 */
+  --brand-2: #06b6d4;     /* cyan-500 */
+  --ring: rgba(14,165,233,.35);
+}
+
+html, body {
+  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 220px);
+  color: var(--ink);
+}
+
+/* Buttons */
+.btn {
+  appearance: none;
+  border: none;
+  padding: 10px 14px;
+  font-weight: 800;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--brand-2), var(--brand));
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(14,165,233,.15);
+  cursor: pointer;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn:active { transform: translateY(1px); }
+.btn.ghost {
+  background: #fff;
+  color: var(--brand);
+  border: 2px solid #7dd3fc;
+  box-shadow: none;
+}
+
+/* Header background */
+header {
+  background: linear-gradient(90deg, rgba(6,182,212,.08), rgba(14,165,233,.08));
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Cards */
+.card {
+  background: var(--bg2);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(2,132,199,.06);
+}
+
+/* Inputs */
+input, select {
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  padding: 10px 12px;
+}
+input:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+  border-color: var(--brand);
+}
+
+/* Remove underlines from brand and booking links explicitly */
+a.tt-brand, a.tt-brand:hover, a.tt-brand:focus, a.tt-brand:active,
+a.book-link, a.book-link:hover, a.book-link:focus, a.book-link:active {
+  text-decoration: none !important;
+  border-bottom: 0 !important;
+}

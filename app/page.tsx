@@ -387,6 +387,19 @@ export default function Page() {
     fontSize: 15,
     cursor: "pointer",
   };
+  const secondaryBtn: React.CSSProperties = {
+    height: 46,
+    padding: "0 16px",
+    fontWeight: 800,
+    background: "#fff",
+    border: "2px solid #7dd3fc",
+    color: "#0369a1",
+    borderRadius: 12,
+    cursor: "pointer",
+    lineHeight: 1,
+    whiteSpace: "nowrap",
+  };
+
   const segBase: React.CSSProperties = {
     height: 42,
     padding: "0 12px",
@@ -625,6 +638,7 @@ export default function Page() {
         {/* Submit row */}
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button type="submit" style={primaryBtn}>{loading ? "Searching…" : "Search"}</button>
+          <button type="button" style={{ ...secondaryBtn, marginLeft: 10 }} onClick={() => window.location.reload()}>Reset</button>
         </div>
       </form>
 
