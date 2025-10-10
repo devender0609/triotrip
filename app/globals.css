@@ -1,6 +1,8 @@
 /* app/globals.css */
 
-/* CSS reset-ish */
+/* -------------------- */
+/* CSS reset-ish        */
+/* -------------------- */
 *,
 *::before,
 *::after {
@@ -12,7 +14,9 @@ html, body {
   height: 100%;
 }
 
-/* App baseline */
+/* -------------------- */
+/* App baseline         */
+/* -------------------- */
 .tt-body {
   --bg1: #f8fafc;       /* slate-50 */
   --bg2: #ffffff;       /* white */
@@ -39,7 +43,10 @@ html, body {
   margin: 0 auto;
 }
 
-/* Utility buttons (used by your components) */
+/* -------------------- */
+/* Utility buttons      */
+/* (kept and enhanced)  */
+/* -------------------- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -52,7 +59,7 @@ html, body {
   text-decoration: none;
   font-weight: 700;
   cursor: pointer;
-  transition: transform .06s ease, box-shadow .06s ease;
+  transition: transform .06s ease, box-shadow .06s ease, filter .06s ease;
 }
 .btn:hover {
   transform: translateY(-1px);
@@ -73,57 +80,7 @@ html, body {
   font-size: 13px;
 }
 
-/* Card baseline */
-.card {
-  background: var(--bg2);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 16px;
-  margin: 14px 0;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
-}
-
-/* Form inputs baseline */
-input, select, button, textarea {
-  font: inherit;
-}
-input[type="text"], input[type="date"], .select, .input {
-  background: #fff;
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 12px;
-  outline: none;
-}
-input[type="text"]:focus, input[type="date"]:focus, .select:focus, .input:focus {
-  border-color: #7dd3fc;
-  box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.35);
-}
-
-/* Simple grid helpers */
-.container-wide {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-@media (min-width: 1024px) {
-  .container-wide {
-    grid-template-columns: 320px 1fr;
-    gap: 24px;
-  }
-}
-
-/* Chips/pills */
-.chip {
-  background: #e0f2fe;
-  color: #0369a1;
-  padding: 4px 8px;
-  font-size: 12px;
-  border-radius: 999px;
-  margin-right: 6px;
-}
-
-/* Buttons: focus & disabled states */
+/* Focus & disabled states */
 .btn:focus-visible {
   outline: 3px solid rgba(125, 211, 252, 0.65);
   outline-offset: 2px;
@@ -136,21 +93,112 @@ input[type="text"]:focus, input[type="date"]:focus, .select:focus, .input:focus 
   transform: none;
 }
 
-/* Selects: ensure text/arrow contrast on Windows */
+/* -------------------- */
+/* Card baseline        */
+/* -------------------- */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 14px 0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+/* -------------------- */
+/* Form baseline        */
+/* -------------------- */
+input, select, button, textarea {
+  font: inherit;
+}
+
+/* Bigger inputs than default + shared look */
+input[type="text"], input[type="date"], input[type="number"], .select, .input, select {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+  font-size: 16px;      /* ↑ bumped font size */
+  font-weight: 800;
+}
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
+.select:focus,
+.input:focus,
+select:focus {
+  border-color: #7dd3fc;
+  box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.35);
+}
+
+/* Hide number input spinners (Chrome/Safari/Edge) */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+/* Hide number input spinners (Firefox) */
+input[type=number] { -moz-appearance: textfield; }
+
+/* -------------------- */
+/* Simple grid helpers  */
+/* -------------------- */
+.container-wide {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 1024px) {
+  .container-wide {
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+  }
+}
+
+/* -------------------- */
+/* Chips / pills        */
+/* -------------------- */
+.chip {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 999px;
+  margin-right: 6px;
+}
+
+/* Hero pills used under the H1 (as per your figure) */
+.tt-pill {
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  font-weight: 900;
+  background: #fff;
+}
+.tt-pill-primary {
+  background: #06b6d4;
+  color: #fff;
+  border-color: #06b6d4;
+}
+.tt-dot { opacity: .6; margin: 0 2px; }
+
+/* -------------------- */
+/* Links & selects      */
+/* -------------------- */
 select {
   appearance: auto;
   color: var(--text);
   background-color: #fff;
 }
 
-/* link underline removal for chips */
-.btn, .chip, a[role='button'] { text-decoration: none !important; }
-
 /* Make button-like links inherit text color */
 a, a:visited { color: inherit; }
 a.btn, a[role='button'] { color: inherit; text-decoration: none; }
 
-/* Brand link cleanup */
+/* link underline removal for chips / brand */
+.btn, .chip, a[role='button'] { text-decoration: none !important; }
 a.tt-brand,
 a.tt-brand:hover,
 a.tt-brand:focus,
@@ -160,7 +208,17 @@ a.tt-brand * {
   border-bottom: 0 !important;
 }
 
-/* Theming refresh */
+/* Remove underlines from brand and booking links explicitly */
+a.tt-brand, a.tt-brand:hover, a.tt-brand:focus, a.tt-brand:active,
+a.book-link, a.book-link:hover, a.book-link:focus, a.book-link:active {
+  text-decoration: none !important;
+  border-bottom: 0 !important;
+}
+
+/* -------------------- */
+/* Theming refresh      */
+/* (kept for site-wide) */
+/* -------------------- */
 :root {
   --bg: #f8fafc;
   --bg2: #ffffff;
@@ -170,40 +228,18 @@ a.tt-brand * {
   --brand-2: #06b6d4;
   --ring: rgba(14,165,233,.35);
 }
-
 html, body {
   background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 220px);
   color: var(--ink);
 }
 
-/* Buttons */
-.btn {
-  appearance: none;
-  border: none;
-  padding: 10px 14px;
-  font-weight: 800;
-  border-radius: 12px;
-  background: linear-gradient(90deg, var(--brand-2), var(--brand));
-  color: #fff;
-  box-shadow: 0 6px 18px rgba(14,165,233,.15);
-  cursor: pointer;
-}
-.btn:hover { filter: brightness(1.05); }
-.btn:active { transform: translateY(1px); }
-.btn.ghost {
-  background: #fff;
-  color: var(--brand);
-  border: 2px solid #7dd3fc;
-  box-shadow: none;
-}
-
-/* Header background */
+/* Header background (if you use <header>) */
 header {
   background: linear-gradient(90deg, rgba(6,182,212,.08), rgba(14,165,233,.08));
   border-bottom: 1px solid #e2e8f0;
 }
 
-/* Cards */
+/* Card variant used elsewhere */
 .card {
   background: var(--bg2);
   border: 1px solid #e2e8f0;
@@ -211,7 +247,7 @@ header {
   box-shadow: 0 8px 24px rgba(2,132,199,.06);
 }
 
-/* Inputs */
+/* Inputs (variant) */
 input, select {
   border-radius: 10px;
   border: 1px solid #cbd5e1;
@@ -221,11 +257,4 @@ input:focus, select:focus {
   outline: none;
   box-shadow: 0 0 0 3px var(--ring);
   border-color: var(--brand);
-}
-
-/* Remove underlines from brand and booking links explicitly */
-a.tt-brand, a.tt-brand:hover, a.tt-brand:focus, a.tt-brand:active,
-a.book-link, a.book-link:hover, a.book-link:focus, a.book-link:active {
-  text-decoration: none !important;
-  border-bottom: 0 !important;
 }
