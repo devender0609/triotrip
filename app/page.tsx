@@ -423,7 +423,8 @@ export default function Page() {
       : segBase;
 
   return (
-    <div style={{ padding: 12, display: "grid", gap: 14 }}>
+    {/* ✅ only change: this className enables whole-card click UX in Compare mode */}
+    <div className={compareMode ? "compare-mode-on" : undefined} style={{ padding: 12, display: "grid", gap: 14 }}>
       {/* HERO */}
       <section>
         <h1 style={{ margin: "0 0 6px", fontWeight: 900, fontSize: 32, letterSpacing: "-0.02em" }}>

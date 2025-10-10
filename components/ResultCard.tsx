@@ -268,7 +268,7 @@ export default function ResultCard({
 
   function chooseHotelImg(h: any, i: number) {
     const city = h.city || pkg.destination || "city";
-       const name = h.name || "hotel";
+    const name = h.name || "hotel";
     const fromData =
       (typeof h.imageUrl === "string" && /^https?:\/\//.test(h.imageUrl) && h.imageUrl) ||
       (typeof h.photoUrl === "string" && /^https?:\/\//.test(h.photoUrl) && h.photoUrl) ||
@@ -279,6 +279,7 @@ export default function ResultCard({
 
   return (
     <article
+      className={`result-card${isCompared ? " result-card--compared" : ""}`}
       data-offer-id={id}
       onClick={(e) => {
         if (!onToggleCompare) return;
