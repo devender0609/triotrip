@@ -365,13 +365,28 @@ export default function Page() {
   };
 
   const primaryBtn: React.CSSProperties = {
-    height: 46, padding: "0 18px", border: "none", fontWeight: 900, color: "#0b3b52",
-    background: "linear-gradient(180deg,#f0fbff,#e6f7ff)", borderRadius: 10, minWidth: 130, fontSize: 15, cursor: "pointer",
-    border: "1px solid #c9e9fb"
+    height: 46,
+    padding: "0 18px",
+    fontWeight: 900,
+    color: "#0b3b52",
+    background: "linear-gradient(180deg,#f0fbff,#e6f7ff)",
+    borderRadius: 10,
+    minWidth: 130,
+    fontSize: 15,
+    cursor: "pointer",
+    border: "1px solid #c9e9fb",
   };
   const secondaryBtn: React.CSSProperties = {
-    height: 46, padding: "0 16px", fontWeight: 800, background: "#fff", border: "2px solid #7dd3fc",
-    color: "#0369a1", borderRadius: 12, cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap",
+    height: 46,
+    padding: "0 16px",
+    fontWeight: 800,
+    background: "#fff",
+    border: "2px solid #7dd3fc",
+    color: "#0369a1",
+    borderRadius: 12,
+    cursor: "pointer",
+    lineHeight: 1,
+    whiteSpace: "nowrap",
   };
 
   const segBase: React.CSSProperties = {
