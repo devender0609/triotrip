@@ -196,12 +196,14 @@ export default function ResultCard({
     );
   }
 
-  // image helper for hotels (with Unsplash fallback per city)
+  // image helper for hotels: multiple fallbacks + hard fallback image
   const hotelImg = (h: any) =>
-    h?.image || h?.photoUrl || h?.thumbnail ||
+    h?.image ||
+    h?.photoUrl ||
+    h?.thumbnail ||
     (h?.city ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(h.city)}` :
      pkg?.destination ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(pkg.destination)}` :
-     `https://source.unsplash.com/featured/400x250/?hotel`);
+     "https://images.unsplash.com/photo-1551776235-dde6d4829808?auto=format&fit=crop&w=800&q=60");
 
   return (
     <section

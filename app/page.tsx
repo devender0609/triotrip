@@ -57,15 +57,34 @@ function extractIATA(display: string): string {
   return "";
 }
 
-/** City-only label from messy airport strings like "HSH — Las Vegas — Henderson Executive Airport (HSH)" */
+/** Robustly reduce an airport label to just the city name.
+ *  Examples:
+ *  "HSH — Las Vegas — Henderson Executive Airport (HSH)" -> "Las Vegas"
+ *  "JFK — New York, John F. Kennedy International Airport (JFK)" -> "New York"
+ */
 function extractCityOnly(input: string) {
-  let s = String(input || "").replace(/\([A-Z]{3}\)/g, "").replace(/\s{2,}/g, " ").trim();
-  // Split on em/en dashes or hyphen
-  const parts = s.split(/[\u2014\u2013\u2012\-]+/).map((p) => p.trim()).filter(Boolean);
-  const candidates = (parts.length ? parts : [s])
-    .filter((p) => !/\bairport\b/i.test(p) && !/^[A-Z]{3}$/.test(p));
-  const chosen = (candidates.length ? candidates : [s]).sort((a, b) => b.length - a.length)[0];
-  return (chosen || s).split(",")[0].trim();
+  if (!input) return "";
+  let s = String(input)
+    .replace(/\([A-Z]{3}\)/g, "")             // remove (IATA)
+    .replace(/—/g, "-")                       // normalize em-dash
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  // Split on dashes/commas/slashes
+  const rawParts = s.split(/[,/|-]+/).map(p => p.trim()).filter(Boolean);
+
+  // Filter out tokens that look like pure airport labels
+  const parts = rawParts.filter(p =>
+    !/\bairport\b/i.test(p) &&                 // drop "Airport"
+    !/^[A-Z]{3}$/.test(p) &&                   // drop IATA codes
+    !/^[A-Z]{2,}\b/.test(p)                    // drop all-caps tokens
+  );
+
+  // Prefer the first token that has at least one space or is capitalized like a city
+  const nice = parts.find(p => /[a-z]/i.test(p) && /[A-Za-z].+/.test(p)) || parts[0] || s;
+
+  // If still messy like "Las Vegas NV", drop short trailing state codes
+  return nice.replace(/\b[A-Z]{2}\b$/, "").trim();
 }
 
 function plusDays(iso: string, days: number) {
@@ -77,13 +96,7 @@ function plusDays(iso: string, days: number) {
 }
 
 /* table cell styles used in compare */
-const cth: React.CSSProperties = {
-  textAlign: "left",
-  padding: "12px 12px",
-  borderBottom: "1px solid #e2e8f0",
-  fontWeight: 600,
-  color: "#0f172a",
-};
+const cth: React.CSSProperties = { textAlign: "left", padding: "12px 12px", borderBottom: "1px solid #e2e8f0", fontWeight: 600, color: "#0f172a" };
 const ctd: React.CSSProperties = { padding: "12px 12px", borderBottom: "1px solid #e2e8f0", fontWeight: 500 };
 
 function formatMins(m?: number) {
@@ -279,8 +292,29 @@ export default function Page() {
   const segBase: React.CSSProperties = { height: 44, padding: "0 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontWeight: 600, fontSize: 15, lineHeight: 1, whiteSpace: "nowrap", cursor: "pointer" };
   const segStyle = (active: boolean): React.CSSProperties => (active ? { ...segBase, background: "linear-gradient(180deg,#ffffff,#eef6ff)", color: "#0f172a", border: "1px solid #bfdbfe" } : segBase);
 
-  /* ---------- City (not airport-limited) for tabs & panels ---------- */
-  const destCity = useMemo(() => extractCityOnly(destDisplay) || "Destination", [destDisplay]);
+  /* ---------- City-only label for tabs ---------- */
+  const destCity = useMemo(() => (extractCityOnly(destDisplay) || "Destination"), [destDisplay]);
+
+  /* ---------- INTERNATIONAL detection from results (safe default = false) ---------- */
+  const isInternational = useMemo(() => {
+    if (!results || results.length === 0) return false;
+
+    const p = results[0] || {};
+    const get = (obj: any, keys: string[]) => keys.map(k => obj?.[k]).find((v) => typeof v === "string" && v.length >= 2);
+
+    const oC =
+      get(p, ["origin_country", "originCountry", "from_country", "originCountryCode"]) ||
+      get(p.flight || {}, ["origin_country", "originCountry", "from_country", "fromCountry"]) ||
+      "";
+
+    const dC =
+      get(p, ["destination_country", "destinationCountry", "to_country", "destinationCountryCode"]) ||
+      get(p.flight || {}, ["destination_country", "destinationCountry", "to_country", "toCountry"]) ||
+      "";
+
+    if (!oC || !dC) return false;
+    return String(oC).toUpperCase() !== String(dC).toUpperCase();
+  }, [results]);
 
   /* ---------- Explore/Savor Panels (concise & reputable) ---------- */
   function gmapsQueryLink(city: string, query: string) { return `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`; }
@@ -312,7 +346,7 @@ export default function Page() {
           { title: "Desserts", q: "desserts bakeries" },
         ];
 
-    const know = (
+    const know = (mode === "explore" && isInternational) ? (
       <div className="place-card" key="know">
         <div className="place-title">Know before you go</div>
         <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>Culture, currency, safety & tips</div>
@@ -325,7 +359,7 @@ export default function Page() {
           <a className="place-link" href={gmapsQueryLink(destCity, "pharmacies")} target="_blank" rel="noreferrer">Maps: Pharmacies</a>
         </div>
       </div>
-    );
+    ) : null;
 
     return (
       <section className="places-panel" aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}>
@@ -561,7 +595,7 @@ export default function Page() {
         </div>
       </form>
 
-      {/* === TOP BAR: Left tabs | Right sort/view/saved (unchanged header) === */}
+      {/* === TOP BAR: Left tabs | Right sort/view/saved === */}
       <div className="toolbar">
         <div className="tabs" role="tablist" aria-label="Content tabs">
           <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>{`🌍 Explore - ${destCity}`}</button>
