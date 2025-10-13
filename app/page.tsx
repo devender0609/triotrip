@@ -39,10 +39,13 @@ function extractCityOnly(input: string) {
   return nice.replace(/\b[A-Z]{2}\b$/, "").trim();
 }
 
+/** Country extraction (best-effort) from visible airport label */
 const COMMON_COUNTRIES = new Set([
-  "United States","USA","Canada","Mexico","United Kingdom","UK","Ireland","France","Germany","Spain","Italy","Portugal","Netherlands","Belgium","Switzerland","Austria","Sweden","Norway","Denmark","Finland","Iceland",
-  "India","China","Japan","South Korea","Singapore","United Arab Emirates","UAE","Qatar","Saudi Arabia","Thailand","Vietnam","Indonesia","Malaysia","Philippines","Australia","New Zealand",
-  "Brazil","Argentina","Chile","Peru","Colombia","South Africa","Egypt","Turkey","Greece","Poland","Czechia","Czech Republic","Hungary","Romania"
+  "United States","USA","Canada","Mexico","United Kingdom","UK","Ireland","France","Germany","Spain","Italy","Portugal",
+  "Netherlands","Belgium","Switzerland","Austria","Sweden","Norway","Denmark","Finland","Iceland","India","China","Japan",
+  "South Korea","Singapore","United Arab Emirates","UAE","Qatar","Saudi Arabia","Thailand","Vietnam","Indonesia","Malaysia",
+  "Philippines","Australia","New Zealand","Brazil","Argentina","Chile","Peru","Colombia","South Africa","Egypt","Turkey",
+  "Greece","Poland","Czechia","Czech Republic","Hungary","Romania"
 ]);
 function extractCountryFromDisplay(input: string): string | undefined {
   if (!input) return;
@@ -184,23 +187,19 @@ export default function Page() {
     if (!o || !d) return false; return o.trim().toLowerCase() !== d.trim().toLowerCase();
   }, [originDisplay, destDisplay]);
 
-  // Explore/Savor sources (global & legit)
-  function gmapsQueryLink(city: string, query: string) { return `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`; }
-  function web(q: string) { return `https://www.google.com/search?q=${encodeURIComponent(q)}`; }
-  function yelp(q: string, city: string) { return `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`; }
-  function michelin(city: string) { return `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`; }
-  function opentable(city: string) { return `https://www.opentable.com/s?term=${encodeURIComponent(city)}`; }
-  function tripadvisor(q: string, city: string) { return `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q + " " + city)}`; }
-  function lonelyplanet(city: string) { return `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`; }
-  function timeout(city: string) { return `https://www.timeout.com/search?query=${encodeURIComponent(city)}`; }
-  function zomato(city: string) { return `https://www.zomato.com/search?dishv2_id=&entity_type=city&entity_id=&q=${encodeURIComponent(city)}`; }
-  function thefork(city: string) { return `https://www.thefork.com/search/?origin=search&city=${encodeURIComponent(city)}`; }
-  function quandoo(city: string) { return `https://www.quandoo.com/en/find?query=${encodeURIComponent(city)}`; }
-  function wiki(city: string) { return `https://en.wikipedia.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`; }
-  function wikivoyage(city: string) { return `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`; }
-  function xe(city: string) { return `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`; }
-  function usStateDept() { return `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`; }
-  function govUk() { return `https://www.gov.uk/foreign-travel-advice`; }
+  /* ---------- Explore/Savor sources (reputable + city-scoped) ---------- */
+  const gmapsQueryLink = (city: string, query: string) => `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`;
+  const web = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+  const yelp = (q: string, city: string) => `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`;
+  const michelin = (city: string) => `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`;
+  const opentable = (city: string) => `https://www.opentable.com/s?term=${encodeURIComponent(city)}`;
+  const tripadvisor = (q: string, city: string) => `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q + " " + city)}`;
+  const lonelyplanet = (city: string) => `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`;
+  const timeout = (city: string) => `https://www.timeout.com/search?query=${encodeURIComponent(city)}`;
+  const wiki = (city: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`;
+  const wikivoyage = (city: string) => `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`;
+  const xe = (city: string) => `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`;
+  const usStateDept = () => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`;
 
   function ContentPlaces({ mode }: { mode: MainTab }) {
     const blocks = mode === "explore"
@@ -229,7 +228,6 @@ export default function Page() {
           <a className="place-link" href={wiki(destCity)} target="_blank" rel="noreferrer">Wikipedia</a>
           <a className="place-link" href={xe(destCity)} target="_blank" rel="noreferrer">XE currency</a>
           <a className="place-link" href={usStateDept()} target="_blank" rel="noreferrer">US State Dept</a>
-          <a className="place-link" href={govUk()} target="_blank" rel="noreferrer">GOV.UK</a>
           <a className="place-link" href={gmapsQueryLink(destCity, "pharmacies")} target="_blank" rel="noreferrer">Maps: Pharmacies</a>
         </div>
       </div>
@@ -250,9 +248,6 @@ export default function Page() {
                 {mode === "savor" && <a className="place-link" href={yelp(q, destCity)} target="_blank" rel="noreferrer">Yelp</a>}
                 {mode === "savor" && <a className="place-link" href={opentable(destCity)} target="_blank" rel="noreferrer">OpenTable</a>}
                 {mode === "savor" && <a className="place-link" href={michelin(destCity)} target="_blank" rel="noreferrer">Michelin</a>}
-                {mode === "savor" && <a className="place-link" href={zomato(destCity)} target="_blank" rel="noreferrer">Zomato</a>}
-                {mode === "savor" && <a className="place-link" href={thefork(destCity)} target="_blank" rel="noreferrer">TheFork</a>}
-                {mode === "savor" && <a className="place-link" href={quandoo(destCity)} target="_blank" rel="noreferrer">Quandoo</a>}
                 {mode === "explore" && <a className="place-link" href={lonelyplanet(destCity)} target="_blank" rel="noreferrer">Lonely Planet</a>}
                 {mode === "explore" && <a className="place-link" href={timeout(destCity)} target="_blank" rel="noreferrer">Time Out</a>}
                 <a className="place-link" href={web(`${q} in ${destCity}`)} target="_blank" rel="noreferrer">Web</a>
@@ -266,7 +261,7 @@ export default function Page() {
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
-      {/* Force no-underline for logo & header links (without touching globals.css) */}
+      {/* kill underlines/baseline under logo & header links without touching globals.css */}
       <style jsx global>{`
         header a { text-decoration: none !important; border-bottom: 0 !important; }
         header img.tt-logo, header .tt-logo { border: 0 !important; box-shadow: none !important; }
@@ -282,7 +277,7 @@ export default function Page() {
         </p>
       </section>
 
-      {/* SEARCH FORM */}
+      {/* FORM */}
       <form style={s.panel} onSubmit={(e) => { e.preventDefault(); runSearch(); }}>
         {/* Origin / Destination */}
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 54px 1fr", alignItems: "end" }}>
@@ -461,7 +456,7 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Explore/Savor after search */}
+      {/* Explore/Savor (after search) */}
       {exploreVisible && results && results.length > 0 && activeTab !== "compare" && <ContentPlaces mode={activeTab} />}
 
       {/* Compare */}

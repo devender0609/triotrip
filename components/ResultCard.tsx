@@ -14,8 +14,6 @@ const AIRLINE_SITE: Record<string, string> = {
   "British Airways":"https://www.britishairways.com",
 };
 
-const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.ai";
-
 type Props = {
   pkg: any; index?: number; currency?: string; pax?: number;
   comparedIds?: string[]; onToggleCompare?: (id: string) => void;
@@ -43,7 +41,7 @@ export default function ResultCard({
 
   const fs = large ? 15 : 14;
   const wrapStyle: React.CSSProperties = {
-    background: "linear-gradient(180deg,#ffffff,#f7fbff)",
+    background: "linear-gradient(180deg,#ffffff,#f3f9ff)",
     border: compared ? "2px solid #0ea5e9" : "1px solid #dfe6f5",
     borderRadius: 16, padding: 14, display: "grid", gap: 12, fontSize: fs,
     boxShadow: compared ? "0 0 0 4px rgba(14,165,233,.15) inset" : "0 8px 20px rgba(2,6,23,.06)",
@@ -58,8 +56,9 @@ export default function ResultCard({
   const dateOut = (out0?.depart_time || "").slice(0, 10);
   const dateRet = (ret0?.depart_time || "").slice(0, 10);
 
-  // TrioTrip booking — go to your site (works even if you don’t have the route yet)
-  const trioTrip = `${TRIOTRIP_BASE}/book?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&depart=${encodeURIComponent(dateOut)}${dateRet ? `&return=${encodeURIComponent(dateRet)}` : ""}&adults=${adults}&children=${children}&infants=${infants}`;
+  // TrioTrip booking — always internal relative path so it opens on your domain
+  const trioTrip =
+    `/book?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&depart=${encodeURIComponent(dateOut)}${dateRet ? `&return=${encodeURIComponent(dateRet)}` : ""}&adults=${adults}&children=${children}&infants=${infants}`;
 
   const airlineSite =
     AIRLINE_SITE[airline] || `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}`;
@@ -109,23 +108,26 @@ export default function ResultCard({
     return { booking: b.toString(), expedia: e.toString(), hotels: hcx.toString(), maps, primary, official };
   }
 
-  function formatDur(min?: number) { const m = Number(min) || 0; const h = Math.floor(m/60); const mm = m%60; return `${h}h ${mm}m`; }
-  function formatTime(iso?: string) { if (!iso) return ""; const d = new Date(iso); if (Number.isNaN(d.getTime())) return ""; return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+  const formatDur = (min?: number) => { const m = Number(min) || 0; const h = Math.floor(m/60); const mm = m%60; return `${h}h ${mm}m`; };
+  const formatTime = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); if (Number.isNaN(d.getTime())) return ""; return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
 
   function LayoverRow({ arrive_time, next_depart_time, at }: any) {
     const a = new Date(arrive_time); const b = new Date(next_depart_time);
     const mins = Math.max(0, Math.round((+b - +a) / 60000));
     return (
-      <div style={{ padding: 6, color: "#334155", fontSize: 14, display: "flex", justifyContent: "center" }}>
+      <div style={{ padding: 6, color: "#0f172a", fontSize: 16, display: "flex", justifyContent: "center" }}>
         ⏳ Layover at <strong style={{ margin: "0 6px", fontWeight: 600 }}>{at}</strong> — {formatDur(mins)}
       </div>
     );
   }
 
-  // Guaranteed hotel image from many fields + unsplash fallback
+  // Very robust hotel image getter (many common API shapes)
   const hotelImg = (h: any) =>
-    h?.image || h?.photo || h?.photoUrl || h?.image_url || h?.thumbnail || h?.img ||
-    (h?.photos && Array.isArray(h.photos) && h.photos.length ? h.photos[0] : null) ||
+    h?.image || h?.photo || h?.photoUrl || h?.image_url || h?.imageUrl || h?.thumbnail || h?.thumbnailUrl || h?.img ||
+    (h?.photos && Array.isArray(h.photos) && h.photos[0]) ||
+    (h?.images && Array.isArray(h.images) && (h.images[0]?.url || h.images[0])) ||
+    h?.leadPhoto?.image?.url || h?.media?.images?.[0]?.url || h?.gallery?.[0] ||
+    (h?.optimizedThumbUrls && (h.optimizedThumbUrls.srpDesktop || h.optimizedThumbUrls.srpMobile)) ||
     (h?.city ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(h.city)}` :
      pkg?.destination ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(pkg.destination)}` :
      "https://images.unsplash.com/photo-1551776235-dde6d4829808?auto=format&fit=crop&w=800&q=60");
@@ -147,10 +149,10 @@ export default function ResultCard({
         </div>
       </header>
 
-      {/* FLIGHT DETAILS (colorful rows) */}
+      {/* FLIGHT DETAILS (extra colorful) */}
       <div style={{ display: "grid", gap: 8 }}>
         {outSegs.length > 0 && (
-          <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 8, display: "grid", gap: 8, background:"linear-gradient(180deg,#ffffff,#f0f7ff)" }}>
+          <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 8, display: "grid", gap: 8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
             <div style={{ fontWeight: 600, color: "#0b3b52" }}>Outbound</div>
             {outSegs.map((s: any, i: number) => (
               <React.Fragment key={`o${i}`}>
@@ -168,7 +170,7 @@ export default function ResultCard({
         )}
 
         {inSegs.length > 0 && (
-          <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 8, display: "grid", gap: 8, background:"linear-gradient(180deg,#ffffff,#f0f7ff)" }}>
+          <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 8, display: "grid", gap: 8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
             <div style={{ fontWeight: 600, color: "#0b3b52" }}>Return</div>
             {inSegs.map((s: any, i: number) => (
               <React.Fragment key={`i${i}`}>
@@ -186,9 +188,9 @@ export default function ResultCard({
         )}
       </div>
 
-      {/* HOTELS (colorful + with images) */}
+      {/* HOTELS (colorful + dependable images) */}
       {showHotel && (
-        <div className="hotel-card" style={{ border: "1px solid #cfeadf", borderRadius: 14, padding: 14, display: "grid", gap: 12, background: "linear-gradient(180deg,#ffffff,#f3fff9)" }}>
+        <div className="hotel-card" style={{ border: "1px solid #cfeadf", borderRadius: 14, padding: 14, display: "grid", gap: 12, background: "linear-gradient(180deg,#ffffff,#effef8)" }}>
           <div style={{ fontWeight: 600, color: "#0f172a" }}>Hotels (top options)</div>
           {(Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels : (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : []))
             .slice(0, 3)
