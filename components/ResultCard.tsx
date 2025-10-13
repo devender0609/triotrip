@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 
 /** Airline homepages; fallback = Google "airline + booking" */
 const AIRLINE_SITE: Record<string, string> = {
@@ -17,12 +17,10 @@ const AIRLINE_SITE: Record<string, string> = {
   Lufthansa: "https://www.lufthansa.com",
   Qatar: "https://www.qatarairways.com",
   Emirates: "https://www.emirates.com",
-  AirFrance: "https://wwws.airfrance.us",
   "Air France": "https://wwws.airfrance.us",
   KLM: "https://www.klm.com",
   ANA: "https://www.ana.co.jp",
   JAL: "https://www.jal.co.jp",
-  British: "https://www.britishairways.com",
   "British Airways": "https://www.britishairways.com",
 };
 
@@ -82,9 +80,20 @@ export default function ResultCard({
   };
 
   // ----- flight deeplinks -----
-  const route = `${outSegs?.[0]?.from || pkg.origin}-${outSegs?.[outSegs.length - 1]?.to || pkg.destination}`;
+  const from = (outSegs?.[0]?.from || pkg.origin || "").toUpperCase();
+  const to = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase();
+  const route = `${from}-${to}`;
   const dateOut = (outSegs?.[0]?.depart_time || "").slice(0, 10);
   const dateRet = (inSegs?.[0]?.depart_time || "").slice(0, 10);
+
+  // Brand pill: TrioTrip (for now route to Google Flights query but branded)
+  const trioTrip =
+    `https://www.google.com/travel/flights?q=` +
+    encodeURIComponent(
+      `${from} to ${to} on ${dateOut}` +
+        (dateRet ? ` return ${dateRet}` : "") +
+        ` for ${Math.max(1, adults + children + infants)} travelers`
+    );
 
   const airlineSite =
     AIRLINE_SITE[airline] ||
@@ -93,19 +102,19 @@ export default function ResultCard({
   const googleFlights =
     `https://www.google.com/travel/flights?q=` +
     encodeURIComponent(
-      `${(outSegs?.[0]?.from || pkg.origin || "").toUpperCase()} to ${(outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase()} on ${dateOut}` +
+      `${from} to ${to} on ${dateOut}` +
         (dateRet ? ` return ${dateRet}` : "") +
         ` for ${Math.max(1, adults + children + infants)} travelers`
     );
 
   // Skyscanner needs lowercase IATA + yyyymmdd
-  const fromIata = (outSegs?.[0]?.from || pkg.origin || "").toLowerCase();
-  const toIata = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toLowerCase();
+  const fromI = from.toLowerCase();
+  const toI = to.toLowerCase();
   const ssOut = (dateOut || "").replace(/-/g, "");
   const ssRet = (dateRet || "").replace(/-/g, "");
   const skyScanner =
-    (fromIata && toIata && ssOut)
-      ? `https://www.skyscanner.com/transport/flights/${fromIata}/${toIata}/${ssOut}/${dateRet ? ssRet + "/" : ""}?adults=${adults}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
+    (fromI && toI && ssOut)
+      ? `https://www.skyscanner.com/transport/flights/${fromI}/${toI}/${ssOut}/${dateRet ? ssRet + "/" : ""}?adults=${adults}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
       : "https://www.skyscanner.com/";
 
   // ----- hotel deeplinks -----
@@ -149,19 +158,18 @@ export default function ResultCard({
     }
     hcx.searchParams.set("currency", pkg.currency || "USD");
 
+    // Hotel official site (if provided by API)
+    const official = h.website || h.officialUrl || h.url || "";
+
     // Map link
     const maps = (typeof h.lat === "number" && typeof h.lng === "number")
       ? `https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}`
       : (destName ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destName)}` : undefined);
 
     // Primary link (image click)
-    const primary =
-      (typeof h.url === "string" && h.url) ||
-      (typeof h.website === "string" && h.website) ||
-      (typeof h.officialUrl === "string" && h.officialUrl) ||
-      b.toString();
+    const primary = official || b.toString();
 
-    return { booking: b.toString(), expedia: e.toString(), hotels: hcx.toString(), maps, primary };
+    return { booking: b.toString(), expedia: e.toString(), hotels: hcx.toString(), maps, primary, official };
   }
 
   function formatDur(min?: number) {
@@ -182,11 +190,14 @@ export default function ResultCard({
     const b = new Date(next_depart_time);
     const mins = Math.max(0, Math.round((+b - +a) / 60000));
     return (
-      <div style={{ padding: 6, color: "#475569", fontSize: 12 }}>
-        Layover at <strong>{at}</strong> — {formatDur(mins)}
+      <div style={{ padding: 6, color: "#475569", fontSize: 12, display: "flex", justifyContent: "center" }}>
+        ⏳ Layover at <strong style={{ margin: "0 6px" }}>{at}</strong> — {formatDur(mins)}
       </div>
     );
   }
+
+  // image helper for hotels
+  const hotelImg = (h: any) => h?.image || h?.photoUrl || h?.thumbnail || "";
 
   return (
     <section
@@ -203,6 +214,7 @@ export default function ResultCard({
           </span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <a className="book-link book-link--primary" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
           <a className="book-link book-link--gflights" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="book-link book-link--skyscanner" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
           <a className="book-link book-link--airline" href={airlineSite} target="_blank" rel="noreferrer">Airline</a>
@@ -287,6 +299,7 @@ export default function ResultCard({
             .map((h: any, i: number) => {
               const city = h.city || pkg.destination || "";
               const links = hotelLinks(h, city);
+              const img = hotelImg(h);
 
               return (
                 <div
@@ -303,13 +316,19 @@ export default function ResultCard({
                   }}
                 >
                   <a href={links.primary} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 10, overflow: "hidden", background: "#f1f5f9" }}>
-                    {/* image placeholder */}
-                    <div style={{ width: 160, height: 100, background: "linear-gradient(180deg,#e2e8f0,#cbd5e1)" }} />
+                    {img ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={img} alt={h.name || "Hotel"} style={{ width: 160, height: 100, objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <div style={{ width: 160, height: 100, background: "linear-gradient(180deg,#e2e8f0,#cbd5e1)" }} />
+                    )}
                   </a>
                   <div style={{ display: "grid", gap: 6 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                       <div style={{ fontWeight: 900 }}>{h.name || "Hotel"}</div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        {/* Official site (if available) */}
+                        {links.official && <a className="book-link book-link--primary" href={links.official} target="_blank" rel="noreferrer">Hotel site</a>}
                         <a className="book-link book-link--booking" href={links.booking} target="_blank" rel="noreferrer">Booking</a>
                         <a className="book-link book-link--expedia" href={links.expedia} target="_blank" rel="noreferrer">Expedia</a>
                         <a className="book-link book-link--hotels" href={links.hotels} target="_blank" rel="noreferrer">Hotels</a>
