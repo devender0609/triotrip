@@ -68,8 +68,8 @@ export default function ResultCard({
 
   const fs = large ? 15 : 14;
   const wrapStyle: React.CSSProperties = {
-    background: "#fff",
-    border: compared ? "2px solid #0ea5e9" : "1px solid #e2e7eb",
+    background: "linear-gradient(180deg,#ffffff,#f9fbff)",
+    border: compared ? "2px solid #0ea5e9" : "1px solid #dfe8f5",
     borderRadius: 16,
     padding: 14,
     display: "grid",
@@ -80,25 +80,23 @@ export default function ResultCard({
   };
 
   // ----- flight deeplinks -----
-  const from = (outSegs?.[0]?.from || pkg.origin || "").toUpperCase();
+  const out0 = outSegs?.[0];
+  const ret0 = inSegs?.[0];
+  const from = (out0?.from || pkg.origin || "").toUpperCase();
   const to = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase();
   const route = `${from}-${to}`;
-  const dateOut = (outSegs?.[0]?.depart_time || "").slice(0, 10);
-  const dateRet = (inSegs?.[0]?.depart_time || "").slice(0, 10);
+  const dateOut = (out0?.depart_time || "").slice(0, 10);
+  const dateRet = (ret0?.depart_time || "").slice(0, 10);
 
-  // Brand pill: TrioTrip (for now routes to Google Flights query)
+  // TrioTrip booking: route to internal booking URL (replace with your own handler)
   const trioTrip =
-    `https://www.google.com/travel/flights?q=` +
-    encodeURIComponent(
-      `${from} to ${to} on ${dateOut}` +
-        (dateRet ? ` return ${dateRet}` : "") +
-        ` for ${Math.max(1, adults + children + infants)} travelers`
-    );
+    `/book?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&depart=${encodeURIComponent(dateOut)}${dateRet ? `&return=${encodeURIComponent(dateRet)}` : ""}&adults=${adults}&children=${children}&infants=${infants}`;
 
   const airlineSite =
     AIRLINE_SITE[airline] ||
     `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}`;
 
+  // Optional: keep Google/Skyscanner as alternatives
   const googleFlights =
     `https://www.google.com/travel/flights?q=` +
     encodeURIComponent(
@@ -107,7 +105,6 @@ export default function ResultCard({
         ` for ${Math.max(1, adults + children + infants)} travelers`
     );
 
-  // Skyscanner needs lowercase IATA + yyyymmdd
   const fromI = from.toLowerCase();
   const toI = to.toLowerCase();
   const ssOut = (dateOut || "").replace(/-/g, "");
@@ -120,7 +117,7 @@ export default function ResultCard({
   // ----- hotel deeplinks -----
   function hotelLinks(h: any, cityFallback: string) {
     const city = h.city || cityFallback || "";
-    const destName = city || pkg.destination;
+    const destName = h.name ? `${h.name}, ${city}` : (city || pkg.destination || "");
     const hotelCheckIn = pkg.hotelCheckIn || "";
     const hotelCheckOut = pkg.hotelCheckOut || "";
     const adultsCount = adults;
@@ -158,13 +155,13 @@ export default function ResultCard({
     }
     hcx.searchParams.set("currency", pkg.currency || "USD");
 
-    // Hotel official site (if provided by API)
+    // Official site (if provided)
     const official = h.website || h.officialUrl || h.url || "";
 
-    // Map link
+    // Hotel map: prefer coords -> exact place; otherwise query by name + city
     const maps = (typeof h.lat === "number" && typeof h.lng === "number")
-      ? `https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}`
-      : (destName ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destName)}` : undefined);
+      ? `https://www.google.com/maps/@?api=1&map_action=map&center=${h.lat},${h.lng}&zoom=16`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.name ? `${h.name}, ${city}` : city)}`;
 
     // Primary link (image click)
     const primary = official || b.toString();
@@ -196,7 +193,7 @@ export default function ResultCard({
     );
   }
 
-  // image helper for hotels: multiple fallbacks + hard fallback image
+  // image helper for hotels: multiple fallbacks + guaranteed image
   const hotelImg = (h: any) =>
     h?.image ||
     h?.photoUrl ||
@@ -221,6 +218,7 @@ export default function ResultCard({
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <a className="book-link book-link--primary" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
+          {/* Keep alternates if user wants them */}
           <a className="book-link book-link--gflights" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="book-link book-link--skyscanner" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
           <a className="book-link book-link--airline" href={airlineSite} target="_blank" rel="noreferrer">Airline</a>
@@ -234,11 +232,11 @@ export default function ResultCard({
       <div style={{ display: "grid", gap: 8 }}>
         {/* Outbound */}
         {outSegs.length > 0 && (
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8 }}>
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8, background:"#fff" }}>
             <div style={{ fontWeight: 600, color: "#334155" }}>Outbound</div>
             {outSegs.map((s: any, i: number) => (
               <React.Fragment key={`o${i}`}>
-                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background:"#f9fbff" }}>
                   <div>
                     <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
                     <div style={{ fontSize: 12, color: "#475569" }}>
@@ -261,11 +259,11 @@ export default function ResultCard({
 
         {/* Return */}
         {inSegs.length > 0 && (
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8 }}>
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8, background:"#fff" }}>
             <div style={{ fontWeight: 600, color: "#334155" }}>Return</div>
             {inSegs.map((s: any, i: number) => (
               <React.Fragment key={`i${i}`}>
-                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background:"#f9fbff" }}>
                   <div>
                     <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
                     <div style={{ fontSize: 12, color: "#475569" }}>
@@ -290,13 +288,14 @@ export default function ResultCard({
       {/* HOTELS (only if includeHotel) */}
       {showHotel && (
         <div
+          className="hotel-card"
           style={{
-            border: "2px solid #e2e8f0",
+            border: "1px solid #d7efe3",
             borderRadius: 14,
             padding: 14,
             display: "grid",
             gap: 12,
-            background: "#fcfdff",
+            background: "linear-gradient(180deg,#ffffff,#f8fffb)",
           }}
         >
           <div style={{ fontWeight: 600, color: "#0f172a" }}>Hotels (top options)</div>
@@ -329,7 +328,6 @@ export default function ResultCard({
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                       <div style={{ fontWeight: 600 }}>{h.name || "Hotel"}</div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                        {/* Official site (if available) */}
                         {links.official && <a className="book-link book-link--primary" href={links.official} target="_blank" rel="noreferrer">Hotel site</a>}
                         <a className="book-link book-link--booking" href={links.booking} target="_blank" rel="noreferrer">Booking</a>
                         <a className="book-link book-link--expedia" href={links.expedia} target="_blank" rel="noreferrer">Expedia</a>

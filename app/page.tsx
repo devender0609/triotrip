@@ -57,34 +57,44 @@ function extractIATA(display: string): string {
   return "";
 }
 
-/** Robustly reduce an airport label to just the city name.
- *  Examples:
- *  "HSH — Las Vegas — Henderson Executive Airport (HSH)" -> "Las Vegas"
- *  "JFK — New York, John F. Kennedy International Airport (JFK)" -> "New York"
- */
+/** Reduce an airport label to just the city name */
 function extractCityOnly(input: string) {
   if (!input) return "";
   let s = String(input)
-    .replace(/\([A-Z]{3}\)/g, "")             // remove (IATA)
-    .replace(/—/g, "-")                       // normalize em-dash
+    .replace(/\([A-Z]{3}\)/g, "")
+    .replace(/—/g, "-")
     .replace(/\s{2,}/g, " ")
     .trim();
-
-  // Split on dashes/commas/slashes
-  const rawParts = s.split(/[,/|-]+/).map(p => p.trim()).filter(Boolean);
-
-  // Filter out tokens that look like pure airport labels
-  const parts = rawParts.filter(p =>
-    !/\bairport\b/i.test(p) &&                 // drop "Airport"
-    !/^[A-Z]{3}$/.test(p) &&                   // drop IATA codes
-    !/^[A-Z]{2,}\b/.test(p)                    // drop all-caps tokens
-  );
-
-  // Prefer the first token that has at least one space or is capitalized like a city
-  const nice = parts.find(p => /[a-z]/i.test(p) && /[A-Za-z].+/.test(p)) || parts[0] || s;
-
-  // If still messy like "Las Vegas NV", drop short trailing state codes
+  const parts = s.split(/[,/|-]+/).map(p => p.trim()).filter(Boolean);
+  const filtered = parts.filter(p => !/\bairport\b/i.test(p) && !/^[A-Z]{3}$/.test(p));
+  const nice = filtered.find(p => /[a-z]/i.test(p)) || filtered[0] || s;
   return nice.replace(/\b[A-Z]{2}\b$/, "").trim();
+}
+
+/** Extract a country name (best-effort) from the display text */
+const COMMON_COUNTRIES = new Set([
+  "United States","USA","Canada","Mexico","United Kingdom","UK","Ireland","France","Germany","Spain","Italy","Portugal","Netherlands","Belgium","Switzerland","Austria","Sweden","Norway","Denmark","Finland","Iceland",
+  "India","China","Japan","South Korea","Singapore","United Arab Emirates","UAE","Qatar","Saudi Arabia","Thailand","Vietnam","Indonesia","Malaysia","Philippines","Australia","New Zealand",
+  "Brazil","Argentina","Chile","Peru","Colombia","South Africa","Egypt","Turkey","Greece","Poland","Czechia","Czech Republic","Hungary","Romania"
+]);
+
+function extractCountryFromDisplay(input: string): string | undefined {
+  if (!input) return;
+  const cleaned = input.replace(/\([A-Z]{3}\)/g, " ").replace(/[–—]/g, "-");
+  // tokens after commas or dashes often include state/country
+  const tokens = cleaned.split(/[,|-]+/).map(t => t.trim()).filter(Boolean);
+  // check from rightmost to leftmost for a known country
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    const t = tokens[i];
+    if (COMMON_COUNTRIES.has(t)) return t;
+    // normalize short variants
+    if (/^UAE$/i.test(t)) return "United Arab Emirates";
+    if (/^UK$/i.test(t)) return "United Kingdom";
+    if (/^USA$/i.test(t)) return "United States";
+  }
+  // if no known match, try last token with letters and length>3 and not Airport
+  const guess = tokens.reverse().find(t => /[A-Za-z]{4,}/.test(t) && !/\bairport\b/i.test(t));
+  return guess;
 }
 
 function plusDays(iso: string, days: number) {
@@ -295,26 +305,14 @@ export default function Page() {
   /* ---------- City-only label for tabs ---------- */
   const destCity = useMemo(() => (extractCityOnly(destDisplay) || "Destination"), [destDisplay]);
 
-  /* ---------- INTERNATIONAL detection from results (safe default = false) ---------- */
+  /* ---------- INTERNATIONAL detection (robust, display-based) ---------- */
   const isInternational = useMemo(() => {
-    if (!results || results.length === 0) return false;
-
-    const p = results[0] || {};
-    const get = (obj: any, keys: string[]) => keys.map(k => obj?.[k]).find((v) => typeof v === "string" && v.length >= 2);
-
-    const oC =
-      get(p, ["origin_country", "originCountry", "from_country", "originCountryCode"]) ||
-      get(p.flight || {}, ["origin_country", "originCountry", "from_country", "fromCountry"]) ||
-      "";
-
-    const dC =
-      get(p, ["destination_country", "destinationCountry", "to_country", "destinationCountryCode"]) ||
-      get(p.flight || {}, ["destination_country", "destinationCountry", "to_country", "toCountry"]) ||
-      "";
-
-    if (!oC || !dC) return false;
-    return String(oC).toUpperCase() !== String(dC).toUpperCase();
-  }, [results]);
+    const o = extractCountryFromDisplay(originDisplay) || "";
+    const d = extractCountryFromDisplay(destDisplay) || "";
+    if (!o || !d) return false;
+    const norm = (x: string) => x.trim().toLowerCase();
+    return norm(o) !== norm(d);
+  }, [originDisplay, destDisplay]);
 
   /* ---------- Explore/Savor Panels (concise & reputable) ---------- */
   function gmapsQueryLink(city: string, query: string) { return `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`; }
@@ -323,11 +321,13 @@ export default function Page() {
   function michelin(city: string) { return `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`; }
   function opentable(city: string) { return `https://www.opentable.com/s?term=${encodeURIComponent(city)}`; }
   function tripadvisor(q: string, city: string) { return `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q + " " + city)}`; }
+  function lonelyplanet(city: string) { return `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`; }
+  function timeout(city: string) { return `https://www.timeout.com/search?query=${encodeURIComponent(city)}`; }
   function wiki(city: string) { return `https://en.wikipedia.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`; }
   function wikivoyage(city: string) { return `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`; }
   function xe(city: string) { return `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`; }
-  function usStateDept(city: string) { return `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html/#${encodeURIComponent(city)}`; }
-  function govUk(city: string) { return `https://www.gov.uk/foreign-travel-advice/search?query=${encodeURIComponent(city)}`; }
+  function usStateDept(city: string) { return `https://www.travel.state.gov/` } // landing; detail varies by country
+  function govUk(city: string) { return `https://www.gov.uk/foreign-travel-advice` } // landing; user can find country quickly
 
   function ContentPlaces({ mode }: { mode: MainTab }) {
     const blocks = mode === "explore"
@@ -337,6 +337,7 @@ export default function Page() {
           { title: "Museums", q: "museums galleries" },
           { title: "Family", q: "family activities" },
           { title: "Nightlife", q: "nightlife bars" },
+          { title: "Guides", q: "travel guide" },
         ]
       : [
           { title: "Best restaurants", q: "best restaurants" },
@@ -376,6 +377,8 @@ export default function Page() {
                 {mode === "savor" && <a className="place-link" href={yelp(q, destCity)} target="_blank" rel="noreferrer">Yelp</a>}
                 {mode === "savor" && <a className="place-link" href={opentable(destCity)} target="_blank" rel="noreferrer">OpenTable</a>}
                 {mode === "savor" && <a className="place-link" href={michelin(destCity)} target="_blank" rel="noreferrer">Michelin</a>}
+                {mode === "explore" && <a className="place-link" href={lonelyplanet(destCity)} target="_blank" rel="noreferrer">Lonely Planet</a>}
+                {mode === "explore" && <a className="place-link" href={timeout(destCity)} target="_blank" rel="noreferrer">Time Out</a>}
                 <a className="place-link" href={web(`${q} in ${destCity}`)} target="_blank" rel="noreferrer">Web</a>
               </div>
             </div>
@@ -623,7 +626,7 @@ export default function Page() {
       {/* EXPLORE/SAVOR (only after search) */}
       {exploreVisible && results && results.length > 0 && activeTab !== "compare" && <ContentPlaces mode={activeTab} />}
 
-      {/* COMPARE PANEL (colorful + emojis) */}
+      {/* COMPARE PANEL */}
       {compareMode && comparedPkgs.length >= 2 && (
         <section className="compare-panel" aria-label="Compare selected results">
           <div className="compare-title">⚖️ Side-by-side Compare</div>
