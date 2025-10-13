@@ -57,6 +57,17 @@ function extractIATA(display: string): string {
   return "";
 }
 
+/** City-only label from messy airport strings like "HSH — Las Vegas — Henderson Executive Airport (HSH)" */
+function extractCityOnly(input: string) {
+  let s = String(input || "").replace(/\([A-Z]{3}\)/g, "").replace(/\s{2,}/g, " ").trim();
+  // Split on em/en dashes or hyphen
+  const parts = s.split(/[\u2014\u2013\u2012\-]+/).map((p) => p.trim()).filter(Boolean);
+  const candidates = (parts.length ? parts : [s])
+    .filter((p) => !/\bairport\b/i.test(p) && !/^[A-Z]{3}$/.test(p));
+  const chosen = (candidates.length ? candidates : [s]).sort((a, b) => b.length - a.length)[0];
+  return (chosen || s).split(",")[0].trim();
+}
+
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -70,10 +81,10 @@ const cth: React.CSSProperties = {
   textAlign: "left",
   padding: "12px 12px",
   borderBottom: "1px solid #e2e8f0",
-  fontWeight: 900,
+  fontWeight: 600,
   color: "#0f172a",
 };
-const ctd: React.CSSProperties = { padding: "12px 12px", borderBottom: "1px solid #e2e8f0", fontWeight: 800 };
+const ctd: React.CSSProperties = { padding: "12px 12px", borderBottom: "1px solid #e2e8f0", fontWeight: 500 };
 
 function formatMins(m?: number) {
   const v = Number(m) || 0;
@@ -262,80 +273,75 @@ export default function Page() {
   /* ---------- styles ---------- */
   const s = {
     panel: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 14, maxWidth: 1240, margin: "0 auto", fontSize: 16 } as React.CSSProperties,
-    label: { fontWeight: 900, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 } as React.CSSProperties,
-    input: { height: 50, padding: "0 14px", border: "1px solid #e2e8f0", borderRadius: 12, width: "100%", background: "#fff", fontSize: 16 } as React.CSSProperties,
-    row: { display: "grid", gap: 12, alignItems: "end" } as React.CSSProperties,
-    two: { gridTemplateColumns: "1fr 54px 1fr" } as React.CSSProperties,
-    datesPassengers: { gridTemplateColumns: "170px 1fr 1fr 1fr 1fr 1fr" } as React.CSSProperties,
-    four: { gridTemplateColumns: "1fr 1fr 1fr 1fr" } as React.CSSProperties,
-    three: { gridTemplateColumns: "1fr 1fr 1fr" } as React.CSSProperties,
-
-    toolbar: { display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 10, gap: 10, flexWrap: "wrap", maxWidth: 1240, margin: "0 auto", fontSize: 15 } as React.CSSProperties,
-
-    msg: { padding: 12, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, maxWidth: 1240, margin: "0 auto", fontSize: 15 } as React.CSSProperties,
-    error: { borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 900 } as React.CSSProperties,
-    warn: { borderColor: "#fde68a", background: "#fffbeb", color: "#92400e", fontWeight: 800 } as React.CSSProperties,
+    label: { fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 } as React.CSSProperties,
   };
-
-  const primaryBtn: React.CSSProperties = { height: 46, padding: "0 18px", fontWeight: 900, color: "#0b3b52", background: "linear-gradient(180deg,#f0fbff,#e6f7ff)", borderRadius: 10, minWidth: 130, fontSize: 15, cursor: "pointer", border: "1px solid #c9e9fb" };
-  const secondaryBtn: React.CSSProperties = { height: 46, padding: "0 16px", fontWeight: 800, background: "#fff", border: "2px solid #7dd3fc", color: "#0369a1", borderRadius: 12, cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap" };
-
-  const segBase: React.CSSProperties = { height: 44, padding: "0 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontWeight: 900, fontSize: 15, lineHeight: 1, whiteSpace: "nowrap", cursor: "pointer" };
+  const inputStyle: React.CSSProperties = { height: 50, padding: "0 14px", border: "1px solid #e2e8f0", borderRadius: 12, width: "100%", background: "#fff", fontSize: 16 };
+  const segBase: React.CSSProperties = { height: 44, padding: "0 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontWeight: 600, fontSize: 15, lineHeight: 1, whiteSpace: "nowrap", cursor: "pointer" };
   const segStyle = (active: boolean): React.CSSProperties => (active ? { ...segBase, background: "linear-gradient(180deg,#ffffff,#eef6ff)", color: "#0f172a", border: "1px solid #bfdbfe" } : segBase);
 
-  /* ---------- City (not airport-limited) for Explore/Savor ---------- */
-  const destCity = useMemo(() => {
-    const dd = (destDisplay || "").trim();
-    const cityFromParens = dd.replace(/\s*\([A-Z]{3}\)\s*$/, "").trim();
-    return cityFromParens || dd || "Destination";
-  }, [destDisplay]);
+  /* ---------- City (not airport-limited) for tabs & panels ---------- */
+  const destCity = useMemo(() => extractCityOnly(destDisplay) || "Destination", [destDisplay]);
 
-  /* ---------- Explore/Savor Panels (concise & colorful) ---------- */
+  /* ---------- Explore/Savor Panels (concise & reputable) ---------- */
   function gmapsQueryLink(city: string, query: string) { return `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`; }
   function web(q: string) { return `https://www.google.com/search?q=${encodeURIComponent(q)}`; }
   function yelp(q: string, city: string) { return `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`; }
   function michelin(city: string) { return `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`; }
-  function opentable(city: string) { return `https://www.opentable.com/s?covers=2&currentview=list&size=100&term=${encodeURIComponent(city)}`; }
-  function alltrails(city: string){ return `https://www.alltrails.com/explore?view=map&sort=rating&query=${encodeURIComponent(city)}`; }
-  function atlas(city: string){ return `https://www.atlasobscura.com/things-to-do/${encodeURIComponent(city.toLowerCase().replace(/\s+/g,'-'))}`; }
-  function culture(city: string){ return `https://theculturetrip.com/search?query=${encodeURIComponent(city)}`; }
-  function tripadvisor(q: string, city: string){ return `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q + " " + city)}`; }
+  function opentable(city: string) { return `https://www.opentable.com/s?term=${encodeURIComponent(city)}`; }
+  function tripadvisor(q: string, city: string) { return `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q + " " + city)}`; }
+  function wiki(city: string) { return `https://en.wikipedia.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`; }
+  function wikivoyage(city: string) { return `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`; }
+  function xe(city: string) { return `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`; }
+  function usStateDept(city: string) { return `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html/#${encodeURIComponent(city)}`; }
+  function govUk(city: string) { return `https://www.gov.uk/foreign-travel-advice/search?query=${encodeURIComponent(city)}`; }
 
   function ContentPlaces({ mode }: { mode: MainTab }) {
     const blocks = mode === "explore"
       ? [
           { title: "Top sights", q: "top attractions" },
-          { title: "Outdoors", q: "parks views hikes" },
+          { title: "Parks & views", q: "parks scenic views" },
           { title: "Museums", q: "museums galleries" },
           { title: "Family", q: "family activities" },
           { title: "Nightlife", q: "nightlife bars" },
         ]
       : [
           { title: "Best restaurants", q: "best restaurants" },
-          { title: "Local favorites", q: "local food spots" },
+          { title: "Local eats", q: "local food spots" },
           { title: "Cafés & coffee", q: "cafes coffee" },
           { title: "Street food", q: "street food" },
           { title: "Desserts", q: "desserts bakeries" },
         ];
 
+    const know = (
+      <div className="place-card" key="know">
+        <div className="place-title">Know before you go</div>
+        <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>Culture, currency, safety & tips</div>
+        <div className="place-links">
+          <a className="place-link" href={wikivoyage(destCity)} target="_blank" rel="noreferrer">Wikivoyage</a>
+          <a className="place-link" href={wiki(destCity)} target="_blank" rel="noreferrer">Wikipedia</a>
+          <a className="place-link" href={xe(destCity)} target="_blank" rel="noreferrer">XE currency</a>
+          <a className="place-link" href={usStateDept(destCity)} target="_blank" rel="noreferrer">US State Dept</a>
+          <a className="place-link" href={govUk(destCity)} target="_blank" rel="noreferrer">GOV.UK</a>
+          <a className="place-link" href={gmapsQueryLink(destCity, "pharmacies")} target="_blank" rel="noreferrer">Maps: Pharmacies</a>
+        </div>
+      </div>
+    );
+
     return (
       <section className="places-panel" aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}>
-        <div className="subtle-h">{mode === "explore" ? "🌍 Explore" : "🍽️ Savor"} — {destCity}</div>
+        <div className="subtle-h">{mode === "explore" ? `🌍 Explore - ${destCity}` : `🍽️ Savor - ${destCity}`}</div>
         <div className="places-grid">
+          {know}
           {blocks.map(({ title, q }) => (
             <div key={title} className="place-card">
               <div className="place-title">{title}</div>
-              {/* concise helper line */}
-              <div style={{ color: "#475569", fontWeight: 700, fontSize: 13 }}>{q}</div>
+              <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>{q}</div>
               <div className="place-links">
-                <a className="place-link" href={gmapsQueryLink(destCity, q)} target="_blank" rel="noreferrer">Maps</a>
+                <a className="place-link" href={gmapsQueryLink(destCity, q)} target="_blank" rel="noreferrer">Google Maps</a>
                 <a className="place-link" href={tripadvisor(q, destCity)} target="_blank" rel="noreferrer">Tripadvisor</a>
                 {mode === "savor" && <a className="place-link" href={yelp(q, destCity)} target="_blank" rel="noreferrer">Yelp</a>}
                 {mode === "savor" && <a className="place-link" href={opentable(destCity)} target="_blank" rel="noreferrer">OpenTable</a>}
                 {mode === "savor" && <a className="place-link" href={michelin(destCity)} target="_blank" rel="noreferrer">Michelin</a>}
-                {mode === "explore" && <a className="place-link" href={alltrails(destCity)} target="_blank" rel="noreferrer">AllTrails</a>}
-                {mode === "explore" && <a className="place-link" href={atlas(destCity)} target="_blank" rel="noreferrer">Atlas Obscura</a>}
-                <a className="place-link" href={culture(destCity)} target="_blank" rel="noreferrer">Culture Trip</a>
                 <a className="place-link" href={web(`${q} in ${destCity}`)} target="_blank" rel="noreferrer">Web</a>
               </div>
             </div>
@@ -346,35 +352,29 @@ export default function Page() {
   }
 
   return (
-    <div className={compareMode ? "compare-mode-on" : undefined} style={{ padding: 12, display: "grid", gap: 14 }}>
+    <div style={{ padding: 12, display: "grid", gap: 14 }}>
       {/* HERO */}
       <section>
-        <h1 style={{ margin: "0 0 6px", fontWeight: 900, fontSize: 32, letterSpacing: "-0.02em" }}>
+        <h1 style={{ margin: "0 0 6px", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em" }}>
           Find your perfect trip
         </h1>
-        <p style={{ margin: 0, display: "flex", gap: 10, alignItems: "center", color: "#334155", fontWeight: 700, flexWrap: "wrap", fontSize: 15 }}>
-          <span style={{ padding: "6px 12px", borderRadius: 999, background: "linear-gradient(180deg,#ffffff,#eef6ff)", border: "1px solid #cfe0ff", color: "#0b1220", fontWeight: 900 }}>
+        <p style={{ margin: 0, display: "flex", gap: 10, alignItems: "center", color: "#334155", fontWeight: 500, flexWrap: "wrap", fontSize: 15 }}>
+          <span style={{ padding: "6px 12px", borderRadius: 999, background: "linear-gradient(180deg,#ffffff,#eef6ff)", border: "1px solid #cfe0ff", color: "#0b1220", fontWeight: 600 }}>
             Top-3 picks
           </span>
-          <span style={{ opacity: 0.6 }}>•</span><strong>Explore & Savor your city guide</strong>
-          <span style={{ opacity: 0.6 }}>•</span><strong>Compare flights in style</strong>
+          <span style={{ opacity: 0.6 }}>•</span><span>Explore & Savor your city guide</span>
+          <span style={{ opacity: 0.6 }}>•</span><span>Compare flights in style</span>
         </p>
       </section>
 
       {/* FORM */}
       <form style={s.panel} onSubmit={(e) => { e.preventDefault(); runSearch(); }}>
         {/* Origin / Destination */}
-        <div style={{ ...s.row, ...s.two }}>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 54px 1fr", alignItems: "end" }}>
           <div>
             <label style={s.label}>Origin</label>
-            <AirportField
-              id="origin"
-              label=""
-              code={originCode}
-              initialDisplay={originDisplay}
-              onTextChange={setOriginDisplay}
-              onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }}
-            />
+            <AirportField id="origin" label="" code={originCode} initialDisplay={originDisplay}
+              onTextChange={setOriginDisplay} onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }} />
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center" }} aria-hidden>
             <button type="button" title="Swap origin & destination" onClick={swapOriginDest}
@@ -384,19 +384,13 @@ export default function Page() {
           </div>
           <div>
             <label style={s.label}>Destination</label>
-            <AirportField
-              id="destination"
-              label=""
-              code={destCode}
-              initialDisplay={destDisplay}
-              onTextChange={setDestDisplay}
-              onChangeCode={(code, display) => { setDestCode(code); setDestDisplay(display); }}
-            />
+            <AirportField id="destination" label="" code={destCode} initialDisplay={destDisplay}
+              onTextChange={setDestDisplay} onChangeCode={(code, display) => { setDestCode(code); setDestDisplay(display); }} />
           </div>
         </div>
 
         {/* Trip / dates / passengers */}
-        <div style={{ ...s.row, ...s.datesPassengers }}>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "170px 1fr 1fr 1fr 1fr 1fr", alignItems: "end" }}>
           <div style={{ minWidth: 170 }}>
             <label style={s.label}>Trip</label>
             <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -407,22 +401,20 @@ export default function Page() {
 
           <div>
             <label style={s.label}>Depart</label>
-            <input type="date" style={s.input} value={departDate} onChange={(e) => setDepartDate(e.target.value)} min={todayLocal} max={roundTrip && returnDate ? returnDate : undefined} />
+            <input type="date" style={inputStyle} value={departDate} onChange={(e) => setDepartDate(e.target.value)} min={todayLocal} max={roundTrip && returnDate ? returnDate : undefined} />
           </div>
 
           <div>
             <label style={s.label}>Return</label>
-            <input
-              type="date" style={s.input} value={returnDate} onChange={(e) => setReturnDate(e.target.value)} disabled={!roundTrip}
-              min={departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1)}
-            />
+            <input type="date" style={inputStyle} value={returnDate} onChange={(e) => setReturnDate(e.target.value)} disabled={!roundTrip}
+              min={departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1)} />
           </div>
 
           <div>
             <label style={s.label}>Adults</label>
             <div className="stepper">
               <button type="button" onClick={() => setAdults((v) => Math.max(1, v - 1))}>−</button>
-              <input className="no-spin" type="number" readOnly value={adults} style={s.input} />
+              <input className="no-spin" type="number" readOnly value={adults} style={inputStyle} />
               <button type="button" onClick={() => setAdults((v) => v + 1)}>+</button>
             </div>
           </div>
@@ -430,7 +422,7 @@ export default function Page() {
             <label style={s.label}>Children</label>
             <div className="stepper">
               <button type="button" onClick={() => setChildren((v) => Math.max(0, v - 1))}>−</button>
-              <input className="no-spin" type="number" readOnly value={children} style={s.input} />
+              <input className="no-spin" type="number" readOnly value={children} style={inputStyle} />
               <button type="button" onClick={() => setChildren((v) => v + 1)}>+</button>
             </div>
           </div>
@@ -438,20 +430,20 @@ export default function Page() {
             <label style={s.label}>Infants</label>
             <div className="stepper">
               <button type="button" onClick={() => setInfants((v) => Math.max(0, v - 1))}>−</button>
-              <input className="no-spin" type="number" readOnly value={infants} style={s.input} />
+              <input className="no-spin" type="number" readOnly value={infants} style={inputStyle} />
               <button type="button" onClick={() => setInfants((v) => v + 1)}>+</button>
             </div>
           </div>
         </div>
 
-        {/* Children ages as dropdowns */}
+        {/* Children ages */}
         {children > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {Array.from({ length: children }).map((_, i) => (
               <div key={i} style={{ display: "grid", gap: 6 }}>
                 <label style={s.label}>Child {i + 1} age</label>
                 <select
-                  style={{ ...s.input, width: "100%", maxWidth: 140 }}
+                  style={{ ...inputStyle, width: "100%", maxWidth: 140 }}
                   value={childrenAges[i] ?? 8}
                   onChange={(e) => {
                     const v = Math.max(1, Math.min(17, Number(e.target.value) || 8));
@@ -466,10 +458,10 @@ export default function Page() {
         )}
 
         {/* Cabin / stops / refundable / greener */}
-        <div style={{ ...s.row, ...s.four }}>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
           <div>
             <label style={s.label}>Cabin</label>
-            <select style={s.input} value={cabin} onChange={(e) => setCabin(e.target.value as Cabin)}>
+            <select style={inputStyle} value={cabin} onChange={(e) => setCabin(e.target.value as Cabin)}>
               <option value="ECONOMY">Economy</option>
               <option value="PREMIUM_ECONOMY">Premium Economy</option>
               <option value="BUSINESS">Business</option>
@@ -478,42 +470,42 @@ export default function Page() {
           </div>
           <div>
             <label style={s.label}>Stops</label>
-            <select style={s.input} value={maxStops} onChange={(e) => setMaxStops(Number(e.target.value) as 0 | 1 | 2)}>
+            <select style={inputStyle} value={maxStops} onChange={(e) => setMaxStops(Number(e.target.value) as 0 | 1 | 2)}>
               <option value={0}>Nonstop</option>
               <option value={1}>1 stop</option>
               <option value={2}>More than 1 stop</option>
             </select>
           </div>
           <div>
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 900, color: "#334155" }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 500, color: "#334155" }}>
               <input type="checkbox" checked={refundable} onChange={(e) => setRefundable(e.target.checked)} /> Refundable
             </label>
           </div>
           <div>
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 900, color: "#334155" }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 500, color: "#334155" }}>
               <input type="checkbox" checked={greener} onChange={(e) => setGreener(e.target.checked)} /> Greener
             </label>
           </div>
         </div>
 
         {/* Currency / budgets */}
-        <div style={{ ...s.row, ...s.three }}>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div>
             <label style={s.label}>Currency</label>
-            <select style={s.input} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+            <select style={inputStyle} value={currency} onChange={(e) => setCurrency(e.target.value)}>
               {["USD", "EUR", "GBP", "INR", "CAD", "AUD", "JPY", "SGD", "AED"].map((c) => (<option key={c} value={c}>{c}</option>))}
             </select>
           </div>
           <div>
             <label style={s.label}>Min budget</label>
-            <input type="number" placeholder="min" min={0} style={s.input}
+            <input type="number" placeholder="min" min={0} style={inputStyle}
               value={minBudget === "" ? "" : String(minBudget)}
               onChange={(e) => { if (e.target.value === "") return setMinBudget(""); const v = Number(e.target.value); setMinBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }}
             />
           </div>
           <div>
             <label style={s.label}>Max budget</label>
-            <input type="number" placeholder="max" min={0} style={s.input}
+            <input type="number" placeholder="max" min={0} style={inputStyle}
               value={maxBudget === "" ? "" : String(maxBudget)}
               onChange={(e) => { if (e.target.value === "") return setMaxBudget(""); const v = Number(e.target.value); setMaxBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }}
             />
@@ -521,25 +513,24 @@ export default function Page() {
         </div>
 
         {/* Include hotel */}
-        <div style={{ ...s.row, gridTemplateColumns: "170px 1fr 1fr 1fr" }}>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "170px 1fr 1fr 1fr" }}>
           <div>
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 900, color: "#334155" }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 500, color: "#334155" }}>
               <input type="checkbox" checked={includeHotel} onChange={(e) => setIncludeHotel(e.target.checked)} /> Include hotel
             </label>
           </div>
           <div>
             <label style={s.label}>Hotel check-in</label>
-            <input type="date" style={s.input} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} disabled={!includeHotel} min={departDate || todayLocal} />
+            <input type="date" style={inputStyle} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} disabled={!includeHotel} min={departDate || todayLocal} />
           </div>
           <div>
             <label style={s.label}>Hotel check-out</label>
-            <input type="date" style={s.input} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)} disabled={!includeHotel}
-              min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : (departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1))}
-            />
+            <input type="date" style={inputStyle} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)} disabled={!includeHotel}
+              min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : (departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1))} />
           </div>
           <div>
             <label style={s.label}>Min hotel stars</label>
-            <select style={s.input} value={minHotelStar} onChange={(e) => setMinHotelStar(Number(e.target.value))} disabled={!includeHotel}>
+            <select style={inputStyle} value={minHotelStar} onChange={(e) => setMinHotelStar(Number(e.target.value))} disabled={!includeHotel}>
               <option value={0}>Any</option>
               <option value={3}>3★+</option>
               <option value={4}>4★+</option>
@@ -549,7 +540,7 @@ export default function Page() {
         </div>
 
         {/* Sort basis */}
-        <div style={{ ...s.row, ...s.three }}>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div>
             <label style={s.label}>Sort by (basis)</label>
             <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -561,23 +552,24 @@ export default function Page() {
 
         {/* Submit row */}
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button type="submit" style={primaryBtn}>{loading ? "Searching…" : "Search"}</button>
-          <button type="button" style={{ ...secondaryBtn, marginLeft: 10 }} onClick={() => window.location.reload()}>Reset</button>
+          <button type="submit" style={{ height: 46, padding: "0 18px", fontWeight: 600, color: "#0b3b52", background: "linear-gradient(180deg,#f0fbff,#e6f7ff)", borderRadius: 10, minWidth: 130, fontSize: 15, cursor: "pointer", border: "1px solid #c9e9fb" }}>
+            {loading ? "Searching…" : "Search"}
+          </button>
+          <button type="button" style={{ height: 46, padding: "0 16px", fontWeight: 600, background: "#fff", border: "2px solid #7dd3fc", color: "#0369a1", borderRadius: 12, cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap", marginLeft: 10 }} onClick={() => window.location.reload()}>
+            Reset
+          </button>
         </div>
       </form>
 
-      {/* === TOP BAR: Left: Explore/Savor/Compare tabs | Right: sort + view + saved === */}
-      <div style={s.toolbar}>
-        {/* LEFT TABS */}
+      {/* === TOP BAR: Left tabs | Right sort/view/saved (unchanged header) === */}
+      <div className="toolbar">
         <div className="tabs" role="tablist" aria-label="Content tabs">
-          <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>🌍 Explore</button>
-          <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); }}>🍽️ Savor</button>
+          <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>{`🌍 Explore - ${destCity}`}</button>
+          <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); }}>{`🍽️ Savor - ${destCity}`}</button>
           <button className={`tab tab--compare ${compareMode ? "tab--active" : ""}`} role="tab" aria-selected={compareMode} onClick={() => { setActiveTab("compare"); setCompareMode((v) => !v); }}>⚖️ Compare</button>
         </div>
 
-        {/* RIGHT CONTROLS */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          {/* Sort chips */}
           <div role="tablist" aria-label="Sort" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {(["best", "cheapest", "fastest", "flexible"] as const).map((k) => (
               <button key={k} role="tab" aria-selected={sort === k}
@@ -587,7 +579,6 @@ export default function Page() {
             ))}
           </div>
 
-          {/* View toggles & saved */}
           <button className={`toolbar-chip ${!showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(false)} title="Show top 3">Top-3</button>
           <button className={`toolbar-chip ${showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(true)} title="Show all">All</button>
           <button className="toolbar-chip" onClick={() => window.print()}>Print</button>
@@ -595,15 +586,12 @@ export default function Page() {
         </div>
       </div>
 
-      {/* EXPLORE/SAVOR: only after search */}
+      {/* EXPLORE/SAVOR (only after search) */}
       {exploreVisible && results && results.length > 0 && activeTab !== "compare" && <ContentPlaces mode={activeTab} />}
 
-      {/* COMPARE PANEL — colorful + emojis */}
+      {/* COMPARE PANEL (colorful + emojis) */}
       {compareMode && comparedPkgs.length >= 2 && (
-        <section
-          className="compare-panel"
-          aria-label="Compare selected results"
-        >
+        <section className="compare-panel" aria-label="Compare selected results">
           <div className="compare-title">⚖️ Side-by-side Compare</div>
           <table className="compare-table">
             <thead>
@@ -618,7 +606,7 @@ export default function Page() {
               <tr>
                 <td style={ctd}>💵 Price</td>
                 {comparedPkgs.map((p: any) => (
-                  <td key={p.id + "price"} style={ctd}><strong>{Math.round(Number(p.total_cost ?? p.flight_total ?? 0)).toLocaleString()} {p.currency || "USD"}</strong></td>
+                  <td key={p.id + "price"} style={ctd}><strong style={{ fontWeight: 600 }}>{Math.round(Number(p.total_cost ?? p.flight_total ?? 0)).toLocaleString()} {p.currency || "USD"}</strong></td>
                 ))}
               </tr>
               <tr>
@@ -647,10 +635,10 @@ export default function Page() {
       )}
 
       {/* MESSAGES */}
-      {error && <div style={{ ...s.msg, ...s.error }} role="alert">⚠ {error}</div>}
-      {hotelWarning && !error && <div style={{ ...s.msg, ...s.warn }}>ⓘ {hotelWarning}</div>}
-      {loading && <div style={s.msg}>Searching…</div>}
-      {!loading && results && results.length === 0 && <div style={s.msg}>No results matched your filters.</div>}
+      {error && <div className="msg msg--error" role="alert">⚠ {error}</div>}
+      {hotelWarning && !error && <div className="msg msg--warn">ⓘ {hotelWarning}</div>}
+      {loading && <div className="msg">Searching…</div>}
+      {!loading && results && results.length === 0 && <div className="msg">No results matched your filters.</div>}
 
       {/* RESULTS */}
       {shownResults && shownResults.length > 0 && (

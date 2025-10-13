@@ -86,7 +86,7 @@ export default function ResultCard({
   const dateOut = (outSegs?.[0]?.depart_time || "").slice(0, 10);
   const dateRet = (inSegs?.[0]?.depart_time || "").slice(0, 10);
 
-  // Brand pill: TrioTrip (for now route to Google Flights query but branded)
+  // Brand pill: TrioTrip (for now routes to Google Flights query)
   const trioTrip =
     `https://www.google.com/travel/flights?q=` +
     encodeURIComponent(
@@ -191,13 +191,17 @@ export default function ResultCard({
     const mins = Math.max(0, Math.round((+b - +a) / 60000));
     return (
       <div style={{ padding: 6, color: "#475569", fontSize: 12, display: "flex", justifyContent: "center" }}>
-        ⏳ Layover at <strong style={{ margin: "0 6px" }}>{at}</strong> — {formatDur(mins)}
+        ⏳ Layover at <strong style={{ margin: "0 6px", fontWeight: 600 }}>{at}</strong> — {formatDur(mins)}
       </div>
     );
   }
 
-  // image helper for hotels
-  const hotelImg = (h: any) => h?.image || h?.photoUrl || h?.thumbnail || "";
+  // image helper for hotels (with Unsplash fallback per city)
+  const hotelImg = (h: any) =>
+    h?.image || h?.photoUrl || h?.thumbnail ||
+    (h?.city ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(h.city)}` :
+     pkg?.destination ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(pkg.destination)}` :
+     `https://source.unsplash.com/featured/400x250/?hotel`);
 
   return (
     <section
@@ -207,9 +211,9 @@ export default function ResultCard({
     >
       {/* PRICE & CTA */}
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontWeight: 900, fontSize: 18, color: "#0f172a" }}>
+        <div style={{ fontWeight: 600, fontSize: 18, color: "#0f172a" }}>
           {airline}
-          <span style={{ opacity: 0.6, fontWeight: 800, marginLeft: 8 }}>
+          <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 8 }}>
             {route} {dateOut ? `· ${dateOut}` : ""}
           </span>
         </div>
@@ -218,7 +222,7 @@ export default function ResultCard({
           <a className="book-link book-link--gflights" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="book-link book-link--skyscanner" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
           <a className="book-link book-link--airline" href={airlineSite} target="_blank" rel="noreferrer">Airline</a>
-          <div style={{ fontWeight: 900, marginLeft: 6 }}>
+          <div style={{ fontWeight: 600, marginLeft: 6 }}>
             {Math.round(Number(price || 0)).toLocaleString()} {currency || pkg.currency || "USD"}
           </div>
         </div>
@@ -229,17 +233,17 @@ export default function ResultCard({
         {/* Outbound */}
         {outSegs.length > 0 && (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#334155" }}>Outbound</div>
+            <div style={{ fontWeight: 600, color: "#334155" }}>Outbound</div>
             {outSegs.map((s: any, i: number) => (
               <React.Fragment key={`o${i}`}>
                 <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                   <div>
-                    <div style={{ fontWeight: 800 }}>{s.from} → {s.to}</div>
+                    <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
                     <div style={{ fontSize: 12, color: "#475569" }}>
                       {formatTime(s.depart_time)} – {formatTime(s.arrive_time)}
                     </div>
                   </div>
-                  <div style={{ fontWeight: 900 }}>{formatDur(s.duration_minutes)}</div>
+                  <div style={{ fontWeight: 600 }}>{formatDur(s.duration_minutes)}</div>
                 </div>
                 {i < outSegs.length - 1 && (
                   <LayoverRow
@@ -256,17 +260,17 @@ export default function ResultCard({
         {/* Return */}
         {inSegs.length > 0 && (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#334155" }}>Return</div>
+            <div style={{ fontWeight: 600, color: "#334155" }}>Return</div>
             {inSegs.map((s: any, i: number) => (
               <React.Fragment key={`i${i}`}>
                 <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                   <div>
-                    <div style={{ fontWeight: 800 }}>{s.from} → {s.to}</div>
+                    <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
                     <div style={{ fontSize: 12, color: "#475569" }}>
                       {formatTime(s.depart_time)} – {formatTime(s.arrive_time)}
                     </div>
                   </div>
-                  <div style={{ fontWeight: 900 }}>{formatDur(s.duration_minutes)}</div>
+                  <div style={{ fontWeight: 600 }}>{formatDur(s.duration_minutes)}</div>
                 </div>
                 {i < inSegs.length - 1 && (
                   <LayoverRow
@@ -293,7 +297,7 @@ export default function ResultCard({
             background: "#fcfdff",
           }}
         >
-          <div style={{ fontWeight: 900, color: "#0f172a" }}>Hotels (top options)</div>
+          <div style={{ fontWeight: 600, color: "#0f172a" }}>Hotels (top options)</div>
           {(Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels : (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : []))
             .slice(0, 3)
             .map((h: any, i: number) => {
@@ -316,16 +320,12 @@ export default function ResultCard({
                   }}
                 >
                   <a href={links.primary} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 10, overflow: "hidden", background: "#f1f5f9" }}>
-                    {img ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={img} alt={h.name || "Hotel"} style={{ width: 160, height: 100, objectFit: "cover", display: "block" }} />
-                    ) : (
-                      <div style={{ width: 160, height: 100, background: "linear-gradient(180deg,#e2e8f0,#cbd5e1)" }} />
-                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img} alt={h.name || "Hotel"} style={{ width: 160, height: 100, objectFit: "cover", display: "block" }} />
                   </a>
                   <div style={{ display: "grid", gap: 6 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <div style={{ fontWeight: 900 }}>{h.name || "Hotel"}</div>
+                      <div style={{ fontWeight: 600 }}>{h.name || "Hotel"}</div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                         {/* Official site (if available) */}
                         {links.official && <a className="book-link book-link--primary" href={links.official} target="_blank" rel="noreferrer">Hotel site</a>}
