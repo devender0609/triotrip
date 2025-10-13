@@ -56,6 +56,14 @@ function extractIATA(display: string): string {
   return "";
 }
 
+function plusDays(iso: string, days: number) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /* --- compare helpers --- */
 const cth: React.CSSProperties = {
   textAlign: "left",
@@ -174,7 +182,12 @@ export default function Page() {
       if (adults < 1) throw new Error("At least 1 adult is required.");
       if (roundTrip) {
         if (!returnDate) throw new Error("Please pick a return date.");
-        if (returnDate < departDate) throw new Error("Return date must be after departure.");
+        if (returnDate <= departDate) throw new Error("Return date must be after departure.");
+      }
+      if (includeHotel) {
+        if (!hotelCheckIn || !hotelCheckOut) throw new Error("Please set hotel check-in and check-out.");
+        if (hotelCheckIn < todayLocal) throw new Error("Hotel check-in can’t be in the past.");
+        if (hotelCheckOut <= hotelCheckIn) throw new Error("Hotel check-out must be after check-in.");
       }
       if (minBudget !== "" && minBudget < 0) throw new Error("Min budget cannot be negative.");
       if (maxBudget !== "" && maxBudget < 0) throw new Error("Max budget cannot be negative.");
@@ -352,8 +365,9 @@ export default function Page() {
   };
 
   const primaryBtn: React.CSSProperties = {
-    height: 46, padding: "0 18px", border: "none", fontWeight: 900, color: "#fff",
-    background: "linear-gradient(90deg,#06b6d4,#0ea5e9)", borderRadius: 10, minWidth: 130, fontSize: 15, cursor: "pointer",
+    height: 46, padding: "0 18px", border: "none", fontWeight: 900, color: "#0b3b52",
+    background: "linear-gradient(180deg,#f0fbff,#e6f7ff)", borderRadius: 10, minWidth: 130, fontSize: 15, cursor: "pointer",
+    border: "1px solid #c9e9fb"
   };
   const secondaryBtn: React.CSSProperties = {
     height: 46, padding: "0 16px", fontWeight: 800, background: "#fff", border: "2px solid #7dd3fc",
@@ -366,8 +380,13 @@ export default function Page() {
   };
   const segStyle = (active: boolean): React.CSSProperties =>
     active
-      ? { ...segBase, background: "linear-gradient(90deg,#06b6d4,#0ea5e9)", color: "#fff", border: "none" }
+      ? { ...segBase, background: "linear-gradient(180deg,#ffffff,#eef6ff)", color: "#0f172a", border: "1px solid #bfdbfe" }
       : segBase;
+
+  // stepper helpers
+  const stepBtn = (onClick: () => void, label: string) => (
+    <button type="button" className="stepper-btn" onClick={onClick} aria-label={label} style={{ height: 46, width: 42, borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontWeight: 900 }}> {label === "increment" ? "+" : "−"} </button>
+  );
 
   return (
     <div className={compareMode ? "compare-mode-on" : undefined} style={{ padding: 12, display: "grid", gap: 14 }}>
@@ -377,7 +396,7 @@ export default function Page() {
           Find your perfect trip
         </h1>
         <p style={{ margin: 0, display: "flex", gap: 10, alignItems: "center", color: "#334155", fontWeight: 700, flexWrap: "wrap", fontSize: 15 }}>
-          <span style={{ padding: "6px 12px", borderRadius: 999, background: "linear-gradient(90deg,#06b6d4,#0ea5e9)", color: "#fff", fontWeight: 900 }}>
+          <span style={{ padding: "6px 12px", borderRadius: 999, background: "linear-gradient(180deg,#ffffff,#eef6ff)", border: "1px solid #cfe0ff", color: "#0b1220", fontWeight: 900 }}>
             Top-3 picks
           </span>
           <span style={{ opacity: 0.6 }}>•</span><strong>Smarter</strong>
@@ -432,52 +451,77 @@ export default function Page() {
 
           <div>
             <label style={s.label}>Depart</label>
-            <input type="date" style={s.input} value={departDate} onChange={(e) => setDepartDate(e.target.value)} min={todayLocal} max={roundTrip && returnDate ? returnDate : undefined} />
+            <input
+              type="date"
+              style={s.input}
+              value={departDate}
+              onChange={(e) => setDepartDate(e.target.value)}
+              min={todayLocal}
+              max={roundTrip && returnDate ? returnDate : undefined}
+            />
           </div>
 
           <div>
             <label style={s.label}>Return</label>
-            <input type="date" style={s.input} value={returnDate} onChange={(e) => setReturnDate(e.target.value)} disabled={!roundTrip} min={departDate || todayLocal} />
+            <input
+              type="date"
+              style={s.input}
+              value={returnDate}
+              onChange={(e) => setReturnDate(e.target.value)}
+              disabled={!roundTrip}
+              /* must be strictly after depart */
+              min={departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1)}
+            />
           </div>
 
           <div>
             <label style={s.label}>Adults</label>
-            <input type="number" min={1} style={s.input} value={adults} onChange={(e) => setAdults(Math.max(1, Number(e.target.value) || 1))} />
+            <div className="stepper">
+              <button type="button" onClick={() => setAdults((v) => Math.max(1, v - 1))}>−</button>
+              <input className="no-spin" type="number" readOnly value={adults} style={s.input} />
+              <button type="button" onClick={() => setAdults((v) => v + 1)}>+</button>
+            </div>
           </div>
           <div>
             <label style={s.label}>Children</label>
-            <input type="number" min={0} style={s.input} value={children} onChange={(e) => setChildren(Math.max(0, Number(e.target.value) || 0))} />
+            <div className="stepper">
+              <button type="button" onClick={() => setChildren((v) => Math.max(0, v - 1))}>−</button>
+              <input className="no-spin" type="number" readOnly value={children} style={s.input} />
+              <button type="button" onClick={() => setChildren((v) => v + 1)}>+</button>
+            </div>
           </div>
           <div>
             <label style={s.label}>Infants</label>
-            <input type="number" min={0} style={s.input} value={infants} onChange={(e) => setInfants(Math.max(0, Number(e.target.value) || 0))} />
+            <div className="stepper">
+              <button type="button" onClick={() => setInfants((v) => Math.max(0, v - 1))}>−</button>
+              <input className="no-spin" type="number" readOnly value={infants} style={s.input} />
+              <button type="button" onClick={() => setInfants((v) => v + 1)}>+</button>
+            </div>
           </div>
         </div>
 
-        {/* Children ages (no arrows, 1–17 only) */}
+        {/* Children ages as dropdowns */}
         {children > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {Array.from({ length: children }).map((_, i) => (
               <div key={i} style={{ display: "grid", gap: 6 }}>
                 <label style={s.label}>Child {i + 1} age</label>
-                <input
-                  className="no-spin"
-                  type="number"
-                  min={1}
-                  max={17}
-                  placeholder="1–17"
-                  value={Math.max(1, Math.min(17, Number(childrenAges[i] ?? 8)))}
+                <select
+                  style={{ ...s.input, width: "100%", maxWidth: 140 }}
+                  value={childrenAges[i] ?? 8}
                   onChange={(e) => {
-                    const raw = Number(e.target.value);
-                    const v = Math.max(1, Math.min(17, Number.isFinite(raw) ? raw : 8));
+                    const v = Math.max(1, Math.min(17, Number(e.target.value) || 8));
                     setChildrenAges((prev) => {
                       const next = prev.slice();
                       next[i] = v;
                       return next;
                     });
                   }}
-                  style={{ ...s.input, width: "100%", maxWidth: 110 }}
-                />
+                >
+                  {Array.from({ length: 17 }, (_, n) => n + 1).map((age) => (
+                    <option key={age} value={age}>{age}</option>
+                  ))}
+                </select>
               </div>
             ))}
           </div>
@@ -582,7 +626,12 @@ export default function Page() {
               value={hotelCheckOut}
               onChange={(e) => setHotelCheckOut(e.target.value)}
               disabled={!includeHotel}
-              min={hotelCheckIn || departDate || todayLocal}
+              /* strictly after check-in */
+              min={
+                hotelCheckIn
+                  ? plusDays(hotelCheckIn, 1)
+                  : (departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1))
+              }
             />
           </div>
           <div>
@@ -638,8 +687,8 @@ export default function Page() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button className="toolbar-chip" onClick={() => window.print()}>Print</button>
           <SavedChip count={savedCount} />
-          {/* Animated compare toggle */}
-          <label className="compare-toggle" style={{ fontWeight: 900, color: "#334155" }}>
+          {/* Elegant compare toggle */}
+          <label className="compare-toggle" style={{ fontWeight: 900 }}>
             <input type="checkbox" checked={compareMode} onChange={(e) => setCompareMode(e.target.checked)} /> Compare
           </label>
         </div>

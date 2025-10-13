@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 /** Airline homepages; fallback = Google "airline + booking" */
 const AIRLINE_SITE: Record<string, string> = {
@@ -255,6 +255,52 @@ export default function ResultCard({
     return { first: fromData || fb.unsplash, fallbacks: fb };
   }
 
+  /* --------- Favorites (per destination) --------- */
+  const destCity = useMemo(() => {
+    const h = (Array.isArray(pkg.hotels) && pkg.hotels[0]) || pkg.hotel || {};
+    return h?.city || pkg.destination || "Destination";
+  }, [pkg]);
+
+  type FavTab = "go" | "eat";
+  const [favTab, setFavTab] = useState<FavTab>("go");
+  const [favInput, setFavInput] = useState("");
+  const [favsGo, setFavsGo] = useState<string[]>([]);
+  const [favsEat, setFavsEat] = useState<string[]>([]);
+
+  useEffect(() => {
+    const key = (type: FavTab) => `triptrio:favs:${destCity}:${type}`;
+    try {
+      setFavsGo(JSON.parse(localStorage.getItem(key("go")) || "[]"));
+      setFavsEat(JSON.parse(localStorage.getItem(key("eat")) || "[]"));
+    } catch {
+      setFavsGo([]); setFavsEat([]);
+    }
+  }, [destCity]);
+
+  function saveFavs(type: FavTab, arr: string[]) {
+    const key = `triptrio:favs:${destCity}:${type}`;
+    localStorage.setItem(key, JSON.stringify(arr));
+  }
+  function addFav() {
+    const v = favInput.trim();
+    if (!v) return;
+    if (favTab === "go") {
+      const next = Array.from(new Set([...favsGo, v]));
+      setFavsGo(next); saveFavs("go", next);
+    } else {
+      const next = Array.from(new Set([...favsEat, v]));
+      setFavsEat(next); saveFavs("eat", next);
+    }
+    setFavInput("");
+  }
+  function removeFav(type: FavTab, v: string) {
+    if (type === "go") {
+      const next = favsGo.filter((x) => x !== v); setFavsGo(next); saveFavs("go", next);
+    } else {
+      const next = favsEat.filter((x) => x !== v); setFavsEat(next); saveFavs("eat", next);
+    }
+  }
+
   return (
     <article
       className={`result-card${isCompared ? " result-card--compared" : ""}`}
@@ -386,7 +432,7 @@ export default function ResultCard({
           >
             <div style={{ fontWeight: 900, color: "#0f172a" }}>Book Flight</div>
 
-            {/* Animated booking buttons */}
+            {/* Soft booking buttons */}
             <button onClick={(e) => { e.stopPropagation(); bookViaTrioTrip(); }} className="book-link book-link--primary" style={{ minHeight: 34 }}>
               Book via TrioTrip
             </button>
@@ -471,20 +517,64 @@ export default function ResultCard({
                   <div style={{ display: "grid", gap: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                       <div style={{ fontWeight: 900 }}>
-                        {h.name} {typeof h.star === "number" ? `(${h.star}★)` : ""}
-                        {city ? <span style={{ marginLeft: 6, color: "#64748b", fontWeight: 700 }}>• {city}</span> : null}
+                        {h.name} {typeof h.star === "number" ? `(${h.star}★)` : ""}{city ? <span style={{ marginLeft: 6, color: "#64748b", fontWeight: 700 }}>• {city}</span> : null}
                       </div>
                       <div style={{ fontWeight: 900 }}>
                         {Math.round(h.price_converted || 0).toLocaleString()} {h.currency || pkg.currency || currency}
                       </div>
                     </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+
+                    {/* Booking links + Map + Favorites tabs */}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
                       <a href={links.booking} target="_blank" rel="noreferrer noopener" className="book-link book-link--booking" onClick={(e) => e.stopPropagation()}>Booking.com</a>
                       <a href={links.hotels} target="_blank" rel="noreferrer noopener" className="book-link book-link--hotels" onClick={(e) => e.stopPropagation()}>Hotels.com</a>
                       <a href={links.expedia} target="_blank" rel="noreferrer noopener" className="book-link book-link--expedia" onClick={(e) => e.stopPropagation()}>Expedia</a>
                       {links.maps && (
                         <a href={links.maps} target="_blank" rel="noreferrer noopener" className="book-link book-link--maps" onClick={(e) => e.stopPropagation()}>Map</a>
                       )}
+
+                      {/* Favorites tabs */}
+                      <div className="fav-tabs" role="tablist" aria-label="Favorites">
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={favTab === "go"}
+                          className={`fav-chip ${favTab === "go" ? "fav-chip--active" : ""}`}
+                          onClick={(e) => { e.stopPropagation(); setFavTab("go"); }}
+                        >
+                          Places to go
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={favTab === "eat"}
+                          className={`fav-chip ${favTab === "eat" ? "fav-chip--active" : ""}`}
+                          onClick={(e) => { e.stopPropagation(); setFavTab("eat"); }}
+                        >
+                          Places to eat
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="fav-panel" onClick={(e) => e.stopPropagation()}>
+                      <div style={{ fontWeight: 800, marginBottom: 6 }}>{destCity} — {favTab === "go" ? "Places to go" : "Places to eat"}</div>
+                      <div className="fav-list">
+                        {(favTab === "go" ? favsGo : favsEat).map((v) => (
+                          <span key={v} className="fav-tag" title="Click to remove" onClick={() => removeFav(favTab, v)}>{v} ✕</span>
+                        ))}
+                        {(favTab === "go" ? favsGo : favsEat).length === 0 && (
+                          <span style={{ color: "#64748b" }}>No favorites yet. Add some below.</span>
+                        )}
+                      </div>
+                      <div className="fav-add">
+                        <input
+                          type="text"
+                          placeholder={favTab === "go" ? "Add attraction / place..." : "Add cafe / restaurant..."}
+                          value={favInput}
+                          onChange={(e) => setFavInput(e.target.value)}
+                        />
+                        <button type="button" onClick={addFav}>Add</button>
+                      </div>
                     </div>
                   </div>
                 </div>

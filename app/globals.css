@@ -34,11 +34,9 @@ header{
 }
 header .tt-logo,
 header img.tt-logo {
-  /* Soften a white rectangle around non-transparent logos */
   mix-blend-mode: multiply;
   background: transparent !important;
   border: 0 !important;
-  /* Mild tone adjustment helps blend on light backgrounds */
   filter: brightness(0.98) saturate(1.05);
 }
 
@@ -82,7 +80,7 @@ input[type="text"]:focus, input[type="date"]:focus, .select:focus, .input:focus{
 }
 select{ appearance:auto; color:var(--ink); background-color:#fff; }
 
-/* Hide number arrows for targeted fields only */
+/* Keep default number spinners OFF only where we use custom steppers (we'll avoid using .no-spin elsewhere) */
 .no-spin::-webkit-outer-spin-button,
 .no-spin::-webkit-inner-spin-button{ -webkit-appearance: none; margin:0; }
 input[type="number"].no-spin{ -moz-appearance:textfield; appearance:textfield; }
@@ -101,61 +99,105 @@ a.tt-brand *{ text-decoration:none !important; border-bottom:0 !important; }
 .toolbar-chip{
   display:inline-flex; align-items:center; justify-content:center;
   height:38px; padding:0 18px; border-radius:999px;
-  border:2px solid #cbd5e1; background:linear-gradient(180deg,#ffffff,#f8fafc);
+  border:2px solid #e5eaf1; background:linear-gradient(180deg,#ffffff,#f8fafc);
   color:var(--ink); font-weight:900; font-size:16px;
   box-shadow:0 6px 18px rgba(2,132,199,.06); cursor:pointer;
   transition: transform .08s ease, box-shadow .12s ease, filter .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
 }
-.toolbar-chip:hover{ transform:translateY(-1px); box-shadow:0 10px 26px rgba(14,165,233,.15); border-color:#94a3b8; }
+.toolbar-chip:hover{ transform:translateY(-1px); box-shadow:0 10px 26px rgba(14,165,233,.12); border-color:#d5dee8; }
 .toolbar-chip:active{ transform:translateY(0); }
 .toolbar-chip--active{
-  background:linear-gradient(90deg,var(--brand-2),var(--brand));
-  color:#fff; border-color:transparent; box-shadow:0 10px 26px rgba(14,165,233,.25);
+  background:linear-gradient(180deg,#ffffff,#eef6ff);
+  color:#0b1220; border-color:#bfdbfe; box-shadow:0 10px 26px rgba(14,165,233,.18);
 }
 .toolbar-chip:focus-visible{ outline:3px solid var(--ring); outline-offset:2px; }
 
-/* ===== Compare toggle (animated) ===== */
+/* ===== Compare toggle (more elegant) ===== */
 @keyframes pulse-border{
-  0%{ box-shadow:0 0 0 0 rgba(14,165,233,.45); }
+  0%{ box-shadow:0 0 0 0 rgba(14,165,233,.35); }
   70%{ box-shadow:0 0 0 8px rgba(14,165,233,0); }
   100%{ box-shadow:0 0 0 0 rgba(14,165,233,0); }
 }
 .compare-toggle{
   display:inline-flex; align-items:center; gap:8px;
   padding:6px 10px; border-radius:999px;
-  transition:background .2s ease, color .2s ease, transform .12s ease;
+  border:1px solid #dbe6f3;
+  background:linear-gradient(180deg,#ffffff,#f8fbff);
+  color:#0f172a; font-weight:900;
+  transition:background .2s ease, color .2s ease, transform .12s ease, border-color .2s ease, box-shadow .2s ease;
 }
-.compare-toggle:hover{ background:#f1f5f9; }
+.compare-toggle:hover{ background:#f4f8ff; border-color:#cfe0f7; }
 .compare-toggle:has(input:checked){
-  background:linear-gradient(90deg,var(--brand-3),var(--brand-2)); color:#fff;
-  animation:pulse-border 1.2s ease-out 1;
+  background:linear-gradient(180deg,#ffffff,#eaf6ff);
+  color:#0b1220; border-color:#bfe0ff;
+  animation:pulse-border 1.1s ease-out 1;
 }
 
-/* ===== Booking links (animated pills) ===== */
+/* ===== Booking links (soft “little lights” pills) ===== */
 .book-link{
   display:inline-flex; align-items:center; justify-content:center;
   min-height:36px; padding:0 14px; border-radius:999px;
   background:linear-gradient(180deg,#ffffff,#f8fafc);
-  border:1px solid #cbd5e1; color:var(--ink); font-weight:900;
+  border:1px solid #dbe6f3; color:#0f172a; font-weight:900;
   transition: transform .08s ease, box-shadow .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
   box-shadow:0 6px 16px rgba(2,132,199,.06);
-  text-decoration:none !important; /* no underlines */
+  text-decoration:none !important;
 }
-.book-link:hover{ transform:translateY(-2px); box-shadow:0 16px 40px rgba(14,165,233,.18); border-color:#94a3b8; }
-.book-link:active{ transform:translateY(0); }
+.book-link:hover{ transform:translateY(-2px); box-shadow:0 14px 30px rgba(14,165,233,.16); border-color:#c8d9eb; }
 
-/* Flight link variants */
-.book-link--primary{ background:linear-gradient(90deg,var(--brand-2),var(--brand)); color:#fff; border:none; }
-.book-link--airline{ background:linear-gradient(90deg,#10b981,#22c55e); color:#fff; border:none; }
-.book-link--gflights{ background:linear-gradient(90deg,#a78bfa,#60a5fa); color:#fff; border:none; }
-.book-link--skyscanner{ background:linear-gradient(90deg,#06b6d4,#3b82f6); color:#fff; border:none; }
+/* Flight link variants (lighter tones) */
+.book-link--primary{ background:linear-gradient(180deg,#f0fbff,#e6f7ff); color:#0b3b52; border-color:#c9e9fb; }
+.book-link--airline{ background:linear-gradient(180deg,#effcf7,#e5fbf3); color:#064e3b; border-color:#c9f3e4; }
+.book-link--gflights{ background:linear-gradient(180deg,#f2f0ff,#ecf3ff); color:#1e3a8a; border-color:#d9defe; }
+.book-link--skyscanner{ background:linear-gradient(180deg,#edfbff,#e6f4ff); color:#0c4a6e; border-color:#cbe9ff; }
 
-/* Hotel link variants */
-.book-link--booking{ background:linear-gradient(90deg,#2563eb,#1d4ed8); color:#fff; border:none; }   /* Booking.com blue */
-.book-link--hotels{ background:linear-gradient(90deg,#ef4444,#dc2626); color:#fff; border:none; }    /* Hotels.com red */
-.book-link--expedia{ background:linear-gradient(90deg,#f59e0b,#f97316); color:#fff; border:none; }   /* Expedia amber/orange */
-.book-link--maps{ background:linear-gradient(90deg,#10b981,#22c55e); color:#fff; border:none; }      /* Maps green */
+/* Hotel link variants (lighter) */
+.book-link--booking{ background:linear-gradient(180deg,#eef2ff,#e8efff); color:#1e3a8a; border-color:#d6defe; }
+.book-link--hotels{ background:linear-gradient(180deg,#fff1f2,#ffe4e6); color:#7f1d1d; border-color:#ffd0d6; }
+.book-link--expedia{ background:linear-gradient(180deg,#fff7ed,#ffedd5); color:#7c2d12; border-color:#ffe0b5; }
+.book-link--maps{ background:linear-gradient(180deg,#effcf7,#e5fbf3); color:#064e3b; border-color:#c9f3e4; }
 
 /* Compare-mode cursor/outline */
 .compare-mode-on .result-card{ cursor:pointer; }
 .result-card--compared{ box-shadow:0 0 0 6px rgba(14,165,233,.10) inset; }
+
+/* ===== Steppers (adults/children/infants) ===== */
+.stepper{
+  display:inline-flex; align-items:center; gap:6px;
+}
+.stepper input{
+  width:70px; text-align:center; font-weight:900; height:46px;
+}
+.stepper button{
+  height:46px; width:42px; border-radius:10px;
+  border:1px solid #e2e8f0; background:#fff; cursor:pointer; font-weight:900;
+  transition:transform .08s ease, background .12s ease, border-color .12s ease;
+}
+.stepper button:hover{ transform:translateY(-1px); background:#f8fafc; border-color:#dce7f5; }
+
+/* ===== Favorites tabs near map ===== */
+.fav-tabs{ display:inline-flex; gap:8px; flex-wrap:wrap; }
+.fav-chip{
+  display:inline-flex; align-items:center; justify-content:center;
+  height:30px; padding:0 12px; border-radius:999px;
+  border:1px solid #e6edf6; background:linear-gradient(180deg,#ffffff,#f8fbff);
+  font-weight:800; cursor:pointer; transition:all .12s ease;
+}
+.fav-chip:hover{ transform:translateY(-1px); border-color:#d3e4ff; }
+.fav-chip--active{ border-color:#bfdcff; background:linear-gradient(180deg,#ffffff,#eef6ff); }
+.fav-panel{
+  margin-top:8px; border:1px solid #e5e7eb; border-radius:12px; padding:10px; background:#fff;
+}
+.fav-list{ display:flex; flex-wrap:wrap; gap:8px; }
+.fav-tag{
+  border:1px solid #e2e8f0; border-radius:999px; padding:4px 10px; background:#f8fafc; font-weight:800;
+}
+.fav-add{
+  display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;
+}
+.fav-add input{
+  height:38px; padding:0 12px; border:1px solid #e2e8f0; border-radius:10px;
+}
+.fav-add button{
+  height:38px; padding:0 12px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; font-weight:800; cursor:pointer;
+}
