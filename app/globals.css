@@ -1,12 +1,11 @@
 /* app/globals.css */
 
-/* CSS reset-ish */
+/* ========== Reset / Base ========== */
 *,
 *::before,
 *::after { box-sizing: border-box; }
 html, body { padding: 0; margin: 0; height: 100%; }
 
-/* ==== Theme tokens ==== */
 :root{
   --bg1:#f8fafc; --bg2:#ffffff;
   --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
@@ -15,7 +14,7 @@ html, body { padding: 0; margin: 0; height: 100%; }
   --ring:rgba(14,165,233,.35);
 }
 
-/* App baseline */
+/* App background & typography */
 .tt-body{
   background:
     radial-gradient(1200px 600px at 10% -10%, #e0f2fe 0%, rgba(224,242,254,0) 60%),
@@ -27,7 +26,7 @@ html, body { padding: 0; margin: 0; height: 100%; }
 }
 .tt-main{ min-height:100vh; width:100%; max-width:1200px; padding:24px 20px 60px; margin:0 auto; }
 
-/* Header + logo blend */
+/* Header */
 header{
   background: linear-gradient(90deg, rgba(6,182,212,.10), rgba(14,165,233,.10));
   border-bottom:1px solid var(--line);
@@ -40,7 +39,7 @@ header img.tt-logo {
   filter: brightness(0.98) saturate(1.05);
 }
 
-/* Utility buttons */
+/* Buttons (generic) */
 .btn{
   display:inline-flex; align-items:center; gap:8px;
   border:1px solid var(--line);
@@ -56,7 +55,7 @@ header img.tt-logo {
 .btn.ghost{ background:#fff; color:var(--brand); border:2px solid #7dd3fc; box-shadow:none; }
 .btn.small{ padding:8px 10px; font-size:13px; }
 
-/* Header-specific tweaks for Saved/Login pills (if present) */
+/* Header-specific tweaks */
 header .btn.primary{ background:linear-gradient(90deg,#22c55e,#0ea5e9); }
 header .btn.ghost{ border-color:#93c5fd; color:#2563eb; }
 
@@ -80,12 +79,12 @@ input[type="text"]:focus, input[type="date"]:focus, .select:focus, .input:focus{
 }
 select{ appearance:auto; color:var(--ink); background-color:#fff; }
 
-/* Keep default number spinners OFF only where we use custom steppers (we'll avoid using .no-spin elsewhere) */
+/* Remove number spinners where we use custom steppers */
 .no-spin::-webkit-outer-spin-button,
 .no-spin::-webkit-inner-spin-button{ -webkit-appearance: none; margin:0; }
 input[type="number"].no-spin{ -moz-appearance:textfield; appearance:textfield; }
 
-/* Simple grid helper */
+/* Layout helper */
 .container-wide{ display:grid; grid-template-columns:1fr; gap:16px; }
 @media (min-width:1024px){ .container-wide{ grid-template-columns:320px 1fr; gap:24px; } }
 
@@ -95,7 +94,7 @@ a, a:visited{ color:inherit; }
 a.tt-brand, a.tt-brand:hover, a.tt-brand:focus, a.tt-brand:active,
 a.tt-brand *{ text-decoration:none !important; border-bottom:0 !important; }
 
-/* ===== Toolbar tabs ===== */
+/* ========== Toolbar chips (Sort & view) ========== */
 .toolbar-chip{
   display:inline-flex; align-items:center; justify-content:center;
   height:38px; padding:0 18px; border-radius:999px;
@@ -112,7 +111,7 @@ a.tt-brand *{ text-decoration:none !important; border-bottom:0 !important; }
 }
 .toolbar-chip:focus-visible{ outline:3px solid var(--ring); outline-offset:2px; }
 
-/* ===== Compare toggle (more elegant) ===== */
+/* ========== Elegant Compare toggle (legacy class, still used in some spots) ========== */
 @keyframes pulse-border{
   0%{ box-shadow:0 0 0 0 rgba(14,165,233,.35); }
   70%{ box-shadow:0 0 0 8px rgba(14,165,233,0); }
@@ -133,7 +132,7 @@ a.tt-brand *{ text-decoration:none !important; border-bottom:0 !important; }
   animation:pulse-border 1.1s ease-out 1;
 }
 
-/* ===== Booking links (soft “little lights” pills) ===== */
+/* ========== Booking pills (lighter “little lights”) ========== */
 .book-link{
   display:inline-flex; align-items:center; justify-content:center;
   min-height:36px; padding:0 14px; border-radius:999px;
@@ -145,28 +144,27 @@ a.tt-brand *{ text-decoration:none !important; border-bottom:0 !important; }
 }
 .book-link:hover{ transform:translateY(-2px); box-shadow:0 14px 30px rgba(14,165,233,.16); border-color:#c8d9eb; }
 
-/* Flight link variants (lighter tones) */
+/* Flight variants */
 .book-link--primary{ background:linear-gradient(180deg,#f0fbff,#e6f7ff); color:#0b3b52; border-color:#c9e9fb; }
 .book-link--airline{ background:linear-gradient(180deg,#effcf7,#e5fbf3); color:#064e3b; border-color:#c9f3e4; }
 .book-link--gflights{ background:linear-gradient(180deg,#f2f0ff,#ecf3ff); color:#1e3a8a; border-color:#d9defe; }
 .book-link--skyscanner{ background:linear-gradient(180deg,#edfbff,#e6f4ff); color:#0c4a6e; border-color:#cbe9ff; }
 
-/* Hotel link variants (lighter) */
+/* Hotel variants */
 .book-link--booking{ background:linear-gradient(180deg,#eef2ff,#e8efff); color:#1e3a8a; border-color:#d6defe; }
 .book-link--hotels{ background:linear-gradient(180deg,#fff1f2,#ffe4e6); color:#7f1d1d; border-color:#ffd0d6; }
 .book-link--expedia{ background:linear-gradient(180deg,#fff7ed,#ffedd5); color:#7c2d12; border-color:#ffe0b5; }
 .book-link--maps{ background:linear-gradient(180deg,#effcf7,#e5fbf3); color:#064e3b; border-color:#c9f3e4; }
 
-/* Compare-mode cursor/outline */
+/* Compare-mode helpers */
 .compare-mode-on .result-card{ cursor:pointer; }
 .result-card--compared{ box-shadow:0 0 0 6px rgba(14,165,233,.10) inset; }
 
-/* ===== Steppers (adults/children/infants) ===== */
-.stepper{
-  display:inline-flex; align-items:center; gap:6px;
-}
+/* ========== Steppers for passengers ========== */
+.stepper{ display:inline-flex; align-items:center; gap:6px; }
 .stepper input{
   width:70px; text-align:center; font-weight:900; height:46px;
+  border-radius:12px; border:1px solid #e2e8f0; background:#fff; padding:0 14px;
 }
 .stepper button{
   height:46px; width:42px; border-radius:10px;
@@ -175,7 +173,7 @@ a.tt-brand *{ text-decoration:none !important; border-bottom:0 !important; }
 }
 .stepper button:hover{ transform:translateY(-1px); background:#f8fafc; border-color:#dce7f5; }
 
-/* ===== Favorites tabs near map ===== */
+/* ========== Favorites tabs near Map (hotel cards) ========== */
 .fav-tabs{ display:inline-flex; gap:8px; flex-wrap:wrap; }
 .fav-chip{
   display:inline-flex; align-items:center; justify-content:center;
@@ -192,12 +190,84 @@ a.tt-brand *{ text-decoration:none !important; border-bottom:0 !important; }
 .fav-tag{
   border:1px solid #e2e8f0; border-radius:999px; padding:4px 10px; background:#f8fafc; font-weight:800;
 }
-.fav-add{
-  display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;
-}
+.fav-add{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
 .fav-add input{
-  height:38px; padding:0 12px; border:1px solid #e2e8f0; border-radius:10px;
+  height:38px; padding:0 12px; border:1px solid #e2e8f0; border-radius:10px; background:#fff;
 }
 .fav-add button{
   height:38px; padding:0 12px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; font-weight:800; cursor:pointer;
 }
+
+/* ========== Fancy top tabs: Explore / Savor / Compare ========== */
+.tabs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg,#ffffff,#f7fbff);
+  font-weight: 900;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  box-shadow: 0 6px 18px rgba(2,132,199,.06);
+}
+.tab:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(14,165,233,.12); }
+.tab--active {
+  background: linear-gradient(180deg,#e6f7ff,#dff5ff);
+  border-color: #7dd3fc;
+  color: #0369a1;
+}
+.tab--compare {
+  border-color: #f5c2c7;
+  background: linear-gradient(180deg,#fff8f8,#fff1f2);
+  color: #9f1239;
+}
+.tab--compare.tab--active {
+  border-color: #fb7185;
+  background: linear-gradient(180deg,#ffe5ea,#ffdce4);
+  color: #991b1b;
+}
+
+/* ========== Explore / Savor content panels ========== */
+.places-panel {
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:16px;
+  padding:14px;
+  display:grid;
+  gap:12px;
+}
+.places-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(220px,1fr));
+  gap: 12px;
+}
+.place-card {
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  padding:12px;
+  background:#fff;
+  display:grid;
+  gap:6px;
+}
+.place-title { font-weight:900; color:#0f172a; }
+.place-links { display:flex; flex-wrap:wrap; gap:8px; }
+.place-link {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-height:30px; padding:0 12px; border-radius:999px;
+  border:1px solid #e2e8f0; background:linear-gradient(180deg,#ffffff,#f8fafc);
+  font-weight:800; text-decoration:none !important; color:#0f172a;
+  transition: transform .08s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
+}
+.place-link:hover{ transform:translateY(-2px); box-shadow:0 10px 22px rgba(2,132,199,.10); border-color:#cfe0ff; }
+
+/* Subtle section header */
+.subtle-h { font-weight:900; color:#334155; }
