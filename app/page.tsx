@@ -231,7 +231,7 @@ export default function Page() {
           <a className="place-link" href={usStateDept()} target="_blank" rel="noreferrer">US State Dept</a>
           <a className="place-link" href={gmapsQueryLink(destCity, "pharmacies")} target="_blank" rel="noreferrer">Maps: Pharmacies</a>
         </div>
-      </div>)}: null;
+      </div>) : null;
 
     return (
       <section className="places-panel" aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}>
@@ -474,5 +474,6 @@ export default function Page() {
         </div>)}
     </div>)};
 }
+
 
 
