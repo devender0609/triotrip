@@ -107,6 +107,8 @@ export default function Page() {
 
   const [searchKey, setSearchKey] = useState(0);
   const [exploreVisible, setExploreVisible] = useState(false);
+  const [tabsEnabled, setTabsEnabled] = useState(false);
+  const [showTabContent, setShowTabContent] = useState(false);
 
   useEffect(() => { setChildrenAges(prev => { const next = prev.slice(0, children); while (next.length < children) next.push(8); return next; }); }, [children]);
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
@@ -150,7 +152,7 @@ export default function Page() {
 
       setHotelWarning(j?.hotelWarning || null);
       const merged = (Array.isArray(j.results) ? j.results : []).map((res: any) => ({ ...res, ...payload }));
-      setResults(merged); setComparedIds([]); setExploreVisible(true);
+      setResults(merged.map((r:any)=>({...r, bookingLinks: buildBookingLinks(r)}))); setComparedIds([]); setExploreVisible(false); setTabsEnabled(true); setShowTabContent(false);
     } catch (e: any) { setError(e?.message || "Search failed"); } finally { setLoading(false); }
   }
 
@@ -171,7 +173,45 @@ export default function Page() {
   function toggleCompare(id: string) { setComparedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id].slice(0, 3))); }
   const comparedPkgs = useMemo(() => (results && comparedIds.length ? results.filter(r => comparedIds.includes(r.id)) : []), [results, comparedIds]);
 
-  const s = {
+  
+  function buildBookingLinks(pkg: any) {
+    try {
+      const from = (pkg.origin || pkg.from || pkg.flight?.segments_out?.[0]?.from || "").toUpperCase();
+      const to = (pkg.destination || pkg.to || pkg.flight?.segments_out?.slice(-1)[0]?.to || "").toUpperCase();
+      const out0 = (pkg.flight?.segments_out || [])[0] || {};
+      const ret0 = (pkg.flight?.segments_in || [])[0] || {};
+      const dateOut = (pkg.departDate || out0.depart_time || "").slice(0,10);
+      const dateRet = (pkg.returnDate || ret0.depart_time || "").slice(0,10);
+      const adults = Number(pkg.passengersAdults ?? pkg.adults ?? 1) || 1;
+      const children = Number(pkg.passengersChildren ?? pkg.children ?? 0) || 0;
+      const infants = Number(pkg.passengersInfants ?? pkg.infants ?? 0) || 0;
+
+      const origin = (typeof window !== "undefined" && window.location && window.location.origin) || "";
+      const triobase = origin || (process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.ai");
+      const triptrio = `${triobase}/book?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&depart=${encodeURIComponent(dateOut)}${dateRet?`&return=${encodeURIComponent(dateRet)}`:""}&adults=${adults}&children=${children}&infants=${infants}`;
+
+      const airline = pkg.flight?.carrier_name || "";
+      const AIRLINE_SITE: Record<string,string> = {
+        American:"https://www.aa.com","American Airlines":"https://www.aa.com",
+        Delta:"https://www.delta.com","Delta Air Lines":"https://www.delta.com",
+        United:"https://www.united.com","United Airlines":"https://www.united.com",
+        Alaska:"https://www.alaskaair.com","Alaska Airlines":"https://www.alaskaair.com",
+        Southwest:"https://www.southwest.com", JetBlue:"https://www.jetblue.com",
+        Lufthansa:"https://www.lufthansa.com", Qatar:"https://www.qatarairways.com",
+        Emirates:"https://www.emirates.com", "Air France":"https://wwws.airfrance.us",
+        KLM:"https://www.klm.com", ANA:"https://www.ana.co.jp", JAL:"https://www.jal.co.jp",
+        "British Airways":"https://www.britishairways.com",
+      };
+      const airlineSite = AIRLINE_SITE[airline] || `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}`;
+      const gflightsQ = `${from} to ${to}${dateOut?` on ${dateOut}`:""}${dateRet?` returning ${dateRet}`:""} for ${Math.max(1, adults+children+infants)} travelers`;
+      const googleFlights = `https://www.google.com/travel/flights?q=${encodeURIComponent(gflightsQ)}`;
+      const ssOut = (dateOut || "").replace(/-/g, ""); const ssRet = (dateRet || "").replace(/-/g, "");
+      const skyscanner = (from && to && ssOut) ? `https://www.skyscanner.com/transport/flights/${from.lower() if False else ''}` : "";
+      const skyscanner2 = (from && to && ssOut) ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${dateRet?ssRet+'/':''}?adults=${adults}${children?`&children=${children}`:""}${infants?`&infants=${infants}`:""}` : "https://www.skyscanner.com/";
+      return { triptrio, airlineSite, googleFlights, skyscanner: skyscanner2 };
+    } catch { return {}; }
+  }
+const s = {
     panel: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 14, maxWidth: 1240, margin: "0 auto", fontSize: 16 } as React.CSSProperties,
     label: { fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 } as React.CSSProperties,
   };
@@ -422,11 +462,11 @@ export default function Page() {
       </form>
 
       <div className="toolbar">
-        <div className="tabs" role="tablist" aria-label="Content tabs">
-          <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>{`🌍 Explore - ${destCity}`}</button>
-          <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); }}>{`🍽️ Savor - ${destCity}`}</button>
+        {tabsEnabled && (<div className="tabs" role="tablist" aria-label="Content tabs">
+          <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); setShowTabContent(prev => activeTab === "explore" ? !prev : true); }}>{`🌍 Explore - ${destCity}`}</button>
+          <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); setShowTabContent(prev => activeTab === "savor" ? !prev : true); }}>{`🍽️ Savor - ${destCity}`}</button>
           <button className={`tab tab--compare ${compareMode ? "tab--active" : ""}`} role="tab" aria-selected={compareMode} onClick={() => { setActiveTab("compare"); setCompareMode((v) => !v); }}>⚖️ Compare</button>
-        </div>
+        </div>)}
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <div role="tablist" aria-label="Sort" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -443,7 +483,7 @@ export default function Page() {
         </div>
       </div>
 
-      {exploreVisible && results && results.length > 0 && activeTab !== "compare" && <ContentPlaces mode={activeTab} />}
+      {tabsEnabled && showTabContent && results && results.length > 0 && activeTab !== "compare" && <ContentPlaces mode={activeTab as MainTab} />}
 
       {compareMode && results && comparedIds.length >= 2 && (
         <section className="compare-panel" aria-label="Compare selected results">
