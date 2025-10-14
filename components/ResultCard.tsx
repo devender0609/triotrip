@@ -166,7 +166,7 @@ export default function ResultCard({
   };
 
   return (
-    <section className={`result-card ${compared ? "result-card--compared" : ""}` colorful-card `} style={wrapStyle} onClick={() => onToggleCompare?.(id)}>
+    <section className={`result-card colorful-card ${compared ? "result-card--compared" : ""}` colorful-card `} style={wrapStyle} onClick={() => onToggleCompare?.(id)}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 600, fontSize: 18, color: "#0f172a" }}>
           {airline}
@@ -257,3 +257,4 @@ export default function ResultCard({
     </section>
   );
 }
+
