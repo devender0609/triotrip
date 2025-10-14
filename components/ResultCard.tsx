@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React from "react";
 
 const AIRLINE_SITE: Record<string, string> = {
@@ -140,7 +140,7 @@ export default function ResultCard({
     const mins = Math.max(0, Math.round((+b - +a) / 60000));
     return (
       <div style={{ padding: 6, color: "#0f172a", fontSize: 16, display: "flex", justifyContent: "center" }}>
-        ⏳ Layover at <strong style={{ margin: "0 6px", fontWeight: 600 }}>{at}</strong> — {formatDur(mins)}
+        â³ Layover at <strong style={{ margin: "0 6px", fontWeight: 600 }}>{at}</strong> â€” {formatDur(mins)}
       </div>
     );
   }
@@ -170,7 +170,7 @@ export default function ResultCard({
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 600, fontSize: 18, color: "#0f172a" }}>
           {airline}
-          <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 8 }}>{route} {dateOut ? `· ${dateOut}` : ""}</span>
+          <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 8 }}>{route} {dateOut ? `Â· ${dateOut}` : ""}</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <a className="book-link book-link--primary" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
@@ -189,8 +189,8 @@ export default function ResultCard({
               <React.Fragment key={`o${i}`}>
                 <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background:"#fff" }}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
-                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} – {formatTime(s.arrive_time)}</div>
+                    <div style={{ fontWeight: 600 }}>{s.from} â†’ {s.to}</div>
+                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} â€“ {formatTime(s.arrive_time)}</div>
                   </div>
                   <div style={{ fontWeight: 600 }}>{formatDur(s.duration_minutes)}</div>
                 </div>
@@ -207,8 +207,8 @@ export default function ResultCard({
               <React.Fragment key={`i${i}`}>
                 <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background:"#fff" }}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
-                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} – {formatTime(s.arrive_time)}</div>
+                    <div style={{ fontWeight: 600 }}>{s.from} â†’ {s.to}</div>
+                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} â€“ {formatTime(s.arrive_time)}</div>
                   </div>
                   <div style={{ fontWeight: 600 }}>{formatDur(s.duration_minutes)}</div>
                 </div>
