@@ -157,4 +157,4 @@ select{ appearance:auto; color:var(--ink); background-color:#fff; }
 .places-grid .place-card:nth-child(6n+2){ border-color:#bbf7d0; background:linear-gradient(180deg,#ffffff,#f0fff4); }
 .places-grid .place-card:nth-child(6n+3){ border-color:#fed7aa; background:linear-gradient(180deg,#ffffff,#fff7ed); }
 .places-grid .place-card:nth-child(6n+4){ border-color:#fbcfe8; background:linear-gradient(180deg,#ffffff,#fff1f7); }
-.places-grid .place-card:nth-child(6n+5){ border-color:#fde68a; background:linear-gradient(180deg,#ffffff,#ff
+.places-grid .place-card:nth-child(6n+5){ border-color:#fde68a; background:linear-gradient(180deg,#ffffff,#fffbea); }
