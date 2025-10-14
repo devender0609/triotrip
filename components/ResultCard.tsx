@@ -1,7 +1,6 @@
 "use client";
 import React from "react";
 
-/** Airline homepages; fallback = Google "airline + booking" */
 const AIRLINE_SITE: Record<string, string> = {
   American: "https://www.aa.com","American Airlines":"https://www.aa.com",
   Delta:"https://www.delta.com","Delta Air Lines":"https://www.delta.com",
@@ -14,11 +13,23 @@ const AIRLINE_SITE: Record<string, string> = {
   "British Airways":"https://www.britishairways.com",
 };
 
+// Always usable default so TrioTrip opens even without a local /book route
+const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.ai";
+
 type Props = {
   pkg: any; index?: number; currency?: string; pax?: number;
   comparedIds?: string[]; onToggleCompare?: (id: string) => void;
   onSavedChangeGlobal?: (count: number) => void; large?: boolean; showHotel?: boolean;
 };
+
+function ensureHttps(u?: string | null) {
+  if (!u) return "";
+  let s = String(u).trim();
+  if (!s) return "";
+  if (s.startsWith("//")) s = "https:" + s;
+  if (s.startsWith("http://")) s = s.replace(/^http:\/\//i, "https://");
+  return s;
+}
 
 export default function ResultCard({
   pkg, index = 0, currency, pax = 1,
@@ -48,7 +59,6 @@ export default function ResultCard({
     cursor: onToggleCompare ? "pointer" : "default",
   };
 
-  // ----- flight deeplinks -----
   const out0 = outSegs?.[0]; const ret0 = inSegs?.[0];
   const from = (out0?.from || pkg.origin || "").toUpperCase();
   const to = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase();
@@ -56,21 +66,17 @@ export default function ResultCard({
   const dateOut = (out0?.depart_time || "").slice(0, 10);
   const dateRet = (ret0?.depart_time || "").slice(0, 10);
 
-  // TrioTrip booking — always internal relative path so it opens on your domain
-  const trioTrip =
-    `/book?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&depart=${encodeURIComponent(dateOut)}${dateRet ? `&return=${encodeURIComponent(dateRet)}` : ""}&adults=${adults}&children=${children}&infants=${infants}`;
+  const trioTrip = `${TRIOTRIP_BASE}/book?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&depart=${encodeURIComponent(dateOut)}${dateRet ? `&return=${encodeURIComponent(dateRet)}` : ""}&adults=${adults}&children=${children}&infants=${infants}`;
 
   const airlineSite =
     AIRLINE_SITE[airline] || `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}`;
 
-  // Optional alternates
   const googleFlights = `https://www.google.com/travel/flights?q=${encodeURIComponent(`${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${Math.max(1, adults + children + infants)} travelers`)}`;
   const ssOut = (dateOut || "").replace(/-/g, ""); const ssRet = (dateRet || "").replace(/-/g, "");
   const skyScanner = (from && to && ssOut)
     ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${dateRet ? ssRet + "/" : ""}?adults=${adults}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
     : "https://www.skyscanner.com/";
 
-  // ----- hotels -----
   function hotelLinks(h: any, cityFallback: string) {
     const city = h.city || cityFallback || "";
     const destName = h.name ? `${h.name}, ${city}` : (city || pkg.destination || "");
@@ -99,7 +105,7 @@ export default function ResultCard({
     if (childrenCount > 0) { hcx.searchParams.set("children", String(childrenCount)); if (childAges.length) hcx.searchParams.set("childAges", childAges.join(",")); }
     hcx.searchParams.set("currency", pkg.currency || "USD");
 
-    const official = h.website || h.officialUrl || h.url || "";
+    const official = ensureHttps(h.website || h.officialUrl || h.url || "");
     const maps = (typeof h.lat === "number" && typeof h.lng === "number")
       ? `https://www.google.com/maps/@?api=1&map_action=map&center=${h.lat},${h.lng}&zoom=16`
       : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.name ? `${h.name}, ${city}` : city)}`;
@@ -113,6 +119,8 @@ export default function ResultCard({
 
   function LayoverRow({ arrive_time, next_depart_time, at }: any) {
     const a = new Date(arrive_time); const b = new Date(next_depart_time);
+    the: {
+    }
     const mins = Math.max(0, Math.round((+b - +a) / 60000));
     return (
       <div style={{ padding: 6, color: "#0f172a", fontSize: 16, display: "flex", justifyContent: "center" }}>
@@ -121,20 +129,28 @@ export default function ResultCard({
     );
   }
 
-  // Very robust hotel image getter (many common API shapes)
-  const hotelImg = (h: any) =>
-    h?.image || h?.photo || h?.photoUrl || h?.image_url || h?.imageUrl || h?.thumbnail || h?.thumbnailUrl || h?.img ||
-    (h?.photos && Array.isArray(h.photos) && h.photos[0]) ||
-    (h?.images && Array.isArray(h.images) && (h.images[0]?.url || h.images[0])) ||
-    h?.leadPhoto?.image?.url || h?.media?.images?.[0]?.url || h?.gallery?.[0] ||
-    (h?.optimizedThumbUrls && (h.optimizedThumbUrls.srpDesktop || h.optimizedThumbUrls.srpMobile)) ||
-    (h?.city ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(h.city)}` :
-     pkg?.destination ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(pkg.destination)}` :
-     "https://images.unsplash.com/photo-1551776235-dde6d4829808?auto=format&fit=crop&w=800&q=60");
+  // Robust hotel image getter + HTTPS normalization + city fallback
+  const hotelImg = (h: any) => {
+    const candidate =
+      ensureHttps(h?.image) || ensureHttps(h?.photo) || ensureHttps(h?.photoUrl) ||
+      ensureHttps(h?.image_url) || ensureHttps(h?.imageUrl) || ensureHttps(h?.thumbnail) ||
+      ensureHttps(h?.thumbnailUrl) || ensureHttps(h?.img) ||
+      ensureHttps(h?.leadPhoto?.image?.url) ||
+      ensureHttps(h?.media?.images?.[0]?.url) ||
+      ensureHttps(h?.gallery?.[0]) ||
+      (h?.images && Array.isArray(h.images) ? ensureHttps(h.images[0]?.url || h.images[0]) : "") ||
+      (h?.optimizedThumbUrls && ensureHttps(h.optimizedThumbUrls.srpDesktop || h.optimizedThumbUrls.srpMobile)) ||
+      "";
+    if (candidate) return candidate;
+    const city =
+      h?.city || pkg?.destination || "";
+    return city
+      ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(city)}`
+      : "https://images.unsplash.com/photo-1551776235-dde6d4829808?auto=format&fit=crop&w=800&q=60";
+  };
 
   return (
     <section className={`result-card ${compared ? "result-card--compared" : ""}`} style={wrapStyle} onClick={() => onToggleCompare?.(id)}>
-      {/* HEADER / PRICE / CTAs */}
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 600, fontSize: 18, color: "#0f172a" }}>
           {airline}
@@ -149,7 +165,6 @@ export default function ResultCard({
         </div>
       </header>
 
-      {/* FLIGHT DETAILS (extra colorful) */}
       <div style={{ display: "grid", gap: 8 }}>
         {outSegs.length > 0 && (
           <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 8, display: "grid", gap: 8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
@@ -188,7 +203,6 @@ export default function ResultCard({
         )}
       </div>
 
-      {/* HOTELS (colorful + dependable images) */}
       {showHotel && (
         <div className="hotel-card" style={{ border: "1px solid #cfeadf", borderRadius: 14, padding: 14, display: "grid", gap: 12, background: "linear-gradient(180deg,#ffffff,#effef8)" }}>
           <div style={{ fontWeight: 600, color: "#0f172a" }}>Hotels (top options)</div>
