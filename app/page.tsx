@@ -367,11 +367,11 @@ export default function Page() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10 }}>
             <div>
               <label style={s.label}>From</label>
-              <AirportField id="from" label="Origin" initialDisplay={originDisplay} onTextChange={setOriginDisplay} onChangeCode={(c:string, d:string)=>{ setOriginCode(c); setOriginDisplay(d); }} />
+              <AirportField id="from" label="Origin" code={originCode} initialDisplay={originDisplay} onTextChange={setOriginDisplay} onChangeCode={(c:string, d:string)=>{ setOriginCode(c); setOriginDisplay(d); }} />
             </div>
             <div>
               <label style={s.label}>To</label>
-              <AirportField id="to" label="Destination" initialDisplay={destDisplay} onTextChange={setDestDisplay} onChangeCode={(c:string, d:string)=>{ setDestCode(c); setDestDisplay(d); }} />
+              <AirportField id="to" label="Destination" code={destCode} initialDisplay={destDisplay} onTextChange={setDestDisplay} onChangeCode={(c:string, d:string)=>{ setDestCode(c); setDestDisplay(d); }} />
             </div>
             <div style={{ display: "grid", alignItems: "end" }}>
               <button type="button" onClick={swapOriginDest} className="toolbar-chip">Swap</button>
