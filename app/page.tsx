@@ -349,7 +349,7 @@ export default function Page() {
   };
 
   return (
-    <div style={{ padding: 12, display: "grid", gap: 14 }}>
+    <div className="main-wrap" style={{ padding: 12, display: "grid", gap: 14, maxWidth: 1240, margin: "0 auto" }}>
       {headerNoUnderline}
 
       <section>
@@ -385,12 +385,12 @@ export default function Page() {
 
           <div style={{ display: "grid", gridTemplateColumns: roundTrip ? "repeat(2,1fr)" : "1fr", gap: 10 }}>
             <div>
-              <label style={s.label}>Depart</label>
+              <label style={s.label}>🕘 Depart</label>
               <input type="date" style={inputStyle} min={todayLocal} value={departDate} onChange={e=>setDepartDate(e.target.value)} />
             </div>
             {roundTrip && (
               <div>
-                <label style={s.label}>Return</label>
+                <label style={s.label}>🕘 Return</label>
                 <input type="date" style={inputStyle} min={departDate || todayLocal} value={returnDate} onChange={e=>setReturnDate(e.target.value)} />
               </div>
             )}
@@ -559,16 +559,16 @@ export default function Page() {
         <section className="compare-panel" aria-label="Compare selected results">
           <div className="compare-title">⚖️ Side-by-side Compare</div>
           <div style={{ overflowX: "auto" }}>
-            <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 720 }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 560 }}>
               <thead>
                 <tr>
-                  <th style={cth}>Airline</th>
-                  <th style={cth}>Route</th>
-                  <th style={cth}>Depart</th>
-                  <th style={cth}>Return</th>
-                  <th style={cth}>Price</th>
-                  <th style={cth}>Stops</th>
-                  <th style={cth}>Refundable</th>
+                  <th style={cth}>✈️ Airline</th>
+                  <th style={cth}>🧭 Route</th>
+                  <th style={cth}>🕘 Depart</th>
+                  <th style={cth}>🕘 Return</th>
+                  <th style={cth}>💰 Price</th>
+                  <th style={cth}>🛑 Stops</th>
+                  <th style={cth}>💵 Refundable</th>
                 </tr>
               </thead>
               <tbody>
