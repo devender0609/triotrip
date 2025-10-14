@@ -231,8 +231,7 @@ export default function Page() {
           <a className="place-link" href={usStateDept()} target="_blank" rel="noreferrer">US State Dept</a>
           <a className="place-link" href={gmapsQueryLink(destCity, "pharmacies")} target="_blank" rel="noreferrer">Maps: Pharmacies</a>
         </div>
-      </div>
-    ) : null;
+      </div>)}: null;
 
     return (
       <section className="places-panel" aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}>
@@ -253,8 +252,7 @@ export default function Page() {
                 {mode === "explore" && <a className="place-link" href={timeout(destCity)} target="_blank" rel="noreferrer">Time Out</a>}
                 <a className="place-link" href={web(`${q} in ${destCity}`)} target="_blank" rel="noreferrer">Web</a>
               </div>
-            </div>
-          ))}
+            </div>)})}
         </div>
       </section>
     );
@@ -350,8 +348,7 @@ export default function Page() {
                   onChange={(e) => { const v = Math.max(1, Math.min(17, Number(e.target.value) || 8)); setChildrenAges(prev => { const next = prev.slice(); next[i] = v; return next; }); }}>
                   {Array.from({ length: 17 }, (_, n) => n + 1).map((age) => (<option key={age} value={age}>{age}</option>))}
                 </select>
-              </div>
-            ))}
+              </div>)})}
           </div>
         )}
 
@@ -475,6 +472,7 @@ export default function Page() {
             />
           ))}
         </div>)}
-    </div>
-  );
+    </div>)};
 }
+
+
