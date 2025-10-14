@@ -107,6 +107,8 @@ export default function Page() {
 
   const [searchKey, setSearchKey] = useState(0);
   const [exploreVisible, setExploreVisible] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
 
   useEffect(() => { setChildrenAges(prev => { const next = prev.slice(0, children); while (next.length < children) next.push(8); return next; }); }, [children]);
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
@@ -133,6 +135,7 @@ export default function Page() {
       if (maxBudget !== "" && maxBudget < 0) throw new Error("Max budget cannot be negative.");
       if (typeof minBudget === "number" && typeof maxBudget === "number" && minBudget > maxBudget) throw new Error("Min budget cannot be greater than max budget.");
 
+      setHasSearched(true);
       const payload: SearchPayload = {
         origin, destination, departDate, returnDate: roundTrip ? returnDate : undefined, roundTrip,
         passengers: adults + children + infants, passengersAdults: adults, passengersChildren: children, passengersInfants: infants,
@@ -421,12 +424,14 @@ export default function Page() {
         </div>
       </form>
 
+      {hasSearched && (
       <div className="toolbar">
         <div className="tabs" role="tablist" aria-label="Content tabs">
           <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>{`🌍 Explore - ${destCity}`}</button>
           <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); }}>{`🍽️ Savor - ${destCity}`}</button>
           <button className={`tab tab--compare ${compareMode ? "tab--active" : ""}`} role="tab" aria-selected={compareMode} onClick={() => { setActiveTab("compare"); setCompareMode((v) => !v); }}>⚖️ Compare</button>
         </div>
+      )}
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <div role="tablist" aria-label="Sort" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

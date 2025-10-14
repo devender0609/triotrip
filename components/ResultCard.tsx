@@ -22,6 +22,22 @@ type Props = {
   onSavedChangeGlobal?: (count: number) => void; large?: boolean; showHotel?: boolean;
 };
 
+
+function buildTrioTripUrl(pkg: any, adults: number, children: number, infants: number) {
+  try {
+    const url = new URL(TRIOTRIP_BASE);
+    url.searchParams.set("origin", pkg?.origin || pkg?.flight?.origin || "");
+    url.searchParams.set("destination", pkg?.destination || pkg?.flight?.destination || "");
+    const dep = pkg?.departDate || pkg?.flight?.departDate || "";
+    const ret = pkg?.returnDate || pkg?.flight?.returnDate || "";
+    if (dep) url.searchParams.set("departDate", dep);
+    if (ret) url.searchParams.set("returnDate", ret);
+    url.searchParams.set("adults", String(adults||1));
+    if (children) url.searchParams.set("children", String(children));
+    if (infants) url.searchParams.set("infants", String(infants));
+    return url.toString();
+  } catch { return TRIOTRIP_BASE; }
+}
 function ensureHttps(u?: string | null) {
   if (!u) return "";
   let s = String(u).trim();
@@ -150,7 +166,7 @@ export default function ResultCard({
   };
 
   return (
-    <section className={`result-card ${compared ? "result-card--compared" : ""}`} style={wrapStyle} onClick={() => onToggleCompare?.(id)}>
+    <section className={`result-card ${compared ? "result-card--compared" : ""}` colorful-card `} style={wrapStyle} onClick={() => onToggleCompare?.(id)}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 600, fontSize: 18, color: "#0f172a" }}>
           {airline}
@@ -225,7 +241,8 @@ export default function ResultCard({
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                         {links.official && <a className="book-link book-link--primary" href={links.official} target="_blank" rel="noreferrer">Hotel site</a>}
                         <a className="book-link book-link--booking" href={links.booking} target="_blank" rel="noreferrer">Booking</a>
-                        <a className="book-link book-link--expedia" href={links.expedia} target="_blank" rel="noreferrer">Expedia</a>
+                        \1
+                        <a className="book-link" href={buildTrioTripUrl(pkg, adults, children, infants)} target="_blank" rel="noreferrer">Book via TrioTrip</a>
                         <a className="book-link book-link--hotels" href={links.hotels} target="_blank" rel="noreferrer">Hotels</a>
                         {links.maps && <a className="book-link book-link--maps" href={links.maps} target="_blank" rel="noreferrer">Map</a>}
                       </div>
