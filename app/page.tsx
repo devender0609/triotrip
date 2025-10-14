@@ -424,14 +424,12 @@ export default function Page() {
         </div>
       </form>
 
-      {hasSearched && (
-      <div className="toolbar">
+      {hasSearched && (<div className="toolbar">
         <div className="tabs" role="tablist" aria-label="Content tabs">
           <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>{`🌍 Explore - ${destCity}`}</button>
           <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); }}>{`🍽️ Savor - ${destCity}`}</button>
           <button className={`tab tab--compare ${compareMode ? "tab--active" : ""}`} role="tab" aria-selected={compareMode} onClick={() => { setActiveTab("compare"); setCompareMode((v) => !v); }}>⚖️ Compare</button>
-        </div>
-      )}
+        </div>)}
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <div role="tablist" aria-label="Sort" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -476,8 +474,7 @@ export default function Page() {
               showHotel={includeHotel}
             />
           ))}
-        </div>
-      )}
+        </div>)}
     </div>
   );
 }
