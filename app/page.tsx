@@ -202,82 +202,7 @@ export default function Page() {
   const xe = (city: string) => `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`;
   const usStateDept = () => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`;
 
-  function ContentPlaces({ mode }: { mode: MainTab }) {
-  const blocks =
-    mode === "explore"
-      ? [
-          { title: "Top sights", q: "top attractions" },
-          { title: "Parks & views", q: "parks scenic views" },
-          { title: "Museums", q: "museums galleries" },
-          { title: "Family", q: "family activities" },
-          { title: "Nightlife", q: "nightlife bars" },
-          { title: "Guides", q: "travel guide" },
-        ]
-      : [
-          { title: "Best restaurants", q: "best restaurants" },
-          { title: "Local eats", q: "local food spots" },
-          { title: "Cafés & coffee", q: "cafes coffee" },
-          { title: "Street food", q: "street food" },
-          { title: "Desserts", q: "desserts bakeries" },
-          { title: "Reservations", q: "reservations" },
-        ];
-
-  const know = isInternational ? (
-    <div className="place-card">
-      <div className="place-title">Know before you go</div>
-      <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>
-        Culture, currency, safety & tips
-      </div>
-      <div className="place-links">
-        <a className="place-link" href={wikivoyage(destCity)} target="_blank" rel="noreferrer">Wikivoyage</a>
-        <a className="place-link" href={wiki(destCity)} target="_blank" rel="noreferrer">Wikipedia</a>
-        <a className="place-link" href={xe(destCity)} target="_blank" rel="noreferrer">XE currency</a>
-        <a className="place-link" href={usStateDept()} target="_blank" rel="noreferrer">US State Dept</a>
-        <a className="place-link" href={gmapsQueryLink(destCity, "pharmacies")} target="_blank" rel="noreferrer">Maps: Pharmacies</a>
-      </div>
-    </div>
-  ) : null;
-
-  return (
-    <section
-      className="places-panel"
-      aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}
-    >
-      <div className="subtle-h">
-        {mode === "explore" ? `🌍 Explore - ${destCity}` : `🍽️ Savor - ${destCity}`}
-      </div>
-
-      <div className="places-grid">
-        {know}
-
-        {blocks.map(({ title, q }) => (
-          <div key={title} className="place-card">
-            <div className="place-title">{title}</div>
-            <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>{q}</div>
-            <div className="place-links">
-              <a className="place-link" href={gmapsQueryLink(destCity, q)} target="_blank" rel="noreferrer">Google Maps</a>
-              <a className="place-link" href={tripadvisor(q, destCity)} target="_blank" rel="noreferrer">Tripadvisor</a>
-              {mode === "savor" && (
-                <>
-                  <a className="place-link" href={yelp(q, destCity)} target="_blank" rel="noreferrer">Yelp</a>
-                  <a className="place-link" href={opentable(destCity)} target="_blank" rel="noreferrer">OpenTable</a>
-                  <a className="place-link" href={michelin(destCity)} target="_blank" rel="noreferrer">Michelin</a>
-                </>
-              )}
-              {mode === "explore" && (
-                <>
-                  <a className="place-link" href={lonelyplanet(destCity)} target="_blank" rel="noreferrer">Lonely Planet</a>
-                  <a className="place-link" href={timeout(destCity)} target="_blank" rel="noreferrer">Time Out</a>
-                </>
-              )}
-              <a className="place-link" href={web(`${q} in ${destCity}`)} target="_blank" rel="noreferrer">Web</a>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}: { mode: MainTab }) {
+  function ContentPlaces({ mode : { mode: MainTab }) {
     const blocks = mode === "explore"
       ? [
           { title: "Top sights", q: "top attractions" },
@@ -549,3 +474,4 @@ export default function Page() {
     </div>
   );
 }
+
