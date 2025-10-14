@@ -14,7 +14,7 @@ const AIRLINE_SITE: Record<string, string> = {
 };
 
 // Always usable default so TrioTrip opens even without a local /book route
-const TRIOTRIP_BASE = (typeof window !== "undefined" && window.location && window.location.origin) || process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.ai";
+const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.ai";
 
 type Props = {
   pkg: any; index?: number; currency?: string; pax?: number;
@@ -52,7 +52,7 @@ export default function ResultCard({
 
   const fs = large ? 15 : 14;
   const wrapStyle: React.CSSProperties = {
-    background: "linear-gradient(180deg,#ffffff,#eaf4ff)",
+    background: "linear-gradient(180deg,#ffffff,#f3f9ff)",
     border: compared ? "2px solid #0ea5e9" : "1px solid #dfe6f5",
     borderRadius: 16, padding: 14, display: "grid", gap: 12, fontSize: fs,
     boxShadow: compared ? "0 0 0 4px rgba(14,165,233,.15) inset" : "0 8px 20px rgba(2,6,23,.06)",
