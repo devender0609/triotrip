@@ -1,3 +1,4 @@
+// components/ResultCard.tsx
 "use client";
 import React from "react";
 
@@ -141,7 +142,7 @@ export default function ResultCard({
     if (candidate) return candidate;
     const city = h?.city || pkg?.destination || "";
     return city
-      ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(city)}`
+      ? "https://source.unsplash.com/featured/400x250/?hotel," + encodeURIComponent(city)
       : "https://images.unsplash.com/photo-1551776235-dde6d4829808?auto=format&fit=crop&w=800&q=60";
   };
 

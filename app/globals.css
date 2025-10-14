@@ -28,14 +28,14 @@ body{
   line-height:1.45;
 }
 
-/* Header — single color, no underline */
+/* Header — single color */
 header{
-  background:#ffffff;            /* <— unified single color */
+  background:#ffffff;
   border-bottom: none !important;
 }
 header .tt-logo, header img.tt-logo, header .logo, header .logo a, header a.logo{
   display:inline-block;
-  mix-blend-mode: normal;        /* avoid weird tinting */
+  mix-blend-mode: normal;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -153,8 +153,16 @@ select{ appearance:auto; color:var(--ink); background-color:#fff; }
 .place-title { font-weight:600; color:#0f172a; }
 .place-links { display:flex; flex-wrap:wrap; gap:8px; }
 .place-link{ display:inline-flex; align-items:center; justify-content:center; min-height:30px; padding:0 12px; border-radius:999px; border:1px solid #e2e8f0; background:linear-gradient(180deg,#ffffff,#f8fafc); font-weight:600; text-decoration:none !important; color:#0f172a; }
+
 .places-grid .place-card:nth-child(6n+1){ border-color:#bfdbfe; background:linear-gradient(180deg,#ffffff,#eef6ff); }
 .places-grid .place-card:nth-child(6n+2){ border-color:#bbf7d0; background:linear-gradient(180deg,#ffffff,#f0fff4); }
 .places-grid .place-card:nth-child(6n+3){ border-color:#fed7aa; background:linear-gradient(180deg,#ffffff,#fff7ed); }
 .places-grid .place-card:nth-child(6n+4){ border-color:#fbcfe8; background:linear-gradient(180deg,#ffffff,#fff1f7); }
-.places-grid .place-card:nth-child(6n+5){ border-color:#fde68a; background:linear-gradient(180deg,#ffffff,#ff
+.places-grid .place-card:nth-child(6n+5){ border-color:#fde68a; background:linear-gradient(180deg,#ffffff,#fffbeb); }
+.places-grid .place-card:nth-child(6n+6){ border-color:#bae6fd; background:linear-gradient(180deg,#ffffff,#eff6ff); }
+
+.subtle-h { font-weight:700; color:#0b3b52; font-size:18px; }
+
+/* Compare */
+.compare-panel { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; display:grid; gap:12px; }
+.compare-title { font-weight:700; color:#0b3b52; font-size:18px; } 
