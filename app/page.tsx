@@ -202,7 +202,7 @@ export default function Page() {
   const xe = (city: string) => `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`;
   const usStateDept = () => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`;
 
-  function ContentPlaces({ mode : { mode: MainTab }) {
+  function ContentPlaces({ mode }: { mode: MainTab }) {
     const blocks = mode === "explore"
       ? [
           { title: "Top sights", q: "top attractions" },
@@ -474,4 +474,5 @@ export default function Page() {
     </div>
   );
 }
+
 
