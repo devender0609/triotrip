@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React from "react";
 
 const AIRLINE_SITE: Record<string, string> = {
@@ -22,22 +22,6 @@ type Props = {
   onSavedChangeGlobal?: (count: number) => void; large?: boolean; showHotel?: boolean;
 };
 
-
-function buildTrioTripUrl(pkg: any, adults: number, children: number, infants: number) {
-  try {
-    const url = new URL(TRIOTRIP_BASE);
-    url.searchParams.set("origin", pkg?.origin || pkg?.flight?.origin || "");
-    url.searchParams.set("destination", pkg?.destination || pkg?.flight?.destination || "");
-    const dep = pkg?.departDate || pkg?.flight?.departDate || "";
-    const ret = pkg?.returnDate || pkg?.flight?.returnDate || "";
-    if (dep) url.searchParams.set("departDate", dep);
-    if (ret) url.searchParams.set("returnDate", ret);
-    url.searchParams.set("adults", String(adults||1));
-    if (children) url.searchParams.set("children", String(children));
-    if (infants) url.searchParams.set("infants", String(infants));
-    return url.toString();
-  } catch { return TRIOTRIP_BASE; }
-}
 function ensureHttps(u?: string | null) {
   if (!u) return "";
   let s = String(u).trim();
@@ -140,7 +124,7 @@ export default function ResultCard({
     const mins = Math.max(0, Math.round((+b - +a) / 60000));
     return (
       <div style={{ padding: 6, color: "#0f172a", fontSize: 16, display: "flex", justifyContent: "center" }}>
-        Ã¢ÂÂ³ Layover at <strong style={{ margin: "0 6px", fontWeight: 600 }}>{at}</strong> Ã¢â‚¬â€ {formatDur(mins)}
+        ⏳ Layover at <strong style={{ margin: "0 6px", fontWeight: 600 }}>{at}</strong> — {formatDur(mins)}
       </div>
     );
   }
@@ -166,11 +150,15 @@ export default function ResultCard({
   };
 
   return (
-    <section className={`result-card colorful-card colorful-card ${compared ? "result-card--compared" : ""}` colorful-card `} style={wrapStyle} onClick={() => onToggleCompare?.(id)}>
+    <section
+      className={`result-card colorful-card ${compared ? "result-card--compared" : ""}`}
+      style={wrapStyle}
+      onClick={() => onToggleCompare?.(id)}
+    >
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 600, fontSize: 18, color: "#0f172a" }}>
           {airline}
-          <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 8 }}>{route} {dateOut ? `Ã‚Â· ${dateOut}` : ""}</span>
+          <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 8 }}>{route} {dateOut ? `· ${dateOut}` : ""}</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <a className="book-link book-link--primary" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
@@ -189,8 +177,8 @@ export default function ResultCard({
               <React.Fragment key={`o${i}`}>
                 <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background:"#fff" }}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{s.from} Ã¢â€ â€™ {s.to}</div>
-                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} Ã¢â‚¬â€œ {formatTime(s.arrive_time)}</div>
+                    <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
+                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} – {formatTime(s.arrive_time)}</div>
                   </div>
                   <div style={{ fontWeight: 600 }}>{formatDur(s.duration_minutes)}</div>
                 </div>
@@ -207,8 +195,8 @@ export default function ResultCard({
               <React.Fragment key={`i${i}`}>
                 <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background:"#fff" }}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{s.from} Ã¢â€ â€™ {s.to}</div>
-                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} Ã¢â‚¬â€œ {formatTime(s.arrive_time)}</div>
+                    <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
+                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} – {formatTime(s.arrive_time)}</div>
                   </div>
                   <div style={{ fontWeight: 600 }}>{formatDur(s.duration_minutes)}</div>
                 </div>
@@ -241,8 +229,7 @@ export default function ResultCard({
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                         {links.official && <a className="book-link book-link--primary" href={links.official} target="_blank" rel="noreferrer">Hotel site</a>}
                         <a className="book-link book-link--booking" href={links.booking} target="_blank" rel="noreferrer">Booking</a>
-                        \1
-                        <a className="book-link" href={buildTrioTripUrl(pkg, adults, children, infants)} target="_blank" rel="noreferrer">Book via TrioTrip</a>
+                        <a className="book-link book-link--expedia" href={links.expedia} target="_blank" rel="noreferrer">Expedia</a>
                         <a className="book-link book-link--hotels" href={links.hotels} target="_blank" rel="noreferrer">Hotels</a>
                         {links.maps && <a className="book-link book-link--maps" href={links.maps} target="_blank" rel="noreferrer">Map</a>}
                       </div>
@@ -257,7 +244,3 @@ export default function ResultCard({
     </section>
   );
 }
-
-
-
-
