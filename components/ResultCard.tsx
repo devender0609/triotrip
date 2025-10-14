@@ -1,4 +1,3 @@
-// components/ResultCard.tsx
 "use client";
 import React from "react";
 
@@ -14,7 +13,15 @@ const AIRLINE_SITE: Record<string, string> = {
   "British Airways":"https://www.britishairways.com",
 };
 
-/* Ensure we always have a working, https base for TrioTrip deep links */
+// Always usable default so TrioTrip opens even without a local /book route
+const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.ai";
+
+type Props = {
+  pkg: any; index?: number; currency?: string; pax?: number;
+  comparedIds?: string[]; onToggleCompare?: (id: string) => void;
+  onSavedChangeGlobal?: (count: number) => void; large?: boolean; showHotel?: boolean;
+};
+
 function ensureHttps(u?: string | null) {
   if (!u) return "";
   let s = String(u).trim();
@@ -23,13 +30,6 @@ function ensureHttps(u?: string | null) {
   if (s.startsWith("http://")) s = s.replace(/^http:\/\//i, "https://");
   return s;
 }
-const TRIOTRIP_BASE = ensureHttps(process.env.NEXT_PUBLIC_TRIOTRIP_BASE) || "https://triotrip.ai";
-
-type Props = {
-  pkg: any; index?: number; currency?: string; pax?: number;
-  comparedIds?: string[]; onToggleCompare?: (id: string) => void;
-  onSavedChangeGlobal?: (count: number) => void; large?: boolean; showHotel?: boolean;
-};
 
 export default function ResultCard({
   pkg, index = 0, currency, pax = 1,
@@ -119,6 +119,8 @@ export default function ResultCard({
 
   function LayoverRow({ arrive_time, next_depart_time, at }: any) {
     const a = new Date(arrive_time); const b = new Date(next_depart_time);
+    the: {
+    }
     const mins = Math.max(0, Math.round((+b - +a) / 60000));
     return (
       <div style={{ padding: 6, color: "#0f172a", fontSize: 16, display: "flex", justifyContent: "center" }}>
@@ -140,9 +142,10 @@ export default function ResultCard({
       (h?.optimizedThumbUrls && ensureHttps(h.optimizedThumbUrls.srpDesktop || h.optimizedThumbUrls.srpMobile)) ||
       "";
     if (candidate) return candidate;
-    const city = h?.city || pkg?.destination || "";
+    const city =
+      h?.city || pkg?.destination || "";
     return city
-      ? "https://source.unsplash.com/featured/400x250/?hotel," + encodeURIComponent(city)
+      ? `https://source.unsplash.com/featured/400x250/?hotel,${encodeURIComponent(city)}`
       : "https://images.unsplash.com/photo-1551776235-dde6d4829808?auto=format&fit=crop&w=800&q=60";
   };
 
@@ -154,7 +157,7 @@ export default function ResultCard({
           <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 8 }}>{route} {dateOut ? `· ${dateOut}` : ""}</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <a className="book-link book-link--primary" href={trioTrip} target="_blank" rel="noreferrer">Book via TrioTrip</a>
+          <a className="book-link book-link--primary" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
           <a className="book-link book-link--gflights" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="book-link book-link--skyscanner" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
           <a className="book-link book-link--airline" href={airlineSite} target="_blank" rel="noreferrer">Airline</a>
