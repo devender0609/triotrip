@@ -31,7 +31,7 @@ function extractIATA(display: string): string {
 
 function extractCityOnly(input: string) {
   if (!input) return "";
-  let s = String(input).replace(/\([A-Z]{3}\)/g, "").replace(/Ã¢â‚¬â€/g, "-").replace(/\s{2,}/g, " ").trim();
+  let s = String(input).replace(/\([A-Z]{3}\)/g, "").replace(/—/g, "-").replace(/\s{2,}/g, " ").trim();
   const parts = s.split(/[,/|-]+/).map(p => p.trim()).filter(Boolean);
   const filtered = parts.filter(p => !/\bairport\b/i.test(p) && !/^[A-Z]{3}$/.test(p));
   const nice = filtered.find(p => /[a-z]/i.test(p)) || filtered[0] || s;
@@ -47,7 +47,7 @@ const COMMON_COUNTRIES = new Set([
 ]);
 function extractCountryFromDisplay(input: string): string | undefined {
   if (!input) return;
-  const cleaned = input.replace(/\([A-Z]{3}\)/g, " ").replace(/[Ã¢â‚¬â€œÃ¢â‚¬â€]/g, "-");
+  const cleaned = input.replace(/\([A-Z]{3}\)/g, " ").replace(/[–—]/g, "-");
   const tokens = cleaned.split(/[,|-]+/).map(t => t.trim()).filter(Boolean);
   for (let i = tokens.length - 1; i >= 0; i--) {
     const t = tokens[i];
@@ -123,12 +123,12 @@ export default function Page() {
       const destination = destCode || extractIATA(destDisplay);
       if (!origin || !destination) throw new Error("Please select origin and destination.");
       if (!departDate) throw new Error("Please pick a departure date.");
-      if (departDate < todayLocal) throw new Error("Departure date canÃ¢â‚¬â„¢t be in the past.");
+      if (departDate < todayLocal) throw new Error("Departure date can’t be in the past.");
       if (adults < 1) throw new Error("At least 1 adult is required.");
       if (roundTrip) { if (!returnDate) throw new Error("Please pick a return date."); if (returnDate <= departDate) throw new Error("Return date must be after departure."); }
       if (includeHotel) {
         if (!hotelCheckIn || !hotelCheckOut) throw new Error("Please set hotel check-in and check-out.");
-        if (hotelCheckIn < todayLocal) throw new Error("Hotel check-in canÃ¢â‚¬â„¢t be in the past.");
+        if (hotelCheckIn < todayLocal) throw new Error("Hotel check-in can’t be in the past.");
         if (hotelCheckOut <= hotelCheckIn) throw new Error("Hotel check-out must be after check-in.");
       }
       if (minBudget !== "" && minBudget < 0) throw new Error("Min budget cannot be negative.");
@@ -202,7 +202,7 @@ export default function Page() {
   const xe = (city: string) => `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`;
   const usStateDept = () => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`;
 
-  function ContentPlaces({ mode 
+  function ContentPlaces({ mode }: { mode: MainTab }) {
   const blocks =
     mode === "explore"
       ? [
@@ -216,13 +216,12 @@ export default function Page() {
       : [
           { title: "Best restaurants", q: "best restaurants" },
           { title: "Local eats", q: "local food spots" },
-          { title: "CafÃ©s & coffee", q: "cafes coffee" },
+          { title: "Cafés & coffee", q: "cafes coffee" },
           { title: "Street food", q: "street food" },
           { title: "Desserts", q: "desserts bakeries" },
           { title: "Reservations", q: "reservations" },
         ];
 
-  // Only show "Know before you go" for international trips
   const know = isInternational ? (
     <div className="place-card">
       <div className="place-title">Know before you go</div>
@@ -245,7 +244,7 @@ export default function Page() {
       aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}
     >
       <div className="subtle-h">
-        {mode === "explore" ? `?? Explore - ${destCity}` : `??? Savor - ${destCity}`}
+        {mode === "explore" ? `🌍 Explore - ${destCity}` : `🍽️ Savor - ${destCity}`}
       </div>
 
       <div className="places-grid">
@@ -258,7 +257,6 @@ export default function Page() {
             <div className="place-links">
               <a className="place-link" href={gmapsQueryLink(destCity, q)} target="_blank" rel="noreferrer">Google Maps</a>
               <a className="place-link" href={tripadvisor(q, destCity)} target="_blank" rel="noreferrer">Tripadvisor</a>
-
               {mode === "savor" && (
                 <>
                   <a className="place-link" href={yelp(q, destCity)} target="_blank" rel="noreferrer">Yelp</a>
@@ -266,101 +264,20 @@ export default function Page() {
                   <a className="place-link" href={michelin(destCity)} target="_blank" rel="noreferrer">Michelin</a>
                 </>
               )}
-
               {mode === "explore" && (
                 <>
                   <a className="place-link" href={lonelyplanet(destCity)} target="_blank" rel="noreferrer">Lonely Planet</a>
                   <a className="place-link" href={timeout(destCity)} target="_blank" rel="noreferrer">Time Out</a>
                 </>
               )}
-
-              <a className="place-link" href={`https://www.google.com/search?q=${encodeURIComponent(`${q} in ${destCity}`)}`} target="_blank" rel="noreferrer">Web</a>
+              <a className="place-link" href={web(`${q} in ${destCity}`)} target="_blank" rel="noreferrer">Web</a>
             </div>
           </div>
         ))}
       </div>
     </section>
   );
-
-  const blocks =
-    mode === "explore"
-      ? [
-          { title: "Top sights", q: "top attractions" },
-          { title: "Parks & views", q: "parks scenic views" },
-          { title: "Museums", q: "museums galleries" },
-          { title: "Family", q: "family activities" },
-          { title: "Nightlife", q: "nightlife bars" },
-          { title: "Guides", q: "travel guide" },
-        ]
-      : [
-          { title: "Best restaurants", q: "best restaurants" },
-          { title: "Local eats", q: "local food spots" },
-          { title: "CafÃ©s & coffee", q: "cafes coffee" },
-          { title: "Street food", q: "street food" },
-          { title: "Desserts", q: "desserts bakeries" },
-          { title: "Reservations", q: "reservations" },
-        ];
-
-  // Only show "Know before you go" for international trips
-  const know = isInternational ? (
-    <div className="place-card">
-      <div className="place-title">Know before you go</div>
-      <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>
-        Culture, currency, safety & tips
-      </div>
-      <div className="place-links">
-        <a className="place-link" href={wikivoyage(destCity)} target="_blank" rel="noreferrer">Wikivoyage</a>
-        <a className="place-link" href={wiki(destCity)} target="_blank" rel="noreferrer">Wikipedia</a>
-        <a className="place-link" href={xe(destCity)} target="_blank" rel="noreferrer">XE currency</a>
-        <a className="place-link" href={usStateDept()} target="_blank" rel="noreferrer">US State Dept</a>
-        <a className="place-link" href={gmapsQueryLink(destCity, "pharmacies")} target="_blank" rel="noreferrer">Maps: Pharmacies</a>
-      </div>
-    </div>
-  ) : null;
-
-  return (
-    <section
-      className="places-panel"
-      aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}
-    >
-      <div className="subtle-h">
-        {mode === "explore" ? `?? Explore - ${destCity}` : `??? Savor - ${destCity}`}
-      </div>
-
-      <div className="places-grid">
-        {know}
-
-        {blocks.map(({ title, q }) => (
-          <div key={title} className="place-card">
-            <div className="place-title">{title}</div>
-            <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>{q}</div>
-            <div className="place-links">
-              <a className="place-link" href={gmapsQueryLink(destCity, q)} target="_blank" rel="noreferrer">Google Maps</a>
-              <a className="place-link" href={tripadvisor(q, destCity)} target="_blank" rel="noreferrer">Tripadvisor</a>
-
-              {mode === "savor" && (
-                <>
-                  <a className="place-link" href={yelp(q, destCity)} target="_blank" rel="noreferrer">Yelp</a>
-                  <a className="place-link" href={opentable(destCity)} target="_blank" rel="noreferrer">OpenTable</a>
-                  <a className="place-link" href={michelin(destCity)} target="_blank" rel="noreferrer">Michelin</a>
-                </>
-              )}
-
-              {mode === "explore" && (
-                <>
-                  <a className="place-link" href={lonelyplanet(destCity)} target="_blank" rel="noreferrer">Lonely Planet</a>
-                  <a className="place-link" href={timeout(destCity)} target="_blank" rel="noreferrer">Time Out</a>
-                </>
-              )}
-
-              <a className="place-link" href={`https://www.google.com/search?q=${encodeURIComponent(`${q} in ${destCity}`)}`} target="_blank" rel="noreferrer">Web</a>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-
+}: { mode: MainTab }) {
     const blocks = mode === "explore"
       ? [
           { title: "Top sights", q: "top attractions" },
@@ -373,7 +290,7 @@ export default function Page() {
       : [
           { title: "Best restaurants", q: "best restaurants" },
           { title: "Local eats", q: "local food spots" },
-          { title: "CafÃƒÂ©s & coffee", q: "cafes coffee" },
+          { title: "Cafés & coffee", q: "cafes coffee" },
           { title: "Street food", q: "street food" },
           { title: "Desserts", q: "desserts bakeries" },
         ];
@@ -394,7 +311,7 @@ export default function Page() {
 
     return (
       <section className="places-panel" aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}>
-        <div className="subtle-h">{mode === "explore" ? `Ã°Å¸Å’Â Explore - ${destCity}` : `Ã°Å¸ÂÂ½Ã¯Â¸Â Savor - ${destCity}`}</div>
+        <div className="subtle-h">{mode === "explore" ? `🌍 Explore - ${destCity}` : `🍽️ Savor - ${destCity}`}</div>
         <div className="places-grid">
           {know}
           {blocks.map(({ title, q }) => (
@@ -430,8 +347,8 @@ export default function Page() {
         <h1 style={{ margin: "0 0 6px", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em" }}>Find your perfect trip</h1>
         <p style={{ margin: 0, display: "flex", gap: 10, alignItems: "center", color: "#334155", fontWeight: 500, flexWrap: "wrap", fontSize: 15 }}>
           <span style={{ padding: "6px 12px", borderRadius: 999, background: "linear-gradient(180deg,#ffffff,#eef6ff)", border: "1px solid #cfe0ff", color: "#0b1220", fontWeight: 600 }}>Top-3 picks</span>
-          <span style={{ opacity: 0.6 }}>Ã¢â‚¬Â¢</span><span>Explore & Savor your city guide</span>
-          <span style={{ opacity: 0.6 }}>Ã¢â‚¬Â¢</span><span>Compare flights in style</span>
+          <span style={{ opacity: 0.6 }}>•</span><span>Explore & Savor your city guide</span>
+          <span style={{ opacity: 0.6 }}>•</span><span>Compare flights in style</span>
         </p>
       </section>
 
@@ -444,7 +361,7 @@ export default function Page() {
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center" }} aria-hidden>
             <button type="button" title="Swap origin & destination" onClick={swapOriginDest}
-              style={{ height: 46, width: 46, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}>Ã¢â€¡â€ž</button>
+              style={{ height: 46, width: 46, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}>⇄</button>
           </div>
           <div>
             <label style={s.label}>Destination</label>
@@ -476,7 +393,7 @@ export default function Page() {
           <div>
             <label style={s.label}>Adults</label>
             <div className="stepper">
-              <button type="button" onClick={() => setAdults((v) => Math.max(1, v - 1))}>Ã¢Ë†â€™</button>
+              <button type="button" onClick={() => setAdults((v) => Math.max(1, v - 1))}>−</button>
               <input className="no-spin" type="number" readOnly value={adults} style={inputStyle} />
               <button type="button" onClick={() => setAdults((v) => v + 1)}>+</button>
             </div>
@@ -484,7 +401,7 @@ export default function Page() {
           <div>
             <label style={s.label}>Children</label>
             <div className="stepper">
-              <button type="button" onClick={() => setChildren((v) => Math.max(0, v - 1))}>Ã¢Ë†â€™</button>
+              <button type="button" onClick={() => setChildren((v) => Math.max(0, v - 1))}>−</button>
               <input className="no-spin" type="number" readOnly value={children} style={inputStyle} />
               <button type="button" onClick={() => setChildren((v) => v + 1)}>+</button>
             </div>
@@ -492,7 +409,7 @@ export default function Page() {
           <div>
             <label style={s.label}>Infants</label>
             <div className="stepper">
-              <button type="button" onClick={() => setInfants((v) => Math.max(0, v - 1))}>Ã¢Ë†â€™</button>
+              <button type="button" onClick={() => setInfants((v) => Math.max(0, v - 1))}>−</button>
               <input className="no-spin" type="number" readOnly value={infants} style={inputStyle} />
               <button type="button" onClick={() => setInfants((v) => v + 1)}>+</button>
             </div>
@@ -555,7 +472,7 @@ export default function Page() {
           <div><label style={s.label}>Hotel check-out</label><input type="date" style={inputStyle} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)} disabled={!includeHotel} min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : (departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1))} /></div>
           <div><label style={s.label}>Min hotel stars</label>
             <select style={inputStyle} value={minHotelStar} onChange={(e) => setMinHotelStar(Number(e.target.value))} disabled={!includeHotel}>
-              <option value={0}>Any</option><option value={3}>3Ã¢Ëœâ€¦+</option><option value={4}>4Ã¢Ëœâ€¦+</option><option value={5}>5Ã¢Ëœâ€¦</option>
+              <option value={0}>Any</option><option value={3}>3★+</option><option value={4}>4★+</option><option value={5}>5★</option>
             </select>
           </div>
         </div>
@@ -572,7 +489,7 @@ export default function Page() {
 
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button type="submit" style={{ height: 46, padding: "0 18px", fontWeight: 600, color: "#0b3b52", background: "linear-gradient(180deg,#f0fbff,#e6f7ff)", borderRadius: 10, minWidth: 130, fontSize: 15, cursor: "pointer", border: "1px solid #c9e9fb" }}>
-            {loading ? "SearchingÃ¢â‚¬Â¦" : "Search"}
+            {loading ? "Searching…" : "Search"}
           </button>
           <button type="button" style={{ height: 46, padding: "0 16px", fontWeight: 600, background: "#fff", border: "2px solid #7dd3fc", color: "#0369a1", borderRadius: 12, cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap", marginLeft: 10 }} onClick={() => window.location.reload()}>
             Reset
@@ -582,9 +499,9 @@ export default function Page() {
 
       {hasSearched && (<div className="toolbar">
         <div className="tabs" role="tablist" aria-label="Content tabs">
-          <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>{`Ã°Å¸Å’Â Explore - ${destCity}`}</button>
-          <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); }}>{`Ã°Å¸ÂÂ½Ã¯Â¸Â Savor - ${destCity}`}</button>
-          <button className={`tab tab--compare ${compareMode ? "tab--active" : ""}`} role="tab" aria-selected={compareMode} onClick={() => { setActiveTab("compare"); setCompareMode((v) => !v); }}>Ã¢Å¡â€“Ã¯Â¸Â Compare</button>
+          <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>{`🌍 Explore - ${destCity}`}</button>
+          <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); }}>{`🍽️ Savor - ${destCity}`}</button>
+          <button className={`tab tab--compare ${compareMode ? "tab--active" : ""}`} role="tab" aria-selected={compareMode} onClick={() => { setActiveTab("compare"); setCompareMode((v) => !v); }}>⚖️ Compare</button>
         </div><div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <div role="tablist" aria-label="Sort" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {(["best", "cheapest", "fastest", "flexible"] as const).map((k) => (
@@ -600,17 +517,17 @@ export default function Page() {
         </div>
       </div>
 
-      )})}{exploreVisible && results && results.length > 0 && activeTab !== "compare" && <ContentPlaces mode={activeTab} />}
+      )}{exploreVisible && results && results.length > 0 && activeTab !== "compare" && <ContentPlaces mode={activeTab} />}
 
       {compareMode && results && comparedIds.length >= 2 && (
         <section className="compare-panel" aria-label="Compare selected results">
-          <div className="compare-title">Ã¢Å¡â€“Ã¯Â¸Â Side-by-side Compare</div>
+          <div className="compare-title">⚖️ Side-by-side Compare</div>
           {/* table omitted here for brevity; unchanged from earlier */}
         </section>
       )}
 
-      {error && <div className="msg msg--error" role="alert">Ã¢Å¡Â  {error}</div>}
-      {hotelWarning && !error && <div className="msg msg--warn">Ã¢â€œËœ {hotelWarning}</div>}
+      {error && <div className="msg msg--error" role="alert">⚠ {error}</div>}
+      {hotelWarning && !error && <div className="msg msg--warn">ⓘ {hotelWarning}</div>}
 
       {shownResults && shownResults.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20, maxWidth: 1240, margin: "0 auto", width: "100%" }} key={searchKey}>
@@ -632,9 +549,3 @@ export default function Page() {
     </div>
   );
 }
-
-
-
-
-
-
