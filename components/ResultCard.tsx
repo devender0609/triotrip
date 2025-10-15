@@ -1,4 +1,3 @@
-// components/ResultCard.tsx
 "use client";
 import React from "react";
 
@@ -158,6 +157,7 @@ export default function ResultCard({
         .join("|")
     ) % 1_000_000;
 
+    // unique, city-themed placeholder
     return `https://loremflickr.com/400/250/${encodeURIComponent(city ? `hotel,${city}` : "hotel,travel")}?lock=${seed}`;
   };
 
