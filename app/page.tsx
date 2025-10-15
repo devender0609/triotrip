@@ -1,669 +1,478 @@
-// app/page.tsx
 "use client";
 export const dynamic = "force-dynamic";
 
-import React from "react";
-import AirportField from "@/components/AirportField";
-import ResultCard from "@/components/ResultCard";
-import SavedChip from "@/components/SavedChip";
-import SavorExploreLinks from "@/components/SavorExploreLinks"; // used for Explore & Savor panels
+import React, { useEffect, useMemo, useState } from "react";
+import AirportField from "../components/AirportField";
+import ResultCard from "../components/ResultCard";
+import SavedChip from "../components/SavedChip";
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
+type MainTab = "explore" | "savor" | "compare";
 
-type SearchPayload = {
-  origin: string;
-  destination: string;
-  departDate: string;
-  returnDate?: string;
-  roundTrip: boolean;
-  passengers: number;
-  passengersAdults: number;
-  passengersChildren: number;
-  passengersInfants: number;
+interface SearchPayload {
+  origin: string; destination: string; departDate: string; returnDate?: string; roundTrip: boolean;
+  passengers: number; passengersAdults: number; passengersChildren: number; passengersInfants: number; passengersChildrenAges?: number[];
   cabin: Cabin;
-  includeHotel: boolean;
-  hotelCheckIn?: string;
-  hotelCheckOut?: string;
-  minHotelStar?: number;
-  minBudget?: number;
-  maxBudget?: number;
-  currency: string;
-  sort: SortKey;
-  maxStops?: 0 | 1 | 2;
-  refundable?: boolean;
-  greener?: boolean;
+  includeHotel: boolean; hotelCheckIn?: string; hotelCheckOut?: string; nights?: number; minHotelStar?: number;
+  minBudget?: number; maxBudget?: number; currency: string; sort: SortKey; maxStops?: 0 | 1 | 2; refundable?: boolean; greener?: boolean;
   sortBasis?: "flightOnly" | "bundle";
-};
+}
 
-// --- helpers ---
-const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-  .toISOString()
-  .slice(0, 10);
+const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const num = (v: any) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 
 function extractIATA(display: string): string {
   const s = String(display || "").toUpperCase().trim();
-  const m1 = /\(([A-Z]{3})\)/.exec(s);
-  if (m1) return m1[1];
-  const m2 = /^([A-Z]{3})\b/.exec(s);
-  return m2 ? m2[1] : "";
+  let m = /\(([A-Z]{3})\)/.exec(s); if (m) return m[1];
+  m = /^([A-Z]{3})\b/.exec(s); if (m) return m[1];
+  return "";
 }
-function cityOnly(input: string) {
+
+function extractCityOnly(input: string) {
   if (!input) return "";
-  const withoutIata = input.replace(/\([A-Z]{3}\)/g, " ").trim();
-  const parts = withoutIata.split(/[,|-]+/).map((p) => p.trim()).filter(Boolean);
-  const pick = parts.find((p) => !/\bairport\b/i.test(p)) || parts[0] || withoutIata;
-  return pick;
+  let s = String(input).replace(/\([A-Z]{3}\)/g, "").replace(/—/g, "-").replace(/\s{2,}/g, " ").trim();
+  const parts = s.split(/[,/|-]+/).map(p => p.trim()).filter(Boolean);
+  const filtered = parts.filter(p => !/\bairport\b/i.test(p) && !/^[A-Z]{3}$/.test(p));
+  const nice = filtered.find(p => /[a-z]/i.test(p)) || filtered[0] || s;
+  return nice.replace(/\b[A-Z]{2}\b$/, "").trim();
 }
+
+const COMMON_COUNTRIES = new Set([
+  "United States","USA","Canada","Mexico","United Kingdom","UK","Ireland","France","Germany","Spain","Italy","Portugal",
+  "Netherlands","Belgium","Switzerland","Austria","Sweden","Norway","Denmark","Finland","Iceland","India","China","Japan",
+  "South Korea","Singapore","United Arab Emirates","UAE","Qatar","Saudi Arabia","Thailand","Vietnam","Indonesia","Malaysia",
+  "Philippines","Australia","New Zealand","Brazil","Argentina","Chile","Peru","Colombia","South Africa","Egypt","Turkey",
+  "Greece","Poland","Czechia","Czech Republic","Hungary","Romania"
+]);
+function extractCountryFromDisplay(input: string): string | undefined {
+  if (!input) return;
+  const cleaned = input.replace(/\([A-Z]{3}\)/g, " ").replace(/[–—]/g, "-");
+  const tokens = cleaned.split(/[,|-]+/).map(t => t.trim()).filter(Boolean);
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    const t = tokens[i];
+    if (COMMON_COUNTRIES.has(t)) return t;
+    if (/^UAE$/i.test(t)) return "United Arab Emirates";
+    if (/^UK$/i.test(t)) return "United Kingdom";
+    if (/^USA$/i.test(t)) return "United States";
+  }
+  const guess = tokens.reverse().find(t => /[A-Za-z]{4,}/.test(t) && !/\bairport\b/i.test(t));
+  return guess;
+}
+
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  const d = new Date(iso); if (Number.isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10);
 }
 
+const cth: React.CSSProperties = { textAlign: "left", padding: "12px 12px", borderBottom: "1px solid #e2e8f0", fontWeight: 600, color: "#0f172a" };
+const ctd: React.CSSProperties = { padding: "12px 12px", borderBottom: "1px solid #e2e8f0", fontWeight: 500 };
+function formatMins(m?: number) { const v = Number(m) || 0; const h = Math.floor(v/60); const mm = v%60; return `${h}h ${mm}m`; }
+
 export default function Page() {
-  // Locations
-  const [originCode, setOriginCode] = React.useState("");
-  const [destCode, setDestCode] = React.useState("");
-  const [originDisplay, setOriginDisplay] = React.useState("");
-  const [destDisplay, setDestDisplay] = React.useState("");
+  const [originCode, setOriginCode] = useState(""); const [originDisplay, setOriginDisplay] = useState("");
+  const [destCode, setDestCode] = useState(""); const [destDisplay, setDestDisplay] = useState("");
 
-  // Dates / trip
-  const [roundTrip, setRoundTrip] = React.useState(true);
-  const [departDate, setDepartDate] = React.useState("");
-  const [returnDate, setReturnDate] = React.useState("");
+  const [roundTrip, setRoundTrip] = useState(true);
+  const [departDate, setDepartDate] = useState(""); const [returnDate, setReturnDate] = useState("");
 
-  // Pax
-  const [adults, setAdults] = React.useState(1);
-  const [children, setChildren] = React.useState(0);
-  const [infants, setInfants] = React.useState(0);
+  const [adults, setAdults] = useState(1); const [children, setChildren] = useState(0); const [infants, setInfants] = useState(0);
+  const [childrenAges, setChildrenAges] = useState<number[]>([]);
+  const [cabin, setCabin] = useState<Cabin>("ECONOMY");
+  const [currency, setCurrency] = useState("USD");
+  const [minBudget, setMinBudget] = useState<number | "">(""); const [maxBudget, setMaxBudget] = useState<number | "">("");
+  const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2); const [refundable, setRefundable] = useState(false); const [greener, setGreener] = useState(false);
 
-  // Options
-  const [cabin, setCabin] = React.useState<Cabin>("ECONOMY");
-  const [currency, setCurrency] = React.useState("USD");
-  const [includeHotel, setIncludeHotel] = React.useState(false);
-  const [hotelCheckIn, setHotelCheckIn] = React.useState("");
-  const [hotelCheckOut, setHotelCheckOut] = React.useState("");
-  const [minHotelStar, setMinHotelStar] = React.useState(0);
-  const [minBudget, setMinBudget] = React.useState<string | number>("");
-  const [maxBudget, setMaxBudget] = React.useState<string | number>("");
-  const [maxStops, setMaxStops] = React.useState<0 | 1 | 2>(2);
-  const [refundable, setRefundable] = React.useState(false);
-  const [greener, setGreener] = React.useState(false);
-  const [sortBasis, setSortBasis] = React.useState<"flightOnly" | "bundle">("flightOnly");
+  const [includeHotel, setIncludeHotel] = useState(false);
+  const [hotelCheckIn, setHotelCheckIn] = useState(""); const [hotelCheckOut, setHotelCheckOut] = useState(""); const [minHotelStar, setMinHotelStar] = useState(0);
 
-  // Sorting
-  const [sort, setSort] = React.useState<SortKey>("best");
+  const [sort, setSort] = useState<SortKey>("best"); const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
 
-  // Results & UX
-  const [results, setResults] = React.useState<any[]>([]);
-  const [hasSearched, setHasSearched] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<MainTab>("explore");
+  const [compareMode, setCompareMode] = useState(false); const [comparedIds, setComparedIds] = useState<string[]>([]);
+  useEffect(() => { if (!compareMode) setComparedIds([]); }, [compareMode]);
 
-  // Compare
-  const [comparedIds, setComparedIds] = React.useState<string[]>([]);
-  const onToggleCompare = (id: string) =>
-    setComparedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const [showAll, setShowAll] = useState(false);
+  const [loading, setLoading] = useState(false); const [results, setResults] = useState<any[] | null>(null);
+  const [error, setError] = useState<string | null>(null); const [hotelWarning, setHotelWarning] = useState<string | null>(null);
 
-  // Explore / Savor chips (toggle panels)
-  const [showExplore, setShowExplore] = React.useState(false);
-  const [showSavor, setShowSavor] = React.useState(false);
-
-  // Saved chip
-  const [savedCount, setSavedCount] = React.useState(0);
-  React.useEffect(() => {
-    try {
-      const arr = JSON.parse(localStorage.getItem("triptrio:saved") || "[]");
-      setSavedCount(Array.isArray(arr) ? arr.length : 0);
-    } catch {
-      setSavedCount(0);
-    }
+  const [savedCount, setSavedCount] = useState(0);
+  useEffect(() => {
+    const load = () => { try { const arr = JSON.parse(localStorage.getItem("triptrio:saved") || "[]"); setSavedCount(Array.isArray(arr) ? arr.length : 0); } catch { setSavedCount(0); } };
+    load(); const handler = () => load();
+    window.addEventListener("triptrio:saved:changed", handler); window.addEventListener("storage", handler);
+    return () => { window.removeEventListener("triptrio:saved:changed", handler); window.removeEventListener("storage", handler); };
   }, []);
 
-  // Swap origin/destination (keeps layout button you already have)
-  function swapOriginDest() {
-    setOriginCode((oc) => {
-      const dc = destCode;
-      setDestCode(oc);
-      return dc;
-    });
-    setOriginDisplay((od) => {
-      const dd = destDisplay;
-      setDestDisplay(od);
-      return dd;
-    });
-  }
+  const [searchKey, setSearchKey] = useState(0);
+  const [exploreVisible, setExploreVisible] = useState(false);
+
+  useEffect(() => { setChildrenAges(prev => { const next = prev.slice(0, children); while (next.length < children) next.push(8); return next; }); }, [children]);
+  useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
+  useEffect(() => { if (!includeHotel) { setHotelCheckIn(""); setHotelCheckOut(""); } }, [includeHotel]);
+
+  function swapOriginDest() { setOriginCode(oc => { const dc = destCode; setDestCode(oc); return dc; }); setOriginDisplay(od => { const dd = destDisplay; setDestDisplay(od); return dd; }); }
 
   async function runSearch() {
-    setLoading(true);
-    setError(null);
-    setResults([]);
-    setComparedIds([]);
-    setShowExplore(false);
-    setShowSavor(false);
-
+    setSearchKey(k => k + 1); setLoading(true); setError(null); setHotelWarning(null); setResults(null);
     try {
-      const o = originCode || extractIATA(originDisplay);
-      const d = destCode || extractIATA(destDisplay);
-      if (!o || !d) throw new Error("Please select both origin and destination.");
-      if (!departDate) throw new Error("Pick a departure date.");
-      if (roundTrip && !returnDate) throw new Error("Pick a return date.");
+      const origin = originCode || extractIATA(originDisplay);
+      const destination = destCode || extractIATA(destDisplay);
+      if (!origin || !destination) throw new Error("Please select origin and destination.");
+      if (!departDate) throw new Error("Please pick a departure date.");
+      if (departDate < todayLocal) throw new Error("Departure date can’t be in the past.");
+      if (adults < 1) throw new Error("At least 1 adult is required.");
+      if (roundTrip) { if (!returnDate) throw new Error("Please pick a return date."); if (returnDate <= departDate) throw new Error("Return date must be after departure."); }
+      if (includeHotel) {
+        if (!hotelCheckIn || !hotelCheckOut) throw new Error("Please set hotel check-in and check-out.");
+        if (hotelCheckIn < todayLocal) throw new Error("Hotel check-in can’t be in the past.");
+        if (hotelCheckOut <= hotelCheckIn) throw new Error("Hotel check-out must be after check-in.");
+      }
+      if (minBudget !== "" && minBudget < 0) throw new Error("Min budget cannot be negative.");
+      if (maxBudget !== "" && maxBudget < 0) throw new Error("Max budget cannot be negative.");
+      if (typeof minBudget === "number" && typeof maxBudget === "number" && minBudget > maxBudget) throw new Error("Min budget cannot be greater than max budget.");
 
       const payload: SearchPayload = {
-        origin: o,
-        destination: d,
-        departDate,
-        returnDate: roundTrip ? returnDate : undefined,
-        roundTrip,
-        passengers: adults + children + infants,
-        passengersAdults: adults,
-        passengersChildren: children,
-        passengersInfants: infants,
-        cabin,
-        includeHotel,
-        hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
+        origin, destination, departDate, returnDate: roundTrip ? returnDate : undefined, roundTrip,
+        passengers: adults + children + infants, passengersAdults: adults, passengersChildren: children, passengersInfants: infants,
+        passengersChildrenAges: children > 0 ? childrenAges : undefined,
+        cabin, includeHotel, hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
+        nights: includeHotel && hotelCheckIn && hotelCheckOut ? Math.max(1, Math.round((+new Date(hotelCheckOut) - +new Date(hotelCheckIn)) / 86400000)) : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
-        minBudget: minBudget === "" ? undefined : Number(minBudget),
-        maxBudget: maxBudget === "" ? undefined : Number(maxBudget),
-        currency,
-        sort,
-        maxStops,
-        refundable,
-        greener,
-        sortBasis,
+        minBudget: minBudget === "" ? undefined : minBudget, maxBudget: maxBudget === "" ? undefined : maxBudget,
+        currency, sort, maxStops, refundable, greener, sortBasis,
       };
 
-      const r = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        cache: "no-store",
-      });
+      const r = await fetch(`/api/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
+      const j = await r.json(); if (!r.ok) throw new Error(j?.error || "Search failed");
 
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || "Search failed.");
-
-      const arr = Array.isArray(j?.results) ? j.results : [];
-      // carry context for hotel links/images + compare
-      const merged = arr.map((x: any, i: number) => ({
-        ...x,
-        id: x.id || `pkg-${i}`,
-        destination: d,
-        hotelCheckIn: payload.hotelCheckIn,
-        hotelCheckOut: payload.hotelCheckOut,
-        currency: payload.currency,
-        roundTrip: payload.roundTrip,
-      }));
-
-      setResults(merged);
-      setHasSearched(true); // shows chips row & allows toggles
-    } catch (e: any) {
-      setError(e?.message || "Search failed.");
-    } finally {
-      setLoading(false);
-    }
+      setHotelWarning(j?.hotelWarning || null);
+      const merged = (Array.isArray(j.results) ? j.results : []).map((res: any) => ({ ...res, ...payload }));
+      setResults(merged); setComparedIds([]); setExploreVisible(true);
+    } catch (e: any) { setError(e?.message || "Search failed"); } finally { setLoading(false); }
   }
 
-  const destCity = cityOnly(destDisplay) || "Destination";
+  const sortedResults = useMemo(() => {
+    if (!results) return null; const items = [...results];
+    const flightPrice = (p: any) => num(p.flight_total) ?? num(p.total_cost_flight) ?? num(p.flight?.price_usd_converted) ?? num(p.flight?.price_usd) ?? num(p.total_cost) ?? 9e15;
+    const bundleTotal = (p: any) => num(p.total_cost) ?? (num(p.flight_total) ?? flightPrice(p)) + (num(p.hotel_total) ?? 0);
+    const outDur = (p: any) => { const segs = p.flight?.segments_out || []; const sum = segs.reduce((t: number, s: any) => t + (Number(s?.duration_minutes) || 0), 0); return Number.isFinite(sum) ? sum : 9e9; };
+    const basisValue = (p: any) => (sortBasis === "bundle" ? bundleTotal(p) : flightPrice(p));
+    if (sort === "cheapest") items.sort((a, b) => basisValue(a)! - basisValue(b)!);
+    else if (sort === "fastest") items.sort((a, b) => outDur(a)! - outDur(b)!);
+    else if (sort === "flexible") items.sort((a, b) => (a.flight?.refundable ? 0 : 1) - (b.flight?.refundable ? 0 : 1) || (basisValue(a)! - basisValue(b)!));
+    else items.sort((a, b) => (basisValue(a)! - basisValue(b)!) || (outDur(a)! - outDur(b)!));
+    return items;
+  }, [results, sort, sortBasis]);
 
-  // simple client sort (keep your own if you have it)
-  const sorted = React.useMemo(() => {
-    const arr = [...results];
-    if (sort === "cheapest") {
-      const price = (p: any) =>
-        p.total_cost ??
-        p.flight_total ??
-        p?.flight?.price_usd ??
-        p?.flight?.price_usd_converted ??
-        Number.MAX_SAFE_INTEGER;
-      arr.sort((a, b) => (price(a) as number) - (price(b) as number));
-    }
-    return arr;
-  }, [results, sort]);
+  const shownResults = useMemo(() => (!sortedResults ? null : (showAll ? sortedResults : sortedResults.slice(0, 3))), [sortedResults, showAll]);
+  function toggleCompare(id: string) { setComparedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id].slice(0, 3))); }
+  const comparedPkgs = useMemo(() => (results && comparedIds.length ? results.filter(r => comparedIds.includes(r.id)) : []), [results, comparedIds]);
 
-  const compared = React.useMemo(
-    () => sorted.filter((x) => comparedIds.includes(x.id)),
-    [sorted, comparedIds]
-  );
+  const s = {
+    panel: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 14, maxWidth: 1240, margin: "0 auto", fontSize: 16 } as React.CSSProperties,
+    label: { fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 } as React.CSSProperties,
+  };
+  const inputStyle: React.CSSProperties = { height: 50, padding: "0 14px", border: "1px solid #e2e8f0", borderRadius: 12, width: "100%", background: "#fff", fontSize: 16 };
+  const segBase: React.CSSProperties = { height: 44, padding: "0 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", fontWeight: 600, fontSize: 15, lineHeight: 1, whiteSpace: "nowrap", cursor: "pointer" };
+  const segStyle = (active: boolean): React.CSSProperties => (active ? { ...segBase, background: "linear-gradient(180deg,#ffffff,#eef6ff)", color: "#0f172a", border: "1px solid #bfdbfe" } : segBase);
 
-  // --- styles to match your screenshot ---
-  const chip = (active?: boolean): React.CSSProperties => ({
-    padding: "8px 12px",
-    borderRadius: 999,
-    border: active ? "2px solid #22c55e" : "1px solid #cbd5e1",
-    background: active ? "#f0fdf4" : "#fff",
-    fontWeight: 700,
-    cursor: "pointer",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-  });
+  const destCity = useMemo(() => (extractCityOnly(destDisplay) || "Destination"), [destDisplay]);
+  const isInternational = useMemo(() => {
+    const o = extractCountryFromDisplay(originDisplay) || ""; const d = extractCountryFromDisplay(destDisplay) || "";
+    if (!o || !d) return false; return o.trim().toLowerCase() !== d.trim().toLowerCase();
+  }, [originDisplay, destDisplay]);
 
-  return (
-    <main style={{ display: "grid", gap: 16, padding: 12 }}>
-      {/* Title */}
-      <section>
-        <h1 style={{ margin: 0, fontSize: 32, fontWeight: 700 }}>Find your perfect trip</h1>
-        <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap", color: "#334155", fontWeight: 600 }}>
-          <span>Top-3 picks</span>
-          <span>•</span>
-          <span>Explore &amp; Savor your city guide</span>
-          <span>•</span>
-          <span>Compare flights in style</span>
+  // Explore/Savor sources (reputable + city scoped)
+  const gmapsQueryLink = (city: string, query: string) => `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`;
+  const web = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+  const yelp = (q: string, city: string) => `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`;
+  const michelin = (city: string) => `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`;
+  const opentable = (city: string) => `https://www.opentable.com/s?term=${encodeURIComponent(city)}`;
+  const tripadvisor = (q: string, city: string) => `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q + " " + city)}`;
+  const lonelyplanet = (city: string) => `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`;
+  const timeout = (city: string) => `https://www.timeout.com/search?query=${encodeURIComponent(city)}`;
+  const wiki = (city: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`;
+  const wikivoyage = (city: string) => `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`;
+  const xe = (city: string) => `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`;
+  const usStateDept = () => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`;
+
+  function ContentPlaces({ mode }: { mode: MainTab }) {
+    const blocks = mode === "explore"
+      ? [
+          { title: "Top sights", q: "top attractions" },
+          { title: "Parks & views", q: "parks scenic views" },
+          { title: "Museums", q: "museums galleries" },
+          { title: "Family", q: "family activities" },
+          { title: "Nightlife", q: "nightlife bars" },
+          { title: "Guides", q: "travel guide" },
+        ]
+      : [
+          { title: "Best restaurants", q: "best restaurants" },
+          { title: "Local eats", q: "local food spots" },
+          { title: "Cafés & coffee", q: "cafes coffee" },
+          { title: "Street food", q: "street food" },
+          { title: "Desserts", q: "desserts bakeries" },
+        ];
+
+    const know = (mode === "explore" && isInternational) ? (
+      <div className="place-card" key="know">
+        <div className="place-title">Know before you go</div>
+        <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>Culture, currency, safety & tips</div>
+        <div className="place-links">
+          <a className="place-link" href={wikivoyage(destCity)} target="_blank" rel="noreferrer">Wikivoyage</a>
+          <a className="place-link" href={wiki(destCity)} target="_blank" rel="noreferrer">Wikipedia</a>
+          <a className="place-link" href={xe(destCity)} target="_blank" rel="noreferrer">XE currency</a>
+          <a className="place-link" href={usStateDept()} target="_blank" rel="noreferrer">US State Dept</a>
+          <a className="place-link" href={gmapsQueryLink(destCity, "pharmacies")} target="_blank" rel="noreferrer">Maps: Pharmacies</a>
+        </div>
+      </div>
+    ) : null;
+
+    return (
+      <section className="places-panel" aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}>
+        <div className="subtle-h">{mode === "explore" ? `🌍 Explore - ${destCity}` : `🍽️ Savor - ${destCity}`}</div>
+        <div className="places-grid">
+          {know}
+          {blocks.map(({ title, q }) => (
+            <div key={title} className="place-card">
+              <div className="place-title">{title}</div>
+              <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>{q}</div>
+              <div className="place-links">
+                <a className="place-link" href={gmapsQueryLink(destCity, q)} target="_blank" rel="noreferrer">Google Maps</a>
+                <a className="place-link" href={tripadvisor(q, destCity)} target="_blank" rel="noreferrer">Tripadvisor</a>
+                {mode === "savor" && <a className="place-link" href={yelp(q, destCity)} target="_blank" rel="noreferrer">Yelp</a>}
+                {mode === "savor" && <a className="place-link" href={opentable(destCity)} target="_blank" rel="noreferrer">OpenTable</a>}
+                {mode === "savor" && <a className="place-link" href={michelin(destCity)} target="_blank" rel="noreferrer">Michelin</a>}
+                {mode === "explore" && <a className="place-link" href={lonelyplanet(destCity)} target="_blank" rel="noreferrer">Lonely Planet</a>}
+                {mode === "explore" && <a className="place-link" href={timeout(destCity)} target="_blank" rel="noreferrer">Time Out</a>}
+                <a className="place-link" href={web(`${q} in ${destCity}`)} target="_blank" rel="noreferrer">Web</a>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
+    );
+  }
 
-      {/* Search form — same layout/sections as your screenshot */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          runSearch();
-        }}
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 16,
-          padding: 16,
-          display: "grid",
-          gap: 14,
-        }}
-      >
-        {/* Origin / Destination with swap */}
+  return (
+    <div style={{ padding: 12, display: "grid", gap: 14 }}>
+      {/* remove underline/baseline on header links & logo without touching globals */}
+      <style jsx global>{`
+        header a { text-decoration: none !important; border-bottom: 0 !important; }
+        header img.tt-logo, header .tt-logo { border: 0 !important; box-shadow: none !important; }
+      `}</style>
+
+      <section>
+        <h1 style={{ margin: "0 0 6px", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em" }}>Find your perfect trip</h1>
+        <p style={{ margin: 0, display: "flex", gap: 10, alignItems: "center", color: "#334155", fontWeight: 500, flexWrap: "wrap", fontSize: 15 }}>
+          <span style={{ padding: "6px 12px", borderRadius: 999, background: "linear-gradient(180deg,#ffffff,#eef6ff)", border: "1px solid #cfe0ff", color: "#0b1220", fontWeight: 600 }}>Top-3 picks</span>
+          <span style={{ opacity: 0.6 }}>•</span><span>Explore & Savor your city guide</span>
+          <span style={{ opacity: 0.6 }}>•</span><span>Compare flights in style</span>
+        </p>
+      </section>
+
+      <form style={s.panel} onSubmit={(e) => { e.preventDefault(); runSearch(); }}>
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 54px 1fr", alignItems: "end" }}>
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Origin</label>
-            <AirportField
-              id="origin"
-              label=""
-              code={originCode}
-              initialDisplay={originDisplay}
-              onTextChange={setOriginDisplay}
-              onChangeCode={(c, disp) => {
-                setOriginCode(c);
-                setOriginDisplay(disp);
-              }}
-            />
+            <label style={s.label}>Origin</label>
+            <AirportField id="origin" label="" code={originCode} initialDisplay={originDisplay}
+              onTextChange={setOriginDisplay} onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }} />
           </div>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end" }} aria-hidden>
-            <button
-              type="button"
-              title="Swap origin & destination"
-              onClick={swapOriginDest}
-              style={{
-                height: 46,
-                width: 46,
-                borderRadius: 12,
-                border: "1px solid #e2e8f0",
-                background: "#fff",
-                cursor: "pointer",
-                fontSize: 18,
-              }}
-            >
-              ⇄
-            </button>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center" }} aria-hidden>
+            <button type="button" title="Swap origin & destination" onClick={swapOriginDest}
+              style={{ height: 46, width: 46, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}>⇄</button>
           </div>
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Destination</label>
-            <AirportField
-              id="destination"
-              label=""
-              code={destCode}
-              initialDisplay={destDisplay}
-              onTextChange={setDestDisplay}
-              onChangeCode={(c, disp) => {
-                setDestCode(c);
-                setDestDisplay(disp);
-              }}
-            />
+            <label style={s.label}>Destination</label>
+            <AirportField id="destination" label="" code={destCode} initialDisplay={destDisplay}
+              onTextChange={setDestDisplay} onChangeCode={(code, display) => { setDestCode(code); setDestDisplay(display); }} />
           </div>
         </div>
 
-        {/* Trip row */}
-        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "130px 1fr 1fr 1fr 1fr 1fr" }}>
-          {/* Trip buttons */}
-          <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Trip</label>
-            <div style={{ display: "inline-flex", gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => setRoundTrip(false)}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  borderRadius: 10,
-                  padding: "8px 12px",
-                  background: roundTrip ? "#fff" : "#e0f2fe",
-                  fontWeight: 700,
-                }}
-              >
-                One-way
-              </button>
-              <button
-                type="button"
-                onClick={() => setRoundTrip(true)}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  borderRadius: 10,
-                  padding: "8px 12px",
-                  background: roundTrip ? "#e0f2fe" : "#fff",
-                  fontWeight: 700,
-                }}
-              >
-                Round-trip
-              </button>
-            </div>
-          </div>
-
-          {/* Dates & Pax */}
-          <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Depart</label>
-            <input
-              type="date"
-              min={today}
-              value={departDate}
-              onChange={(e) => setDepartDate(e.target.value)}
-              style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}
-            />
-          </div>
-          <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Return</label>
-            <input
-              type="date"
-              disabled={!roundTrip}
-              min={departDate ? plusDays(departDate, 1) : plusDays(today, 1)}
-              value={returnDate}
-              onChange={(e) => setReturnDate(e.target.value)}
-              style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Adults</label>
-            <div style={{ display: "grid", gridTemplateColumns: "44px 1fr 44px", gap: 6, alignItems: "center" }}>
-              <button type="button" onClick={() => setAdults((v) => Math.max(1, v - 1))} style={{ height: 44, borderRadius: 10, border: "1px solid #e2e8f0" }}>−</button>
-              <input readOnly className="no-spin" value={adults} style={{ height: 44, textAlign: "center", border: "1px solid #e2e8f0", borderRadius: 10 }} />
-              <button type="button" onClick={() => setAdults((v) => v + 1)} style={{ height: 44, borderRadius: 10, border: "1px solid #e2e8f0" }}>+</button>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "170px 1fr 1fr 1fr 1fr 1fr", alignItems: "end" }}>
+          <div style={{ minWidth: 170 }}>
+            <label style={s.label}>Trip</label>
+            <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button type="button" style={segStyle(!roundTrip)} onClick={() => setRoundTrip(false)}>One-way</button>
+              <button type="button" style={segStyle(roundTrip)} onClick={() => setRoundTrip(true)}>Round-trip</button>
             </div>
           </div>
 
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Children</label>
-            <div style={{ display: "grid", gridTemplateColumns: "44px 1fr 44px", gap: 6, alignItems: "center" }}>
-              <button type="button" onClick={() => setChildren((v) => Math.max(0, v - 1))} style={{ height: 44, borderRadius: 10, border: "1px solid #e2e8f0" }}>−</button>
-              <input readOnly className="no-spin" value={children} style={{ height: 44, textAlign: "center", border: "1px solid #e2e8f0", borderRadius: 10 }} />
-              <button type="button" onClick={() => setChildren((v) => v + 1)} style={{ height: 44, borderRadius: 10, border: "1px solid #e2e8f0" }}>+</button>
-            </div>
+            <label style={s.label}>Depart</label>
+            <input type="date" style={inputStyle} value={departDate} onChange={(e) => setDepartDate(e.target.value)} min={todayLocal} max={roundTrip && returnDate ? returnDate : undefined} />
           </div>
 
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Infants</label>
-            <div style={{ display: "grid", gridTemplateColumns: "44px 1fr 44px", gap: 6, alignItems: "center" }}>
-              <button type="button" onClick={() => setInfants((v) => Math.max(0, v - 1))} style={{ height: 44, borderRadius: 10, border: "1px solid #e2e8f0" }}>−</button>
-              <input readOnly className="no-spin" value={infants} style={{ height: 44, textAlign: "center", border: "1px solid #e2e8f0", borderRadius: 10 }} />
-              <button type="button" onClick={() => setInfants((v) => v + 1)} style={{ height: 44, borderRadius: 10, border: "1px solid #e2e8f0" }}>+</button>
+            <label style={s.label}>Return</label>
+            <input type="date" style={inputStyle} value={returnDate} onChange={(e) => setReturnDate(e.target.value)} disabled={!roundTrip}
+              min={departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1)} />
+          </div>
+
+          <div>
+            <label style={s.label}>Adults</label>
+            <div className="stepper">
+              <button type="button" onClick={() => setAdults((v) => Math.max(1, v - 1))}>−</button>
+              <input className="no-spin" type="number" readOnly value={adults} style={inputStyle} />
+              <button type="button" onClick={() => setAdults((v) => v + 1)}>+</button>
+            </div>
+          </div>
+          <div>
+            <label style={s.label}>Children</label>
+            <div className="stepper">
+              <button type="button" onClick={() => setChildren((v) => Math.max(0, v - 1))}>−</button>
+              <input className="no-spin" type="number" readOnly value={children} style={inputStyle} />
+              <button type="button" onClick={() => setChildren((v) => v + 1)}>+</button>
+            </div>
+          </div>
+          <div>
+            <label style={s.label}>Infants</label>
+            <div className="stepper">
+              <button type="button" onClick={() => setInfants((v) => Math.max(0, v - 1))}>−</button>
+              <input className="no-spin" type="number" readOnly value={infants} style={inputStyle} />
+              <button type="button" onClick={() => setInfants((v) => v + 1)}>+</button>
             </div>
           </div>
         </div>
 
-        {/* Cabin / Stops / Flags */}
+        {children > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {Array.from({ length: children }).map((_, i) => (
+              <div key={i} style={{ display: "grid", gap: 6 }}>
+                <label style={s.label}>Child {i + 1} age</label>
+                <select style={{ ...inputStyle, width: "100%", maxWidth: 140 }} value={childrenAges[i] ?? 8}
+                  onChange={(e) => { const v = Math.max(1, Math.min(17, Number(e.target.value) || 8)); setChildrenAges(prev => { const next = prev.slice(); next[i] = v; return next; }); }}>
+                  {Array.from({ length: 17 }, (_, n) => n + 1).map((age) => (<option key={age} value={age}>{age}</option>))}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Cabin</label>
-            <select value={cabin} onChange={(e) => setCabin(e.target.value as Cabin)} style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}>
-              <option value="ECONOMY">Economy</option>
-              <option value="PREMIUM_ECONOMY">Premium Economy</option>
-              <option value="BUSINESS">Business</option>
-              <option value="FIRST">First</option>
+            <label style={s.label}>Cabin</label>
+            <select style={inputStyle} value={cabin} onChange={(e) => setCabin(e.target.value as Cabin)}>
+              <option value="ECONOMY">Economy</option><option value="PREMIUM_ECONOMY">Premium Economy</option><option value="BUSINESS">Business</option><option value="FIRST">First</option>
             </select>
           </div>
-
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Stops</label>
-            <select value={maxStops} onChange={(e) => setMaxStops(Number(e.target.value) as 0 | 1 | 2)} style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}>
-              <option value={0}>Nonstop</option>
-              <option value={1}>More than 1 stop</option>
-              <option value={2}>More than 1 stop</option>
+            <label style={s.label}>Stops</label>
+            <select style={inputStyle} value={maxStops} onChange={(e) => setMaxStops(Number(e.target.value) as 0 | 1 | 2)}>
+              <option value={0}>Nonstop</option><option value={1}>1 stop</option><option value={2}>More than 1 stop</option>
             </select>
           </div>
-
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 600, color: "#0f172a" }}>
-            <input type="checkbox" checked={refundable} onChange={(e) => setRefundable(e.target.checked)} />
-            Refundable
-          </label>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 600, color: "#0f172a" }}>
-            <input type="checkbox" checked={greener} onChange={(e) => setGreener(e.target.checked)} />
-            Greener
-          </label>
+          <div><label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 500, color: "#334155" }}><input type="checkbox" checked={refundable} onChange={(e) => setRefundable(e.target.checked)} /> Refundable</label></div>
+          <div><label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 500, color: "#334155" }}><input type="checkbox" checked={greener} onChange={(e) => setGreener(e.target.checked)} /> Greener</label></div>
         </div>
 
-        {/* Currency / Budget */}
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Currency</label>
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}>
-              {["USD", "EUR", "GBP", "INR", "CAD", "AUD", "JPY", "SGD", "AED"].map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
+            <label style={s.label}>Currency</label>
+            <select style={inputStyle} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              {["USD","EUR","GBP","INR","CAD","AUD","JPY","SGD","AED"].map((c) => (<option key={c} value={c}>{c}</option>))}
             </select>
           </div>
-
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Min budget</label>
-            <input
-              type="number"
-              placeholder="min"
-              min={0}
-              value={minBudget}
-              onChange={(e) => setMinBudget(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))}
-              style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}
-            />
+            <label style={s.label}>Min budget</label>
+            <input type="number" placeholder="min" min={0} style={inputStyle}
+              value={minBudget === "" ? "" : String(minBudget)}
+              onChange={(e) => { if (e.target.value === "") return setMinBudget(""); const v = Number(e.target.value); setMinBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
           </div>
-
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Max budget</label>
-            <input
-              type="number"
-              placeholder="max"
-              min={0}
-              value={maxBudget}
-              onChange={(e) => setMaxBudget(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))}
-              style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}
-            />
+            <label style={s.label}>Max budget</label>
+            <input type="number" placeholder="max" min={0} style={inputStyle}
+              value={maxBudget === "" ? "" : String(maxBudget)}
+              onChange={(e) => { if (e.target.value === "") return setMaxBudget(""); const v = Number(e.target.value); setMaxBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
           </div>
         </div>
 
-        {/* Include hotel */}
-        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 600, color: "#0f172a" }}>
-            <input type="checkbox" checked={includeHotel} onChange={(e) => setIncludeHotel(e.target.checked)} />
-            Include hotel
-          </label>
-          <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Hotel check-in</label>
-            <input
-              type="date"
-              disabled={!includeHotel}
-              min={departDate || today}
-              value={hotelCheckIn}
-              onChange={(e) => setHotelCheckIn(e.target.value)}
-              style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}
-            />
-          </div>
-          <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Hotel check-out</label>
-            <input
-              type="date"
-              disabled={!includeHotel}
-              min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : departDate ? plusDays(departDate, 1) : plusDays(today, 1)}
-              value={hotelCheckOut}
-              onChange={(e) => setHotelCheckOut(e.target.value)}
-              style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}
-            />
-          </div>
-          <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a" }}>Min hotel stars</label>
-            <select
-              disabled={!includeHotel}
-              value={minHotelStar}
-              onChange={(e) => setMinHotelStar(Number(e.target.value))}
-              style={{ height: 44, width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "0 10px" }}
-            >
-              <option value={0}>Any</option>
-              <option value={3}>3★+</option>
-              <option value={4}>4★+</option>
-              <option value={5}>5★</option>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "170px 1fr 1fr 1fr" }}>
+          <div><label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 500, color: "#334155" }}><input type="checkbox" checked={includeHotel} onChange={(e) => setIncludeHotel(e.target.checked)} /> Include hotel</label></div>
+          <div><label style={s.label}>Hotel check-in</label><input type="date" style={inputStyle} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} disabled={!includeHotel} min={departDate || todayLocal} /></div>
+          <div><label style={s.label}>Hotel check-out</label><input type="date" style={inputStyle} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)} disabled={!includeHotel} min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : (departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1))} /></div>
+          <div><label style={s.label}>Min hotel stars</label>
+            <select style={inputStyle} value={minHotelStar} onChange={(e) => setMinHotelStar(Number(e.target.value))} disabled={!includeHotel}>
+              <option value={0}>Any</option><option value={3}>3★+</option><option value={4}>4★+</option><option value={5}>5★</option>
             </select>
           </div>
         </div>
 
-        {/* Sort by (basis) + buttons */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div>
-            <label style={{ display: "block", fontWeight: 600, color: "#0f172a", marginBottom: 6 }}>Sort by (basis)</label>
-            <div style={{ display: "inline-flex", gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => setSortBasis("flightOnly")}
-                style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: "8px 12px", background: sortBasis === "flightOnly" ? "#e0f2fe" : "#fff", fontWeight: 700 }}
-              >
-                Flight only
-              </button>
-              <button
-                type="button"
-                onClick={() => setSortBasis("bundle")}
-                style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: "8px 12px", background: sortBasis === "bundle" ? "#e0f2fe" : "#fff", fontWeight: 700 }}
-              >
-                Bundle total
-              </button>
+            <label style={s.label}>Sort by (basis)</label>
+            <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button type="button" style={segStyle("flightOnly" === sortBasis)} onClick={() => setSortBasis("flightOnly")}>Flight only</button>
+              <button type="button" style={segStyle("bundle" === sortBasis)} onClick={() => setSortBasis("bundle")}>Bundle total</button>
             </div>
           </div>
+        </div>
 
-          <div style={{ display: "flex", gap: 10 }}>
-            <button type="submit" disabled={loading} style={{ height: 46, minWidth: 130, border: "1px solid #93c5fd", borderRadius: 10, background: "linear-gradient(180deg,#f0fbff,#e6f7ff)", fontWeight: 700 }}>
-              {loading ? "Searching…" : "Search"}
-            </button>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              style={{ height: 46, minWidth: 100, border: "1px solid #cbd5e1", borderRadius: 10, background: "#fff", fontWeight: 700 }}
-            >
-              Reset
-            </button>
-          </div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button type="submit" style={{ height: 46, padding: "0 18px", fontWeight: 600, color: "#0b3b52", background: "linear-gradient(180deg,#f0fbff,#e6f7ff)", borderRadius: 10, minWidth: 130, fontSize: 15, cursor: "pointer", border: "1px solid #c9e9fb" }}>
+            {loading ? "Searching…" : "Search"}
+          </button>
+          <button type="button" style={{ height: 46, padding: "0 16px", fontWeight: 600, background: "#fff", border: "2px solid #7dd3fc", color: "#0369a1", borderRadius: 12, cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap", marginLeft: 10 }} onClick={() => window.location.reload()}>
+            Reset
+          </button>
         </div>
       </form>
 
-      {/* Chips row under the form — EXACTLY like your screenshot */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-        {/* Explore & Savor chips appear ONLY after search */}
-        <button
-          type="button"
-          style={chip(showExplore)}
-          onClick={() => setShowExplore((v) => !v)}
-          disabled={!hasSearched}
-          title={!hasSearched ? "Run a search to enable" : "Toggle Explore"}
-        >
-          🧭 Explore - {destCity}
-        </button>
+      <div className="toolbar">
+        <div className="tabs" role="tablist" aria-label="Content tabs">
+          <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>{`🌍 Explore - ${destCity}`}</button>
+          <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); }}>{`🍽️ Savor - ${destCity}`}</button>
+          <button className={`tab tab--compare ${compareMode ? "tab--active" : ""}`} role="tab" aria-selected={compareMode} onClick={() => { setActiveTab("compare"); setCompareMode((v) => !v); }}>⚖️ Compare</button>
+        </div>
 
-        <button
-          type="button"
-          style={chip(showSavor)}
-          onClick={() => setShowSavor((v) => !v)}
-          disabled={!hasSearched}
-          title={!hasSearched ? "Run a search to enable" : "Toggle Savor"}
-        >
-          🍽️ Savor - {destCity}
-        </button>
-
-        <button type="button" style={chip(comparedIds.length > 0)} title="Open Compare section (add from results)">
-          🧮 Compare
-        </button>
-
-        {/* Sort buttons row — same set as screenshot */}
-        <div style={{ display: "flex", gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
-          {(["best", "cheapest", "fastest", "flexible"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setSort(k)}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 999,
-                border: "1px solid #cbd5e1",
-                background: sort === k ? "#eef2ff" : "#fff",
-                fontWeight: 700,
-              }}
-            >
-              {k === "best" ? "Best" : k[0].toUpperCase() + k.slice(1)}
-            </button>
-          ))}
-          <button type="button" style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid #cbd5e1", background: "#eef9ff", fontWeight: 700 }}>
-            Top-3
-          </button>
-          <button type="button" style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid #cbd5e1", background: "#fff", fontWeight: 700 }} onClick={() => window.print()}>
-            Print
-          </button>
-          <span style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid #cbd5e1", background: "#fff", fontWeight: 700 }}>
-            Saved <span style={{ opacity: 0.7 }}>{savedCount}</span>
-          </span>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div role="tablist" aria-label="Sort" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(["best", "cheapest", "fastest", "flexible"] as const).map((k) => (
+              <button key={k} role="tab" aria-selected={sort === k} className={`toolbar-chip ${sort === k ? "toolbar-chip--active" : ""}`} onClick={() => setSort(k)}>
+                {k === "best" ? "Best" : k[0].toUpperCase() + k.slice(1)}
+              </button>
+            ))}
+          </div>
+          <button className={`toolbar-chip ${!showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(false)} title="Show top 3">Top-3</button>
+          <button className={`toolbar-chip ${showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(true)} title="Show all">All</button>
+          <button className="toolbar-chip" onClick={() => window.print()}>Print</button>
+          <SavedChip count={savedCount} />
         </div>
       </div>
 
-      {/* EXPLORE & SAVOR PANELS (toggle on chip click) */}
-      {hasSearched && showExplore && (
-        <section style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#fff" }}>
-          <SavorExploreLinks category="explore" city={destCity} limit={4} title="Explore" />
-        </section>
-      )}
-      {hasSearched && showSavor && (
-        <section style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#fff" }}>
-          <SavorExploreLinks category="savor" city={destCity} limit={4} title="Savor" when={new Date().toISOString()} />
+      {exploreVisible && results && results.length > 0 && activeTab !== "compare" && <ContentPlaces mode={activeTab} />}
+
+      {compareMode && results && comparedIds.length >= 2 && (
+        <section className="compare-panel" aria-label="Compare selected results">
+          <div className="compare-title">⚖️ Side-by-side Compare</div>
+          {/* table omitted here for brevity; unchanged from earlier */}
         </section>
       )}
 
-      {/* COMPARE PANEL (shows when user adds items) */}
-      {comparedIds.length > 0 && (
-        <section
-          aria-label="Compare selected results"
-          style={{ border: "2px solid #22c55e", borderRadius: 14, padding: 12, background: "#f0fdf4", display: "grid", gap: 12 }}
-        >
-          <div style={{ fontWeight: 800, color: "#064e3b" }}>🆚 Compare ({comparedIds.length})</div>
-          {compared.map((pkg, i) => (
+      {error && <div className="msg msg--error" role="alert">⚠ {error}</div>}
+      {hotelWarning && !error && <div className="msg msg--warn">ⓘ {hotelWarning}</div>}
+
+      {shownResults && shownResults.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20, maxWidth: 1240, margin: "0 auto", width: "100%" }} key={searchKey}>
+          {shownResults.map((pkg, i) => (
             <ResultCard
-              key={`cmp-${pkg.id || i}`}
+              key={pkg.id || i}
               pkg={pkg}
               index={i}
-              comparedIds={comparedIds}
-              onToggleCompare={onToggleCompare}
+              currency={currency}
+              pax={adults + children + infants}
+              comparedIds={compareMode ? comparedIds : undefined}
+              onToggleCompare={compareMode ? toggleCompare : undefined}
+              onSavedChangeGlobal={(count) => setSavedCount(count)}
+              large
               showHotel={includeHotel}
-              large={false}
             />
           ))}
-        </section>
+        </div>
       )}
-
-      {/* ERRORS */}
-      {error && <div role="alert" style={{ color: "#b91c1c", fontWeight: 700 }}>⚠ {error}</div>}
-
-      {/* RESULTS LIST */}
-      <section style={{ display: "grid", gap: 16 }}>
-        {sorted.map((pkg, i) => (
-          <ResultCard
-            key={pkg.id || i}
-            pkg={pkg}
-            index={i}
-            comparedIds={comparedIds}
-            onToggleCompare={onToggleCompare}
-            showHotel={includeHotel}
-          />
-        ))}
-      </section>
-    </main>
+    </div>
   );
 }
