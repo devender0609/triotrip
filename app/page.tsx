@@ -191,7 +191,7 @@ export default function Page() {
         <p style={{ margin: "6px 0 0", color: "#334155" }}>Top-3 results, Explore/Savor guides, and quick Compare 🆚</p>
       </section>
 
-      {/* Search form (minimal) */}
+      {/* Search form */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -211,6 +211,7 @@ export default function Page() {
             <label style={{ fontWeight: 600, color: "#0f172a" }}>Origin</label>
             <AirportField
               id="origin"
+              label=""                // <-- REQUIRED by AirportField Props
               code={originCode}
               initialDisplay={originDisplay}
               onTextChange={setOriginDisplay}
@@ -224,6 +225,7 @@ export default function Page() {
             <label style={{ fontWeight: 600, color: "#0f172a" }}>Destination</label>
             <AirportField
               id="destination"
+              label=""                // <-- REQUIRED by AirportField Props
               code={destCode}
               initialDisplay={destDisplay}
               onTextChange={setDestDisplay}
@@ -238,7 +240,7 @@ export default function Page() {
         <div style={{ display: "grid", gap: 10, gridTemplateColumns: "140px 1fr 1fr 120px 120px 120px" }}>
           <div>
             <label style={{ fontWeight: 600, color: "#0f172a" }}>Trip</label>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex, gap: 8" }}>
               <button
                 type="button"
                 onClick={() => setRoundTrip(false)}
