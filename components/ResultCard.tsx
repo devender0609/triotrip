@@ -29,10 +29,7 @@ function ensureHttps(u?: string | null) {
 }
 const hash = (s: string) => {
   let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = (h << 5) - h + s.charCodeAt(i);
-    h |= 0;
-  }
+  for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; }
   return Math.abs(h);
 };
 
@@ -92,7 +89,6 @@ export default function ResultCard({
   };
 
   /* =================== HOTEL HELPERS =================== */
-  // Build best available link: official site if present, else Booking scoped to hotel+city.
   function hotelPrimaryLink(h: any, cityFallback: string) {
     const official = ensureHttps(h?.website || h?.officialUrl || h?.url);
     if (official) return official;
@@ -133,7 +129,6 @@ export default function ResultCard({
     return { expedia: exp.toString(), hotels: hcx.toString(), maps: maps.toString() };
   }
 
-  // Unique, deterministic, city-based fallback image (no flicker)
   const hotelImg = (h: any, i?: number) => {
     const candidate =
       ensureHttps(h?.image) || ensureHttps(h?.photo) || ensureHttps(h?.photoUrl) ||
@@ -150,7 +145,6 @@ export default function ResultCard({
     const city =
       h?.city || h?.location?.city || h?.address?.city || h?.cityName || pkg?.destination || pkg?.to || pkg?.arrivalCity || "";
 
-    // Build a unique, stable seed per hotel (differs per hotel, but won't flicker)
     const seedParts = [
       h?.id || "",
       h?.name || "",
@@ -160,13 +154,10 @@ export default function ResultCard({
       typeof i === "number" ? `idx:${i}` : "",
     ];
     const lock = hash(seedParts.filter(Boolean).join("|")) % 1000000;
-
-    // loremflickr serves city/topic-relevant images; lock makes it deterministic + unique per hotel
     const topic = city ? `hotel,${city}` : "hotel,travel";
     return `https://loremflickr.com/400/250/${encodeURIComponent(topic)}?lock=${lock}`;
   };
 
-  /* =================== RENDER =================== */
   function formatTime(t?: string) { if (!t) return ""; return new Date(t).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}); }
   function formatDur(min?: number) { if (!min && min !== 0) return ""; const h = Math.floor(min/60); const m = min%60; return h?`${h}h ${m}m`:`${m}m`; }
 
@@ -183,15 +174,36 @@ export default function ResultCard({
         <div style={{ fontWeight: 700, color: "#0f172a" }}>
           Option {index + 1} • {route} {dateOut ? `• ${dateOut}` : ""} {pkg.roundTrip && dateRet ? `↩ ${dateRet}` : ""}
         </div>
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems: "center" }}>
           <a className="book-link" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
           <a className="book-link" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="book-link" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
           {airline && <a className="book-link" href={airlineSite} target="_blank" rel="noreferrer">{airline}</a>}
+
+          {/* NEW: explicit compare button (still clickable anywhere) */}
+          {onToggleCompare && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggleCompare(id); }}
+              aria-pressed={compared}
+              title={compared ? "Remove from Compare" : "Add to Compare"}
+              style={{
+                border: compared ? "2px solid #0ea5e9" : "1px solid #94a3b8",
+                background: compared ? "#e0f2fe" : "#fff",
+                color: "#0f172a",
+                padding: "6px 10px",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              {compared ? "🆚 In Compare" : "➕ Compare"}
+            </button>
+          )}
         </div>
       </header>
 
-      {/* FLIGHT OUTBOUND */}
+      {/* OUTBOUND */}
       {outSegs.length > 0 && (
         <div style={{ border:"1px solid #cfe3ff", borderRadius:12, padding:10, display:"grid", gap:8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
           <div style={{ fontWeight: 600, color: "#0b3b52" }}>Outbound</div>
@@ -214,7 +226,7 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* FLIGHT RETURN */}
+      {/* RETURN */}
       {inSegs.length > 0 && (
         <div style={{ border:"1px solid #cfe3ff", borderRadius:12, padding:10, display:"grid", gap:8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
           <div style={{ fontWeight: 600, color: "#0b3b52" }}>Return</div>
@@ -260,7 +272,6 @@ export default function ResultCard({
                       onError={(e) => {
                         const t = e.currentTarget as HTMLImageElement;
                         t.onerror = null;
-                        // final fallback ensures something shows even if loremflickr fails
                         const seed = hash(`${h?.name || ""}|${city}|${i}`) % 1000000;
                         t.src = `https://picsum.photos/seed/${seed}/400/250`;
                       }}
@@ -269,7 +280,6 @@ export default function ResultCard({
                   </a>
                   <div style={{ display:"grid", gap:6 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"center", flexWrap:"wrap" }}>
-                      {/* Hotel name links to the same primary URL */}
                       <a href={primary} target="_blank" rel="noreferrer" style={{ fontWeight:700, color:"#0f172a", textDecoration:"none" }}>
                         {h?.name || "Hotel"}
                       </a>
