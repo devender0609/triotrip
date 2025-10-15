@@ -13,6 +13,7 @@ const AIRLINE_SITE: Record<string, string> = {
   "British Airways":"https://www.britishairways.com",
 };
 
+// Always usable default so TrioTrip opens even without a local /book route
 const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.ai";
 
 type Props = {
@@ -113,8 +114,23 @@ export default function ResultCard({
     return { booking: b.toString(), expedia: e.toString(), hotels: hcx.toString(), maps, primary, official };
   }
 
-  // 🔑 Deterministic, no-flicker hotel image resolver
-  const hotelImg = (h: any) => {
+  const formatDur = (min?: number) => { const m = Number(min) || 0; const h = Math.floor(m/60); const mm = m%60; return `${h}h ${mm}m`; };
+  const formatTime = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); if (Number.isNaN(d.getTime())) return ""; return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
+
+  function LayoverRow({ arrive_time, next_depart_time, at }: any) {
+    const a = new Date(arrive_time); const b = new Date(next_depart_time);
+    the: {
+    }
+    const mins = Math.max(0, Math.round((+b - +a) / 60000));
+    return (
+      <div style={{ padding: 6, color: "#0f172a", fontSize: 16, display: "flex", justifyContent: "center" }}>
+        ⏳ Layover at <strong style={{ margin: "0 6px", fontWeight: 600 }}>{at}</strong> — {formatDur(mins)}
+      </div>
+    );
+  }
+
+  // Robust hotel image getter + HTTPS normalization + city fallback
+  const hotelImg = (h: any, i?: number) => {
     const candidate =
       ensureHttps(h?.image) || ensureHttps(h?.photo) || ensureHttps(h?.photoUrl) ||
       ensureHttps(h?.image_url) || ensureHttps(h?.imageUrl) || ensureHttps(h?.thumbnail) ||
@@ -127,14 +143,74 @@ export default function ResultCard({
       "";
     if (candidate) return candidate;
 
-    const seedBase = (h?.id || h?.name || h?.city || h?.address?.city || pkg?.destination || "hotel-placeholder") + "";
+    // Build a deterministic seed from known fields so the URL remains stable across re-renders
+    const seedParts = [
+      (h?.id || ""),
+      (h?.name || ""),
+      (h?.address?.line1 || h?.address || ""),
+      (typeof h?.lat === "number" && typeof h?.lng === "number") ? `${h.lat},${h.lng}` : "",
+      (pkg?.destination || ""),
+      (typeof i === "number" ? `idx:${i}` : "")
+    ];
+    const seedBase = seedParts.filter(Boolean).join("|");
     const seed = encodeURIComponent(seedBase.toLowerCase().replace(/\s+/g, "-"));
+    // Deterministic, cacheable placeholder (no random redirects like Unsplash "featured")
     return `https://picsum.photos/seed/${seed}/400/250`;
   };
 
   return (
     <section className={`result-card ${compared ? "result-card--compared" : ""}`} style={wrapStyle} onClick={() => onToggleCompare?.(id)}>
-      {/* ... flight UI omitted for brevity ... */}
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ fontWeight: 600, fontSize: 18, color: "#0f172a" }}>
+          {airline}
+          <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 8 }}>{route} {dateOut ? `· ${dateOut}` : ""}</span>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <a className="book-link book-link--primary" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
+          <a className="book-link book-link--gflights" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
+          <a className="book-link book-link--skyscanner" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
+          <a className="book-link book-link--airline" href={airlineSite} target="_blank" rel="noreferrer">Airline</a>
+          <div style={{ fontWeight: 600, marginLeft: 6 }}>{Math.round(Number(price || 0)).toLocaleString()} {currency || pkg.currency || "USD"}</div>
+        </div>
+      </header>
+
+      <div style={{ display: "grid", gap: 8 }}>
+        {outSegs.length > 0 && (
+          <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 8, display: "grid", gap: 8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
+            <div style={{ fontWeight: 600, color: "#0b3b52" }}>Outbound</div>
+            {outSegs.map((s: any, i: number) => (
+              <React.Fragment key={`o${i}`}>
+                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background:"#fff" }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
+                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} – {formatTime(s.arrive_time)}</div>
+                  </div>
+                  <div style={{ fontWeight: 600 }}>{formatDur(s.duration_minutes)}</div>
+                </div>
+                {i < outSegs.length - 1 && (<LayoverRow arrive_time={s.arrive_time} next_depart_time={outSegs[i + 1].depart_time} at={s.to} />)}
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+
+        {inSegs.length > 0 && (
+          <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 8, display: "grid", gap: 8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
+            <div style={{ fontWeight: 600, color: "#0b3b52" }}>Return</div>
+            {inSegs.map((s: any, i: number) => (
+              <React.Fragment key={`i${i}`}>
+                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background:"#fff" }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
+                    <div style={{ fontSize: 12, color: "#475569" }}>{formatTime(s.depart_time)} – {formatTime(s.arrive_time)}</div>
+                  </div>
+                  <div style={{ fontWeight: 600 }}>{formatDur(s.duration_minutes)}</div>
+                </div>
+                {i < inSegs.length - 1 && (<LayoverRow arrive_time={s.arrive_time} next_depart_time={inSegs[i + 1].depart_time} at={s.to} />)}
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+      </div>
 
       {showHotel && (
         <div className="hotel-card" style={{ border: "1px solid #cfeadf", borderRadius: 14, padding: 14, display: "grid", gap: 12, background: "linear-gradient(180deg,#ffffff,#effef8)" }}>
@@ -144,23 +220,13 @@ export default function ResultCard({
             .map((h: any, i: number) => {
               const city = h.city || pkg.destination || "";
               const links = hotelLinks(h, city);
-              const img = hotelImg(h);
+              const img = hotelImg(h, i);
 
               return (
                 <div key={`h${i}`} style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 12, alignItems: "center", border: "1px solid #e2e8f0", borderRadius: 12, padding: 10, background: "#fff" }}>
                   <a href={links.primary} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 10, overflow: "hidden", background: "#f1f5f9" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={img}
-                      alt={h.name || "Hotel"}
-                      loading="lazy"
-                      onError={(e) => {
-                        const t = e.currentTarget as HTMLImageElement;
-                        t.onerror = null;
-                        t.src = "https://picsum.photos/seed/hotel-fallback/400/250";
-                      }}
-                      style={{ width: 160, height: 100, objectFit: "cover", display: "block" }}
-                    />
+                    <img src={img} alt={h.name || "Hotel"} loading="lazy" onError={(e) => { const t = e.currentTarget as HTMLImageElement; t.onerror = null; t.src = "https://picsum.photos/seed/hotel-fallback/400/250"; }} style={{ width: 160, height: 100, objectFit: "cover", display: "block" }} />
                   </a>
                   <div style={{ display: "grid", gap: 6 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
