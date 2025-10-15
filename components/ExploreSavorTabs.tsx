@@ -19,7 +19,7 @@ export default function ExploreSavorTabs({
   const [showExplore, setShowExplore] = React.useState<boolean>(!!defaultOpen.explore);
   const [showSavor, setShowSavor] = React.useState<boolean>(!!defaultOpen.savor);
 
-  if (!hasSearched) return null; // tabs appear only after search
+  if (!hasSearched) return null; // tabs appear only after a successful search
 
   return (
     <section aria-label="Explore and Savor" style={{ display: "grid", gap: 10, marginTop: 8 }}>
@@ -36,14 +36,9 @@ export default function ExploreSavorTabs({
             borderRadius: 10,
             cursor: "pointer",
             fontWeight: 700,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
           }}
-          title={showExplore ? "Hide Explore" : "Show Explore"}
         >
-          <span role="img" aria-label="compass">🧭</span>
-          Explore {showExplore ? "▾" : "▸"}
+          🧭 Explore {showExplore ? "▾" : "▸"}
         </button>
 
         <button
@@ -58,14 +53,9 @@ export default function ExploreSavorTabs({
             borderRadius: 10,
             cursor: "pointer",
             fontWeight: 700,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
           }}
-          title={showSavor ? "Hide Savor" : "Show Savor"}
         >
-          <span role="img" aria-label="fork and knife">🍽️</span>
-          Savor {showSavor ? "▾" : "▸"}
+          🍽️ Savor {showSavor ? "▾" : "▸"}
         </button>
       </div>
 

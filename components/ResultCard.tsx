@@ -79,7 +79,6 @@ export default function ResultCard({
 
   const adults = Number(pkg.passengersAdults ?? pkg.adults ?? 1) || 1;
   const children = Number(pkg.passengersChildren ?? pkg.children ?? 0) || 0;
-  const infants = Number(pkg.passengersInfants ?? pkg.infants ?? 0) || 0;
 
   const wrap: React.CSSProperties = {
     display: "grid",
@@ -283,7 +282,7 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* HOTELS (kept brief; uses city-unique placeholders + official/booking links) */}
+      {/* HOTELS */}
       {showHotel && (
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ fontWeight: 700, color: "#0f172a" }}>🏨 Hotels</div>
