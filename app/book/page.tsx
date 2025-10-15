@@ -1,437 +1,215 @@
-﻿"use client";
-export const dynamic = "force-dynamic";
-export const revalidate = 0; // IMPORTANT: use 0 (dynamic), NOT false
+﻿// app/book/page.tsx
+"use client";
 
-import { Suspense, useMemo, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import * as React from "react";
 
-/**
- * Prefer Vercel/App Routes under /api.
- * If you also run an external server, expose its base as NEXT_PUBLIC_WEB_SERVER_BASE.
- * Both forms work:
- *  - "" (empty)  -> /api/duffel/order
- *  - "https://your-domain/api" -> https://your-domain/api/duffel/order
- */
-const WEB_SERVER_BASE =
-  (process.env.NEXT_PUBLIC_WEB_SERVER_BASE || "").replace(/\/$/, "");
-const api = (path: string) =>
-  `${WEB_SERVER_BASE}${path.startsWith("/") ? path : `/${path}`}`;
-
-type Pax = {
-  title: "mr" | "mrs" | "ms" | "";
-  given_name: string;
-  family_name: string;
-  gender: "m" | "f" | "x" | "";
-  born_on: string; // YYYY-MM-DD
+type SearchParams = {
+  from?: string;
+  to?: string;
+  depart?: string;
+  return?: string;
+  adults?: string;
+  children?: string;
+  infants?: string;
+  // optional hotel fields if you pass them
+  checkin?: string;
+  checkout?: string;
+  currency?: string;
 };
 
-export default function BookPage() {
-  return (
-    <Suspense fallback={null}>
-      <Inner />
-    </Suspense>
-  );
+function iata(s?: string) {
+  return (s || "").toUpperCase().slice(0, 3);
 }
 
-function Inner() {
-  const params = useSearchParams();
-  const router = useRouter();
+function safeInt(v: string | undefined, def = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : def;
+}
 
-  const flightId = params.get("flightId") || "";
-  const carrier = params.get("carrier") || "";
-  const origin = params.get("origin") || "";
-  const destination = params.get("destination") || "";
-  const depart = params.get("depart") || "";
-  const ret = params.get("return") || "";
-  const hotel = params.get("hotel") || "";
-  const currency = (params.get("currency") || "USD").toUpperCase();
-  const totalRaw = params.get("total");
-  const cabin = (params.get("cabin") || "").toUpperCase();
-  const paxRaw = params.get("pax");
+function ymd(s?: string) {
+  if (!s) return "";
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? s : d.toISOString().slice(0, 10);
+}
 
-  const paxCount = useMemo(() => {
-    const n = Number(paxRaw);
-    return Number.isFinite(n) && n > 0 ? Math.min(Math.max(1, n), 9) : 1;
-  }, [paxRaw]);
+export default function BookPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const from = iata(searchParams.from);
+  const to = iata(searchParams.to);
+  const depart = ymd(searchParams.depart);
+  const ret = ymd(searchParams.return);
+  const adults = Math.max(1, safeInt(searchParams.adults, 1));
+  const children = safeInt(searchParams.children);
+  const infants = safeInt(searchParams.infants);
 
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const checkin = ymd(searchParams.checkin);
+  const checkout = ymd(searchParams.checkout);
+  const currency = (searchParams.currency || "USD").toUpperCase();
 
-  const [passengers, setPassengers] = useState<Pax[]>(
-    Array.from({ length: paxCount }).map(() => ({
-      title: "",
-      given_name: "",
-      family_name: "",
-      gender: "",
-      born_on: "",
-    }))
-  );
+  const paxTotal = adults + children + infants;
 
-  const fmt = useMemo(() => {
-    try {
-      return new Intl.NumberFormat(undefined, { style: "currency", currency });
-    } catch {
-      return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
-    }
-  }, [currency]);
+  const missing =
+    !from || !to || !depart || (ret === "" && searchParams.return !== undefined);
 
-  const total = useMemo(() => {
-    const n = Number(totalRaw);
-    return Number.isFinite(n) ? n : undefined;
-  }, [totalRaw]);
+  // External deep links
+  const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(
+    `${from} to ${to} on ${depart}${
+      ret ? ` return ${ret}` : ""
+    } for ${paxTotal} travelers`
+  )}`;
+  const ssOut = depart?.replace(/-/g, "");
+  const ssRet = ret?.replace(/-/g, "");
+  const skyscanner =
+    from && to && ssOut
+      ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${
+          ret ? `${ssRet}/` : ""
+        }?adults=${adults}${children ? `&children=${children}` : ""}${
+          infants ? `&infants=${infants}` : ""
+        }`
+      : "https://www.skyscanner.com/";
 
-  function updatePax(i: number, patch: Partial<Pax>) {
-    setPassengers((prev) => {
-      const next = prev.slice();
-      next[i] = { ...next[i], ...patch };
-      return next;
-    });
-  }
+  // Hotel metasearch (optional)
+  const booking = new URL("https://www.booking.com/searchresults.html");
+  booking.searchParams.set("ss", to || "");
+  if (checkin) booking.searchParams.set("checkin", checkin);
+  if (checkout) booking.searchParams.set("checkout", checkout);
+  booking.searchParams.set("group_adults", String(adults || 1));
+  if (children > 0) booking.searchParams.set("group_children", String(children));
+  booking.searchParams.set("no_rooms", "1");
+  booking.searchParams.set("selected_currency", currency);
 
-  function validISODate(s: string) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-    const d = new Date(s);
-    return Number.isFinite(+d) && d.toISOString().slice(0, 10) === s;
-  }
+  const expedia = new URL("https://www.expedia.com/Hotel-Search");
+  expedia.searchParams.set("destination", to || "");
+  if (checkin) expedia.searchParams.set("startDate", checkin);
+  if (checkout) expedia.searchParams.set("endDate", checkout);
+  expedia.searchParams.set("adults", String(adults || 1));
+  if (children > 0) expedia.searchParams.set("children", String(children));
 
-  function validate(): string | null {
-    if (!flightId) return "Missing flight ID.";
-    if (!contactEmail || !/.+@.+\..+/.test(contactEmail)) return "Enter a valid contact email.";
-    if (!contactPhone) return "Enter a contact phone number.";
-    for (let i = 0; i < passengers.length; i++) {
-      const p = passengers[i];
-      if (!p.given_name.trim()) return `Passenger ${i + 1}: first name is required.`;
-      if (!p.family_name.trim()) return `Passenger ${i + 1}: last name is required.`;
-      if (!p.title) return `Passenger ${i + 1}: title is required.`;
-      if (!p.gender) return `Passenger ${i + 1}: gender is required.`;
-      if (!p.born_on) return `Passenger ${i + 1}: Date of birth is required.`;
-      if (!validISODate(p.born_on)) return `Passenger ${i + 1}: Date of birth must be YYYY-MM-DD.`;
-    }
-    return null;
-  }
-
-  async function payAndBook() {
-    if (submitting) return;
-    setError(null);
-    setOrderId(null);
-
-    const v = validate();
-    if (v) {
-      setError(v);
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      const r = await fetch(api("/duffel/order"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          offer_id: flightId,
-          contact: { email: contactEmail.trim(), phone_number: contactPhone.trim() },
-          passengers: passengers.map((p) => ({
-            title: p.title,
-            given_name: p.given_name.trim(),
-            family_name: p.family_name.trim(),
-            born_on: p.born_on,
-            gender: p.gender,
-          })),
-        }),
-      });
-
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j?.error || j?.message || "Checkout failed.");
-
-      const id = j?.data?.id || j?.id || null;
-      setOrderId(id);
-      if (!id) setError("Order created, but no order ID was returned.");
-    } catch (e: any) {
-      setError(e?.message || "Could not create order.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const hotels = new URL("https://www.hotels.com/Hotel-Search");
+  hotels.searchParams.set("destination", to || "");
+  if (checkin) hotels.searchParams.set("checkIn", checkin);
+  if (checkout) hotels.searchParams.set("checkOut", checkout);
+  hotels.searchParams.set("adults", String(adults || 1));
+  if (children > 0) hotels.searchParams.set("children", String(children));
 
   return (
-    <main style={{ maxWidth: 980, margin: "20px auto", padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <button onClick={() => router.back()} className="btn" style={{ height: 36 }}>
-          ← Back
-        </button>
-        <Link href="/" className="btn ghost" style={{ marginLeft: "auto", height: 36 }}>
-          TripTrio Home
-        </Link>
-      </div>
+    <main style={{ maxWidth: 880, margin: "0 auto", padding: 16 }}>
+      <h1 style={{ marginTop: 0 }}>Your booking</h1>
 
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
-        <h1 style={{ marginTop: 0, marginBottom: 6, fontWeight: 900 }}>Book via TripTrio</h1>
-        <p style={{ color: "#475569", marginTop: 0 }}>
-          Enter passenger details and confirm to create a Duffel sandbox order.
-        </p>
-
-        {/* Summary */}
-        <section
+      {/* Validation */}
+      {missing ? (
+        <div
+          role="alert"
           style={{
-            marginTop: 12,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-            alignItems: "start",
+            border: "1px solid #fecaca",
+            background: "#fff1f2",
+            color: "#991b1b",
+            padding: 12,
+            borderRadius: 10,
+            marginBottom: 16,
           }}
         >
-          <div style={{ display: "grid", gap: 6 }}>
-            <div><b>Flight ID:</b> {flightId || "—"}</div>
-            <div><b>Carrier:</b> {carrier || "—"}</div>
-            <div><b>Route:</b> {origin || "—"} → {destination || "—"}</div>
-            <div><b>Depart:</b> {depart || "—"}</div>
-            {ret ? <div><b>Return:</b> {ret}</div> : null}
-            {hotel ? <div><b>Hotel:</b> {hotel}</div> : null}
-          </div>
+          We’re missing some info. Please make sure the URL has{" "}
+          <code>from</code>, <code>to</code>, and <code>depart</code>{" "}
+          (and <code>return</code> if round-trip).
+        </div>
+      ) : null}
 
-          <div
-            style={{
-              border: "1px dashed #e2e8f0",
-              borderRadius: 12,
-              padding: 12,
-              background: "#f8fafc",
-              display: "grid",
-              gap: 6,
-              justifyItems: "end",
-            }}
-          >
-            <div style={{ color: "#64748b", fontWeight: 700 }}>
-              {cabin ? `Cabin: ${cabin} • ` : ""}Pax: {paxCount}
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 900 }}>
-              {total !== undefined ? fmt.format(Math.round(total)) : "—"}
-            </div>
-            <div style={{ color: "#64748b", fontWeight: 700 }}>Total ({currency})</div>
-          </div>
-        </section>
+      {/* Summary */}
+      <section
+        style={{
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 16,
+          background: "#fff",
+        }}
+      >
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+          ✈️ {from} → {to} {ret ? `• return ${ret}` : ""} • depart {depart}
+        </div>
+        <div style={{ color: "#334155" }}>
+          Travelers: {adults} adult{adults !== 1 ? "s" : ""}
+          {children ? `, ${children} child${children !== 1 ? "ren" : ""}` : ""}
+          {infants ? `, ${infants} infant${infants !== 1 ? "s" : ""}` : ""}
+        </div>
+      </section>
 
-        {/* Contact */}
-        <section style={{ marginTop: 16, display: "grid", gap: 8 }}>
-          <h3 style={{ margin: 0, fontWeight: 900 }}>Contact</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <label style={{ display: "grid", gap: 6 }}>
-              <span style={{ fontWeight: 800, color: "#334155" }}>Email</span>
-              <input
-                type="email"
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="name@example.com"
-                style={inputStyle}
-              />
-            </label>
-            <label style={{ display: "grid", gap: 6 }}>
-              <span style={{ fontWeight: 800, color: "#334155" }}>Phone</span>
-              <input
-                type="tel"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                placeholder="+1 415 555 1234"
-                style={inputStyle}
-              />
-            </label>
-          </div>
-        </section>
-
-        {/* Passengers */}
-        <section style={{ marginTop: 18, display: "grid", gap: 14 }}>
-          <h3 style={{ margin: 0, fontWeight: 900 }}>Passenger details</h3>
-
-          {passengers.map((p, i) => (
-            <div
-              key={i}
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 12,
-                background: "#ffffff",
-                display: "grid",
-                gap: 10,
-              }}
-            >
-              <div style={{ fontWeight: 900, color: "#0f172a" }}>Passenger {i + 1}</div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr", gap: 10 }}>
-                <label style={labelStyle}>
-                  <span>Title</span>
-                  <select
-                    value={p.title}
-                    onChange={(e) => updatePax(i, { title: e.target.value as Pax["title"] })}
-                    style={inputStyle}
-                  >
-                    <option value="">Select</option>
-                    <option value="mr">Mr</option>
-                    <option value="ms">Ms</option>
-                    <option value="mrs">Mrs</option>
-                  </select>
-                </label>
-
-                <label style={labelStyle}>
-                  <span>First name (as on passport)</span>
-                  <input
-                    value={p.given_name}
-                    onChange={(e) => updatePax(i, { given_name: e.target.value })}
-                    style={inputStyle}
-                    placeholder="Given name"
-                  />
-                </label>
-
-                <label style={labelStyle}>
-                  <span>Last name (as on passport)</span>
-                  <input
-                    value={p.family_name}
-                    onChange={(e) => updatePax(i, { family_name: e.target.value })}
-                    style={inputStyle}
-                    placeholder="Family name"
-                  />
-                </label>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <label style={labelStyle}>
-                  <span>Gender</span>
-                  <select
-                    value={p.gender}
-                    onChange={(e) => updatePax(i, { gender: e.target.value as Pax["gender"] })}
-                    style={inputStyle}
-                  >
-                    <option value="">Select</option>
-                    <option value="m">Male</option>
-                    <option value="f">Female</option>
-                    <option value="x">Unspecified / X</option>
-                  </select>
-                </label>
-
-                <label style={labelStyle}>
-                  <span>Date of birth</span>
-                  <input
-                    type="date"
-                    value={p.born_on}
-                    onChange={(e) => updatePax(i, { born_on: e.target.value })}
-                    style={inputStyle}
-                    placeholder="YYYY-MM-DD"
-                    max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-                      .toISOString()
-                      .slice(0, 10)}
-                  />
-                </label>
-              </div>
-            </div>
-          ))}
-        </section>
-
-        {/* Errors / Success */}
-        {error && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: 10,
-              border: "1px solid #fecaca",
-              background: "#fef2f2",
-              color: "#991b1b",
-              borderRadius: 10,
-              fontWeight: 800,
-            }}
-          >
-            {error}
-          </div>
-        )}
-        {orderId && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: 10,
-              border: "1px solid #bbf7d0",
-              background: "#ecfdf5",
-              color: "#065f46",
-              borderRadius: 10,
-              fontWeight: 800,
-            }}
-          >
-            ✅ Order created (sandbox). Duffel Order ID: <code>{orderId}</code>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button
-            onClick={payAndBook}
-            disabled={submitting}
-            style={{
-              height: 42,
-              padding: "0 16px",
-              border: "none",
-              borderRadius: 10,
-              fontWeight: 900,
-              color: "#fff",
-              background: "linear-gradient(90deg,#06b6d4,#0ea5e9)",
-            }}
-          >
-            {submitting ? "Processing…" : "Pay (sandbox) & Book"}
-          </button>
-
+      {/* Flight booking options */}
+      <section
+        style={{
+          border: "1px solid #dbeafe",
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 16,
+          background: "#f8fbff",
+        }}
+      >
+        <div style={{ fontWeight: 800, color: "#0b3b52", marginBottom: 8 }}>
+          Book your flight
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <a className="book-link" href={gf} target="_blank" rel="noreferrer">
+            Google Flights
+          </a>
           <a
-            href="/"
-            style={{
-              height: 42,
-              lineHeight: "42px",
-              padding: "0 16px",
-              border: "1px solid #e2e8f0",
-              borderRadius: 10,
-              fontWeight: 800,
-              textDecoration: "none",
-              color: "#0f172a",
-              background: "#fff",
-            }}
+            className="book-link"
+            href={skyscanner}
+            target="_blank"
+            rel="noreferrer"
           >
-            Start a new search
+            Skyscanner
           </a>
         </div>
-      </div>
+      </section>
 
-      <style jsx>{`
-        .btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          border: 1px solid #e2e8f0;
-          background: #fff;
-          color: #0f172a;
-          padding: 0 10px;
-          border-radius: 8px;
-          font-weight: 800;
-          text-decoration: none;
-        }
-        .btn.ghost {
-          color: #0ea5e9;
-          border-color: #bae6fd;
-        }
-        input,
-        select {
-          height: 40px;
-        }
-      `}</style>
+      {/* Hotel booking (optional, only if hotel dates are present or you just want it always visible) */}
+      <section
+        style={{
+          border: "1px solid #e2e8f0",
+          borderRadius: 12,
+          padding: 16,
+          background: "#fff",
+        }}
+      >
+        <div style={{ fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
+          {to ? `Stay in ${to}` : "Hotels"}
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <a
+            className="book-link book-link--booking"
+            href={booking.toString()}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Booking.com
+          </a>
+          <a
+            className="book-link book-link--expedia"
+            href={expedia.toString()}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Expedia
+          </a>
+          <a
+            className="book-link book-link--hotels"
+            href={hotels.toString()}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Hotels.com
+          </a>
+        </div>
+        {(checkin || checkout) && (
+          <div style={{ marginTop: 10, color: "#334155" }}>
+            Dates: {checkin || "?"} → {checkout || "?"} ({currency})
+          </div>
+        )}
+      </section>
     </main>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "0 10px",
-  height: 40,
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "grid",
-  gap: 6,
-  fontWeight: 800,
-  color: "#334155",
-};
