@@ -14,9 +14,12 @@ const AIRLINE_SITE: Record<string, string> = {
   "British Airways": "https://www.britishairways.com",
 };
 
-// Use env first; fall back to Vercel host (change to your prod if you want)
+// Base + path used by the TrioTrip button.
+// Configure in Vercel or .env.local if needed.
 const TRIOTRIP_BASE =
   process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.vercel.app";
+const TRIOTRIP_BOOK_PATH =
+  process.env.NEXT_PUBLIC_TRIOTRIP_BOOK_PATH || "/checkout";
 
 /* ----------------- helpers ----------------- */
 function ensureHttps(u?: string | null) {
@@ -80,9 +83,25 @@ export default function ResultCard({
   const airline =
     pkg.flight?.carrier_name || pkg.flight?.carrier || pkg.airline || "";
 
-  // booking links
-  const trioTrip = `${TRIOTRIP_BASE}/book?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&depart=${encodeURIComponent(dateOut)}${dateRet ? `&return=${encodeURIComponent(dateRet)}` : ""}&adults=${adults}&children=${children}&infants=${infants}`;
+  // Try common shapes where the Duffel offer id might live
+  const offerId =
+    pkg?.flight?.offer_id ||
+    pkg?.flight?.offerId ||
+    pkg?.offer_id ||
+    pkg?.offerId ||
+    pkg?.id; // last-resort
 
+  // TrioTrip: go to your internal checkout (configurable path) and include flightId when available
+  const trioTrip =
+    `${TRIOTRIP_BASE}${TRIOTRIP_BOOK_PATH}` +
+    `?from=${encodeURIComponent(from)}` +
+    `&to=${encodeURIComponent(to)}` +
+    `&depart=${encodeURIComponent(dateOut)}` +
+    (dateRet ? `&return=${encodeURIComponent(dateRet)}` : "") +
+    `&adults=${adults}&children=${children}&infants=${infants}` +
+    (offerId ? `&flightId=${encodeURIComponent(String(offerId))}` : "");
+
+  // External flight helpers (keep as alternates if you show them)
   const airlineSite =
     AIRLINE_SITE[airline] ||
     (airline ? `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}` : "");
@@ -152,7 +171,7 @@ export default function ResultCard({
     return { expedia: exp.toString(), hotels: hcx.toString(), maps: maps.toString() };
   }
 
-  // unique, deterministic image (no flicker). If hotel has an image, use it; else city-seeded placeholder.
+  // deterministic unique hotel image (fallback to city if missing)
   const hotelImg = (h: any, i?: number) => {
     const candidate =
       ensureHttps(h?.image) || ensureHttps(h?.photo) || ensureHttps(h?.photoUrl) ||
