@@ -1,7 +1,7 @@
-// components/ResultCard.tsx
 "use client";
 import React from "react";
 
+/* Airline sites for the alternate buttons */
 const AIRLINE_SITE: Record<string, string> = {
   American: "https://www.aa.com", "American Airlines": "https://www.aa.com",
   Delta: "https://www.delta.com", "Delta Air Lines": "https://www.delta.com",
@@ -11,15 +11,12 @@ const AIRLINE_SITE: Record<string, string> = {
   Lufthansa: "https://www.lufthansa.com", Qatar: "https://www.qatarairways.com",
   Emirates: "https://www.emirates.com", "Air France": "https://wwws.airfrance.us",
   KLM: "https://www.klm.com", ANA: "https://www.ana.co.jp", JAL: "https://www.jal.co.jp",
-  "British Airways": "https://www.britishairways.com",
+  "British Airways":"https://www.britishairways.com",
 };
 
-// Base + path used by the TrioTrip button.
-// Configure in Vercel or .env.local if needed.
-const TRIOTRIP_BASE =
-  process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.vercel.app";
-const TRIOTRIP_BOOK_PATH =
-  process.env.NEXT_PUBLIC_TRIOTRIP_BOOK_PATH || "/checkout";
+/* Base + path used by the TrioTrip button (same tab so Back works) */
+const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "";
+const TRIOTRIP_BOOK_PATH = process.env.NEXT_PUBLIC_TRIOTRIP_BOOK_PATH || "/checkout";
 
 /* ----------------- helpers ----------------- */
 function ensureHttps(u?: string | null) {
@@ -30,11 +27,7 @@ function ensureHttps(u?: string | null) {
   if (s.startsWith("http://")) s = s.replace(/^http:\/\//i, "https://");
   return s;
 }
-const hash = (s: string) => {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; }
-  return Math.abs(h);
-};
+const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; } return Math.abs(h); };
 function fmtTime(t?: string) {
   if (!t) return "";
   return new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -52,18 +45,19 @@ type Props = {
 };
 
 export default function ResultCard({
-  pkg, index = 0, currency, pax = 1,
+  pkg, index = 0, currency = "USD", pax = 1,
   comparedIds, onToggleCompare, onSavedChangeGlobal, large = true, showHotel,
 }: Props) {
   const id = pkg.id || `pkg-${index}`;
   const compared = !!comparedIds?.includes(id);
 
-  // passengers
+  /* passengers */
   const adults = Number(pkg.passengersAdults ?? pkg.adults ?? 1) || 1;
   const children = Number(pkg.passengersChildren ?? pkg.children ?? 0) || 0;
   const infants  = Number(pkg.passengersInfants  ?? pkg.infants  ?? 0) || 0;
+  const totalPax = Math.max(1, adults + children + infants);
 
-  // flights
+  /* flights */
   const outSegs: any[] = Array.isArray(pkg?.flight?.segments)
     ? pkg.flight.segments
     : (pkg.flight?.segments_out || []);
@@ -83,31 +77,37 @@ export default function ResultCard({
   const airline =
     pkg.flight?.carrier_name || pkg.flight?.carrier || pkg.airline || "";
 
-  // Try common shapes where the Duffel offer id might live
-  const offerId =
-    pkg?.flight?.offer_id ||
-    pkg?.flight?.offerId ||
-    pkg?.offer_id ||
-    pkg?.offerId ||
-    pkg?.id; // last-resort
+  const priceRaw =
+    (typeof pkg?.total_cost_converted === "number" && pkg.total_cost_converted) ||
+    (typeof pkg?.total_cost === "number" && pkg.total_cost) ||
+    (typeof pkg?.flight?.price_usd_converted === "number" && pkg.flight.price_usd_converted) ||
+    (typeof pkg?.flight?.price_usd === "number" && pkg.flight.price_usd) ||
+    (typeof pkg?.flight_total === "number" && pkg.flight_total) ||
+    0;
 
-  // TrioTrip: go to your internal checkout (configurable path) and include flightId when available
+  let priceFmt = "";
+  try {
+    priceFmt = new Intl.NumberFormat(undefined, { style: "currency", currency: (currency || "USD").toUpperCase() }).format(Math.round(Number(priceRaw) || 0));
+  } catch {
+    priceFmt = `$${Math.round(Number(priceRaw) || 0).toLocaleString()}`;
+  }
+
+  /* TrioTrip internal checkout (same tab) */
   const trioTrip =
     `${TRIOTRIP_BASE}${TRIOTRIP_BOOK_PATH}` +
     `?from=${encodeURIComponent(from)}` +
     `&to=${encodeURIComponent(to)}` +
-    `&depart=${encodeURIComponent(dateOut)}` +
+    (dateOut ? `&depart=${encodeURIComponent(dateOut)}` : "") +
     (dateRet ? `&return=${encodeURIComponent(dateRet)}` : "") +
-    `&adults=${adults}&children=${children}&infants=${infants}` +
-    (offerId ? `&flightId=${encodeURIComponent(String(offerId))}` : "");
+    `&adults=${adults}&children=${children}&infants=${infants}`;
 
-  // External flight helpers (keep as alternates if you show them)
+  /* Alternate flight helpers */
   const airlineSite =
     AIRLINE_SITE[airline] ||
     (airline ? `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}` : "");
 
   const googleFlights =
-    `https://www.google.com/travel/flights?q=${encodeURIComponent(`${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${Math.max(1, adults + children + infants)} travelers`)}`;
+    `https://www.google.com/travel/flights?q=${encodeURIComponent(`${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${totalPax} travelers`)}`;
 
   const ssOut = (dateOut || "").replace(/-/g, "");
   const ssRet = (dateRet || "").replace(/-/g, "");
@@ -115,7 +115,6 @@ export default function ResultCard({
     ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${dateRet ? `${ssRet}/` : ""}?adults=${adults}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
     : "https://www.skyscanner.com/";
 
-  // styles
   const wrapStyle: React.CSSProperties = {
     display: "grid",
     gap: 12,
@@ -142,7 +141,7 @@ export default function ResultCard({
     b.searchParams.set("group_adults", String(adults || 1));
     if (children > 0) b.searchParams.set("group_children", String(children));
     b.searchParams.set("no_rooms", "1");
-    b.searchParams.set("selected_currency", pkg.currency || "USD");
+    b.searchParams.set("selected_currency", pkg.currency || currency || "USD");
     return b.toString();
   }
 
@@ -212,8 +211,13 @@ export default function ResultCard({
         <div style={{ fontWeight: 700, color: "#0f172a" }}>
           Option {index + 1} • {route} {dateOut ? `• ${dateOut}` : ""} {pkg.roundTrip && dateRet ? `↩ ${dateRet}` : ""}
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <a className="book-link" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {/* Price */}
+          <div style={{ fontWeight: 900, color: "#0b3b52", background: "#e7f5ff", border: "1px solid #cfe3ff", borderRadius: 10, padding: "6px 10px" }}>
+            💵 {priceFmt}
+          </div>
+          {/* Booking actions — internal TrioTrip opens SAME TAB */}
+          <a className="book-link" href={trioTrip} rel="noreferrer">TrioTrip</a>
           <a className="book-link" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="book-link" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
           {airline && <a className="book-link" href={airlineSite} target="_blank" rel="noreferrer">{airline}</a>}
@@ -253,8 +257,16 @@ export default function ResultCard({
                 <div style={{ fontWeight: 600 }}>{fmtDur(s.duration_minutes)}</div>
               </div>
               {i < outSegs.length - 1 && (
-                <div style={{ fontSize: 12, color: "#334155" }}>
-                  Layover in {s.to} • {fmtTime(outSegs[i + 1].depart_time)}
+                <div style={{ display: "grid", placeItems: "center" }}>
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    padding: "6px 10px", border: "1px dashed #94a3b8",
+                    background: "#fff", color: "#334155", borderRadius: 999, fontSize: 12
+                  }}>
+                    ⏱️ Layover in <strong style={{ marginLeft: 4 }}>{s.to}</strong>
+                    <span style={{ opacity: .7 }}>•</span>
+                    Next departs at <strong>{fmtTime(outSegs[i + 1].depart_time)}</strong>
+                  </div>
                 </div>
               )}
             </React.Fragment>
@@ -276,8 +288,16 @@ export default function ResultCard({
                 <div style={{ fontWeight: 600 }}>{fmtDur(s.duration_minutes)}</div>
               </div>
               {i < inSegs.length - 1 && (
-                <div style={{ fontSize: 12, color: "#334155" }}>
-                  Layover in {s.to} • {fmtTime(inSegs[i + 1].depart_time)}
+                <div style={{ display: "grid", placeItems: "center" }}>
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    padding: "6px 10px", border: "1px dashed #94a3b8",
+                    background: "#fff", color: "#334155", borderRadius: 999, fontSize: 12
+                  }}>
+                    ⏱️ Layover in <strong style={{ marginLeft: 4 }}>{s.to}</strong>
+                    <span style={{ opacity: .7 }}>•</span>
+                    Next departs at <strong>{fmtTime(inSegs[i + 1].depart_time)}</strong>
+                  </div>
                 </div>
               )}
             </React.Fragment>

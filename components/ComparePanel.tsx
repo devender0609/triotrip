@@ -2,11 +2,12 @@
 
 import React, { useMemo } from "react";
 
-/* ----- tiny helpers (kept local to avoid imports) ----- */
+/* --------- helpers --------- */
 const clean = (v: any) => (v == null ? "" : String(v).trim());
 const display = (v: any) => (clean(v) ? String(v) : "—");
 const get = (obj: any, path: string) =>
-  path.split(".").reduce<any>((o, k) => (o == null ? o : o[k]), obj);
+  path.split(".").reduce<any>((o, k) => (o == null ? o : (o as any)[k]), obj);
+
 const firstArray = (obj: any, paths: string[]) => {
   for (const p of paths) {
     const v = get(obj, p);
@@ -81,9 +82,9 @@ function formatLeg(segs: any[]) {
   return parts.join("  •  ");
 }
 
-/* ----- component ----- */
+/* --------- component --------- */
 type ComparePanelProps = {
-  items: any[];                 // the packages you’re comparing (max 3)
+  items: any[];
   currency: string;
   onClose: () => void;
   onRemove?: (id: string) => void;
@@ -102,25 +103,24 @@ export default function ComparePanel({ items, currency, onClose, onRemove }: Com
     <div className="cmp-overlay" role="dialog" aria-modal="true" aria-label="Compare flights">
       <div className="cmp-card">
         <div className="cmp-head">
-          <div className="cmp-title">Compare</div>
+          <div className="cmp-title">🆚 Compare</div>
           <button className="cmp-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
-        {items.length === 0 ? (
-          <div className="cmp-empty">No items selected.</div>
+        {items.length < 2 ? (
+          <div className="cmp-empty">Pick at least two options to compare.</div>
         ) : (
           <div className="cmp-tablewrap">
             <table className="cmp-table">
               <thead>
                 <tr>
-                  <th style={{ minWidth: 180 }}>Airline</th>
-                  <th>Price</th>
-                  <th>Stops</th>
-                  <th>Duration</th>
-                  <th style={{ minWidth: 320 }}>Outbound</th>
-                  <th style={{ minWidth: 320 }}>Return</th>
-                  <th>Refundable</th>
-                  <th>Book</th>
+                  <th style={{ minWidth: 180 }}>✈️ Airline</th>
+                  <th>💵 Price</th>
+                  <th>🧳 Stops</th>
+                  <th>⏱️ Duration</th>
+                  <th style={{ minWidth: 320 }}>➡️ Outbound</th>
+                  <th style={{ minWidth: 320 }}>↩️ Return</th>
+                  <th>🧾 Book</th>
                 </tr>
               </thead>
               <tbody>
@@ -136,18 +136,18 @@ export default function ComparePanel({ items, currency, onClose, onRemove }: Com
                   ]);
                   const durationOut = sumMinutes(outbound) || f?.duration_minutes || undefined;
                   const durationRet = sumMinutes(inbound) || undefined;
-                  const totalDur =
-                    typeof f?.duration_minutes === "number"
-                      ? f.duration_minutes
-                      : (durationOut || 0) + (durationRet || 0) || undefined;
-                  const stops =
-                    typeof f?.stops === "number" ? f.stops : outbound.length ? outbound.length - 1 : undefined;
+                  const totalDur = typeof f?.duration_minutes === "number"
+                    ? f.duration_minutes
+                    : (durationOut || 0) + (durationRet || 0) || undefined;
+
+                  const stops = outbound.length ? outbound.length - 1 : undefined;
 
                   const price =
                     (typeof pkg?.total_cost_converted === "number" && pkg.total_cost_converted) ||
                     (typeof pkg?.total_cost === "number" && pkg.total_cost) ||
                     (typeof f?.price_usd_converted === "number" && f.price_usd_converted) ||
                     (typeof f?.price_usd === "number" && f.price_usd) ||
+                    (typeof pkg?.flight_total === "number" && pkg.flight_total) ||
                     0;
 
                   const airline =
@@ -168,14 +168,9 @@ export default function ComparePanel({ items, currency, onClose, onRemove }: Com
                       </td>
                       <td>{fmt.format(Math.round(Number(price) || 0))}</td>
                       <td>{stopsText(typeof stops === "number" ? stops : undefined)}</td>
-                      <td>
-                        {typeof totalDur === "number"
-                          ? `${Math.floor(totalDur / 60)}h ${totalDur % 60}m`
-                          : "—"}
-                      </td>
+                      <td>{typeof totalDur === "number" ? `${Math.floor(totalDur / 60)}h ${totalDur % 60}m` : "—"}</td>
                       <td className="mono">{formatLeg(outbound)}</td>
                       <td className="mono">{inbound?.length ? formatLeg(inbound) : "—"}</td>
-                      <td>{f?.refundable ? "Yes" : "No"}</td>
                       <td className="book">
                         {f?.bookingLinks?.airlineSite && (
                           <a href={f.bookingLinks.airlineSite} target="_blank" rel="noopener noreferrer">Airline</a>
@@ -187,7 +182,7 @@ export default function ComparePanel({ items, currency, onClose, onRemove }: Com
                           <a href={f.bookingLinks.skyscanner} target="_blank" rel="noopener noreferrer">Skyscanner</a>
                         )}
                         {f?.bookingLinks?.triptrio && (
-                          <a href={f.bookingLinks.triptrio} target="_blank" rel="noopener noreferrer">TripTrio</a>
+                          <a href={f.bookingLinks.triptrio} target="_blank" rel="noopener noreferrer">TrioTrip</a>
                         )}
                       </td>
                     </tr>
@@ -198,51 +193,6 @@ export default function ComparePanel({ items, currency, onClose, onRemove }: Com
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        .cmp-overlay {
-          position: fixed; inset: 0; background: rgba(15,23,42,.45);
-          display:flex; align-items:center; justify-content:center; padding: 16px;
-          z-index: 1000;
-        }
-        .cmp-card {
-          width: min(1100px, 100%);
-          background: #fff; border-radius: 14px; border: 1px solid #e5e7eb;
-          box-shadow: 0 20px 50px rgba(0,0,0,.25);
-          display: grid; grid-template-rows: auto 1fr; max-height: 90vh;
-        }
-        .cmp-head {
-          display:flex; align-items:center; justify-content:space-between;
-          padding: 12px 14px; border-bottom: 1px solid #e5e7eb;
-          background: linear-gradient(90deg,#f8fafc,#f1f5f9);
-        }
-        .cmp-title { font-weight: 900; font-size: 16px; }
-        .cmp-close {
-          border: 1px solid #e2e8f0; background: #fff; border-radius: 10px;
-          height: 32px; padding: 0 10px; font-weight: 900; cursor: pointer;
-        }
-        .cmp-empty { padding: 20px; }
-        .cmp-tablewrap { overflow: auto; }
-        .cmp-table {
-          width: 100%; border-collapse: separate; border-spacing: 0;
-        }
-        .cmp-table th, .cmp-table td {
-          text-align: left; padding: 10px 12px; vertical-align: top;
-          border-bottom: 1px solid #eef2f7;
-        }
-        .cmp-table thead th {
-          position: sticky; top: 0; background: #fff; z-index: 1; font-weight: 900; color: #0f172a;
-        }
-        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-        .book a {
-          display:inline-block; margin: 2px 6px 2px 0; padding: 6px 8px; border-radius: 8px;
-          border: 1px solid #e2e8f0; text-decoration: none; font-weight: 800; background: #fff;
-        }
-        .smalllink {
-          margin-top: 4px; border: none; background: none; padding: 0;
-          color: #0b6bb5; font-size: 12px; cursor: pointer; text-decoration: underline;
-        }
-      `}</style>
     </div>
   );
 }

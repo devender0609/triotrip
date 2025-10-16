@@ -1,91 +1,67 @@
-// components/ExploreSavorTabs.tsx
 "use client";
+
 import React from "react";
-import SavorExploreLinks from "@/components/SavorExploreLinks";
+import SavorExploreLinks from "./SavorExploreLinks";
+
+type Mode = "explore" | "savor" | "misc";
+
+type Props = {
+  destinationCity: string;
+  destinationCountry?: string;
+  showTabs: boolean;
+  /** which of the three to show (this component is rendered per tab) */
+  mode: Mode;
+};
 
 export default function ExploreSavorTabs({
-  hasSearched,
-  countryCode,
-  countryName,
-  city,
-  defaultOpen = { explore: false, savor: false },
-}: {
-  hasSearched: boolean;
-  countryCode?: string;
-  countryName?: string;
-  city?: string;
-  defaultOpen?: { explore?: boolean; savor?: boolean };
-}) {
-  const [showExplore, setShowExplore] = React.useState<boolean>(!!defaultOpen.explore);
-  const [showSavor, setShowSavor] = React.useState<boolean>(!!defaultOpen.savor);
-
-  if (!hasSearched) return null; // tabs appear only after a successful search
+  destinationCity,
+  destinationCountry = "",
+  showTabs,
+  mode,
+}: Props) {
+  if (!showTabs) return null;
+  const city = destinationCity || "Destination";
+  const country = destinationCountry || "";
 
   return (
-    <section aria-label="Explore and Savor" style={{ display: "grid", gap: 10, marginTop: 8 }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button
-          type="button"
-          onClick={() => setShowExplore((v) => !v)}
-          aria-pressed={showExplore}
-          aria-controls="explore-panel"
-          style={{
-            border: "1px solid #94a3b8",
-            background: showExplore ? "#e0f2fe" : "#fff",
-            padding: "8px 12px",
-            borderRadius: 10,
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
-        >
-          🧭 Explore {showExplore ? "▾" : "▸"}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowSavor((v) => !v)}
-          aria-pressed={showSavor}
-          aria-controls="savor-panel"
-          style={{
-            border: "1px solid #94a3b8",
-            background: showSavor ? "#ffe4e6" : "#fff",
-            padding: "8px 12px",
-            borderRadius: 10,
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
-        >
-          🍽️ Savor {showSavor ? "▾" : "▸"}
-        </button>
-      </div>
-
-      {showExplore && (
-        <div id="explore-panel" role="region" aria-label="Explore links"
-          style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#fff" }}>
-          <SavorExploreLinks
-            category="explore"
-            countryCode={countryCode}
-            countryName={countryName}
-            city={city}
-            limit={4}
-            title="Explore"
-          />
-        </div>
+    <section className="places-panel" aria-label={`${mode} ${city}`}>
+      {mode === "explore" && (
+        <>
+          <div className="subtle-h">🌍 Explore — {city}</div>
+          <div className="places-grid">
+            <SavorExploreLinks category="explore" city={city} countryName={country} limit={4} title="Top sights" query="top sights" />
+            <SavorExploreLinks category="explore" city={city} countryName={country} limit={3} title="Parks & views" query="parks views" />
+            <SavorExploreLinks category="explore" city={city} countryName={country} limit={3} title="Museums" query="museums" />
+            <SavorExploreLinks category="explore" city={city} countryName={country} limit={3} title="Family" query="family activities" />
+            <SavorExploreLinks category="explore" city={city} countryName={country} limit={3} title="Nightlife" query="nightlife" />
+            <SavorExploreLinks category="explore" city={city} countryName={country} limit={2} title="Guides" query="city guide" />
+          </div>
+        </>
       )}
 
-      {showSavor && (
-        <div id="savor-panel" role="region" aria-label="Savor links"
-          style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#fff" }}>
-          <SavorExploreLinks
-            category="savor"
-            countryCode={countryCode}
-            countryName={countryName}
-            city={city}
-            when={new Date().toISOString()}
-            limit={4}
-            title="Savor"
-          />
-        </div>
+      {mode === "savor" && (
+        <>
+          <div className="subtle-h">🍽️ Savor — {city}</div>
+          <div className="places-grid">
+            <SavorExploreLinks category="savor" city={city} countryName={country} limit={4} title="Best restaurants" query="best restaurants" />
+            <SavorExploreLinks category="savor" city={city} countryName={country} limit={3} title="Local eats" query="local food" />
+            <SavorExploreLinks category="savor" city={city} countryName={country} limit={3} title="Cafés & coffee" query="coffee" />
+            <SavorExploreLinks category="savor" city={city} countryName={country} limit={3} title="Street food" query="street food" />
+            <SavorExploreLinks category="savor" city={city} countryName={country} limit={3} title="Desserts" query="desserts" />
+          </div>
+        </>
+      )}
+
+      {mode === "misc" && (
+        <>
+          <div className="subtle-h">🧭 Miscellaneous — {city}</div>
+          <div className="places-grid">
+            <SavorExploreLinks category="misc" city={city} countryName={country} limit={4} title="Know before you go" query="know before you go" />
+            <SavorExploreLinks category="misc" city={city} countryName={country} limit={2} title="Weather" query="weather" />
+            <SavorExploreLinks category="misc" city={city} countryName={country} limit={2} title="Pharmacies" query="pharmacies" />
+            <SavorExploreLinks category="misc" city={city} countryName={country} limit={2} title="Car rental" query="car rental" />
+          </div>
+        </>
       )}
     </section>
   );
