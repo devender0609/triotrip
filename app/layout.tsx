@@ -21,75 +21,120 @@ const FLAGS: Record<string, string> = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const currencyOptions = Object.keys(FLAGS).map((c) => (
-    <option key={c} value={c}>{`${FLAGS[c]} ${c}`}</option>
-  ));
-
   return (
     <html lang="en">
       <body>
-        <header className="topbar-outer">
-          <div className="main-wrap topbar-inner">
-            <a href="/" className="brand no-underline" aria-label="TrioTrip Home">
-              <Brand />
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 16px",
+            gap: 12,
+          }}
+        >
+          <a href="/" aria-label="TrioTrip Home" style={{ textDecoration: "none" }}>
+            <Brand />
+          </a>
+
+          <nav style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {/* Currency (scoped styles) */}
+            <div
+              className="ttbar-currency"
+              title="Currency"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                border: "1px solid #e2e8f0",
+                padding: "6px 10px",
+                borderRadius: 999,
+                background: "#fff",
+                boxShadow: "0 2px 6px rgba(2,6,23,.06)",
+                fontWeight: 700,
+              }}
+            >
+              <span id="ttbar-flag" aria-hidden>
+                🇺🇸
+              </span>
+              <select
+                id="ttbar-currency"
+                aria-label="Currency"
+                defaultValue="USD"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  fontWeight: 800,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {Object.keys(FLAGS).map((c) => (
+                  <option key={c} value={c}>
+                    {FLAGS[c]} {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <a href="/saved" className="btn ghost" style={{ fontWeight: 800 }}>
+              💾 Saved
+              <span
+                id="ttbar-saved-count"
+                style={{
+                  marginLeft: 6,
+                  background: "#0ea5e9",
+                  color: "#fff",
+                  borderRadius: 999,
+                  padding: "0 6px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              />
             </a>
-            <nav className="topbar-right">
-              <a className="pill pill--solid" href="/saved" title="Saved">
-                <span className="pill-emoji">💾</span> Saved
-                <span id="saved-count" className="pill-count" />
-              </a>
-              <a className="pill pill--solid" href="/login" title="Login">
-                <span className="pill-emoji">🔐</span> Login
-              </a>
-              <div className="pill pill--ghost" title="Currency">
-                <span id="currency-flag" className="pill-emoji" aria-hidden>🇺🇸</span>
-                <select id="currency-select" className="pill-select" aria-label="Currency" defaultValue="USD">
-                  {currencyOptions}
-                </select>
-              </div>
-            </nav>
-          </div>
+            <a href="/login" className="btn" style={{ fontWeight: 800 }}>
+              🔐 Login
+            </a>
+          </nav>
         </header>
 
-        <main className="main-wrap">{children}</main>
+        <main style={{ maxWidth: 1100, margin: "0 auto", padding: "0 12px" }}>{children}</main>
 
+        {/* Minimal, scoped behavior for currency + saved count (no global style changes) */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-(function() {
-  try {
-    // Saved count
-    var savedEl = document.getElementById('saved-count');
-    if (savedEl) {
-      var raw = localStorage.getItem('triptrio:saved');
-      var arr = [];
-      try { arr = JSON.parse(raw || '[]') || []; } catch { arr = []; }
-      savedEl.textContent = Array.isArray(arr) ? String(arr.length) : '0';
-      window.addEventListener('storage', function(e) {
-        if (e.key === 'triptrio:saved') {
-          try { var a = JSON.parse(e.newValue || '[]') || []; savedEl.textContent = Array.isArray(a) ? String(a.length) : '0'; }
-          catch { savedEl.textContent = '0'; }
-        }
-      });
-    }
-
-    // Currency picker
-    var FLAGS = ${JSON.stringify(FLAGS)};
-    var select = document.getElementById('currency-select');
-    var flag = document.getElementById('currency-flag');
-    function applyCurrency(cur) {
-      if (!cur || !FLAGS[cur]) cur = 'USD';
+(function(){
+  try{
+    var FLAGS=${JSON.stringify(FLAGS)};
+    var select=document.getElementById('ttbar-currency');
+    var flag=document.getElementById('ttbar-flag');
+    function applyCurrency(cur){
+      if(!cur || !FLAGS[cur]) cur='USD';
       localStorage.setItem('triptrio:currency', cur);
-      if (select && select.value !== cur) select.value = cur;
-      if (flag) flag.textContent = FLAGS[cur] || '💱';
-      window.dispatchEvent(new CustomEvent('triptrio:currency:changed', { detail: cur }));
+      if(select && select.value!==cur) select.value=cur;
+      if(flag) flag.textContent = FLAGS[cur] || '💱';
+      window.dispatchEvent(new CustomEvent('triptrio:currency:changed',{detail:cur}));
     }
-    if (select) {
-      var stored = localStorage.getItem('triptrio:currency');
+    if(select){
+      var stored=localStorage.getItem('triptrio:currency');
       applyCurrency(stored && FLAGS[stored] ? stored : 'USD');
       select.addEventListener('change', function(){ applyCurrency(select.value); });
     }
-  } catch (e) { console && console.warn && console.warn('Topbar hydrate:', e); }
+
+    var savedEl=document.getElementById('ttbar-saved-count');
+    if(savedEl){
+      var raw=localStorage.getItem('triptrio:saved');
+      var arr=[]; try{arr=JSON.parse(raw||'[]')||[]}catch{arr=[]}
+      savedEl.textContent=Array.isArray(arr)?String(arr.length):'0';
+      window.addEventListener('storage', function(e){
+        if(e.key==='triptrio:saved'){
+          try{ var a=JSON.parse(e.newValue||'[]')||[]; savedEl.textContent=Array.isArray(a)?String(a.length):'0';}
+          catch{ savedEl.textContent='0'; }
+        }
+      });
+    }
+  }catch(e){}
 })();`,
           }}
         />
