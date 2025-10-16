@@ -18,7 +18,7 @@ const firstArray = (obj: any, paths: string[]) => {
 const sumMinutes = (arr: any[], key = "duration_minutes") =>
   arr.reduce((t, s) => t + (Number(s?.[key]) || 0), 0);
 const stopsText = (n?: number) =>
-  typeof n === "number" ? (n === 0 ? "Nonstop" : `${n} stop${n === 1 ? "" : "s"}`) : "—`;
+  typeof n === "number" ? (n === 0 ? "Nonstop" : `${n} stop${n === 1 ? "" : "s"}`) : "—";
 
 const isIata = (s: string) => /^[A-Z]{3}$/.test(s);
 const iataFromString = (s?: string): string => {
