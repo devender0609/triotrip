@@ -6,15 +6,14 @@ type Category = "explore" | "savor" | "misc";
 
 type Props = {
   category: Category;
-  countryCode?: string;   // not required, kept for future use
-  countryName?: string;   // not required, kept for future use
-  city: string;           // destination city
-  limit?: number;         // soft cap for links shown
-  title: string;          // section title on the card
-  query?: string;         // optional specialization ("museums", "weather", etc.)
+  countryCode?: string;
+  countryName?: string;
+  city: string;
+  limit?: number;
+  title: string;
+  query?: string;
 };
 
-// Simple href builders (no external imports)
 const href = {
   gmaps: (city: string, q?: string) =>
     `https://www.google.com/maps/search/${encodeURIComponent(
@@ -71,7 +70,6 @@ export default function SavorExploreLinks({
 }: Props) {
   const q = (query || title || "").toLowerCase();
 
-  // Choose providers based on category + query
   let providers: { label: string; url: string }[] = [];
 
   if (category === "explore") {
@@ -95,7 +93,7 @@ export default function SavorExploreLinks({
     if (/know|advice|tips|before/i.test(q) || /know/.test(title.toLowerCase())) {
       providers.push(
         { label: "Wikivoyage", url: href.wikivoyage(city) },
-        { label: "Wikipedia", url: href.href?.wiki ? href.wiki(city) : href.wiki(city) },
+        { label: "Wikipedia", url: href.wiki(city) },     // << fixed here
         { label: "XE currency", url: href.currency(city) },
         { label: "US State Dept", url: href.stateDept() }
       );
@@ -106,7 +104,6 @@ export default function SavorExploreLinks({
     } else if (/car|rental|cars/i.test(q)) {
       providers.push({ label: "Search cars", url: href.cars(city) });
     } else {
-      // generic fallback
       providers.push(
         { label: "Wikivoyage", url: href.wikivoyage(city) },
         { label: "Wikipedia", url: href.wiki(city) }
