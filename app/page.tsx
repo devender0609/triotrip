@@ -71,15 +71,19 @@ export default function Page() {
   const [minBudget, setMinBudget] = useState<number | "">(""); const [maxBudget, setMaxBudget] = useState<number | "">("");
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
 
+  /* ---- Hotel (restored) ---- */
   const [includeHotel, setIncludeHotel] = useState(false);
-  const [hotelCheckIn, setHotelCheckIn] = useState(""); const [hotelCheckOut, setHotelCheckOut] = useState(""); const [minHotelStar, setMinHotelStar] = useState(0);
+  const [hotelCheckIn, setHotelCheckIn] = useState("");
+  const [hotelCheckOut, setHotelCheckOut] = useState("");
+  const [minHotelStar, setMinHotelStar] = useState(0);
 
   const [sort, setSort] = useState<SortKey>("best"); const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
 
-  // Explore/Savor visibility (appear only after search) + toggle open/close
+  // Tabs: visible after a successful search; each toggles open/close
   const [tabsVisible, setTabsVisible] = useState(false);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [savorOpen, setSavorOpen] = useState(false);
+  const [miscOpen, setMiscOpen] = useState(false);
 
   const [compareMode, setCompareMode] = useState(false); const [comparedIds, setComparedIds] = useState<string[]>([]);
   useEffect(() => { if (!compareMode) setComparedIds([]); }, [compareMode]);
@@ -145,6 +149,7 @@ export default function Page() {
       setTabsVisible(true);
       setExploreOpen(false);
       setSavorOpen(false);
+      setMiscOpen(false);
       setCompareMode(false);
     } catch (e: any) {
       setError(e?.message || "Search failed");
@@ -184,12 +189,9 @@ export default function Page() {
     if (!o || !d) return false; return o.trim().toLowerCase() !== d.trim().toLowerCase();
   }, [originDisplay, destDisplay]);
 
-  // Links for Explore/Savor cards
+  /* ---------- Link builders for Explore/Savor/Misc ---------- */
   const gmapsQueryLink = (city: string, query: string) => `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`;
   const web = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
-  const yelp = (q: string, city: string) => `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`;
-  const michelin = (city: string) => `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`;
-  const opentable = (city: string) => `https://www.opentable.com/s?term=${encodeURIComponent(city)}`;
   const tripadvisor = (q: string, city: string) => `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q + " " + city)}`;
   const lonelyplanet = (city: string) => `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`;
   const timeout = (city: string) => `https://www.timeout.com/search?query=${encodeURIComponent(city)}`;
@@ -197,60 +199,143 @@ export default function Page() {
   const wikivoyage = (city: string) => `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`;
   const xe = (city: string) => `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`;
   const usStateDept = () => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`;
+  const yelp = (q: string, city: string) => `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`;
+  const opentable = (city: string) => `https://www.opentable.com/s?term=${encodeURIComponent(city)}`;
+  const michelin = (city: string) => `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`;
+  const weather = (city: string) => `https://www.google.com/search?q=${encodeURIComponent(`weather ${city}`)}`;
+  const carRental = (city: string) => `https://www.google.com/travel/things-to-do?dest=${encodeURIComponent(city)}#cars`; // simple car lookup; you can swap to your provider
+  const pharmacies = (city: string) => gmapsQueryLink(city, "pharmacies");
 
-  function ContentPlaces({ mode }: { mode: "explore" | "savor" }) {
-    const blocks = mode === "explore"
-      ? [
-          { title: "Top sights", q: "top attractions" },
-          { title: "Parks & views", q: "parks scenic views" },
-          { title: "Museums", q: "museums galleries" },
-          { title: "Family", q: "family activities" },
-          { title: "Nightlife", q: "nightlife bars" },
-          { title: "Guides", q: "travel guide" },
-        ]
-      : [
-          { title: "Best restaurants", q: "best restaurants" },
-          { title: "Local eats", q: "local food spots" },
-          { title: "Cafés & coffee", q: "cafes coffee" },
-          { title: "Street food", q: "street food" },
-          { title: "Desserts", q: "desserts bakeries" },
-        ];
-
-    const know = (mode === "explore" && isInternational) ? (
-      <div className="place-card" key="know">
-        <div className="place-title">Know before you go</div>
-        <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>Culture, currency, safety & tips</div>
-        <div className="place-links">
-          <a className="place-link" href={wikivoyage(destCity)} target="_blank" rel="noreferrer">Wikivoyage</a>
-          <a className="place-link" href={wiki(destCity)} target="_blank" rel="noreferrer">Wikipedia</a>
-          <a className="place-link" href={xe(destCity)} target="_blank" rel="noreferrer">XE currency</a>
-          <a className="place-link" href={usStateDept()} target="_blank" rel="noreferrer">US State Dept</a>
-          <a className="place-link" href={gmapsQueryLink(destCity, "pharmacies")} target="_blank" rel="noreferrer">Maps: Pharmacies</a>
-        </div>
-      </div>
-    ) : null;
-
+  function SectionCard({ title, children }: React.PropsWithChildren<{ title: string }>) {
     return (
-      <section className="places-panel" aria-label={mode === "explore" ? "Explore destination" : "Savor destination"}>
-        <div className="subtle-h">{mode === "explore" ? `🌍 Explore - ${destCity}` : `🍽️ Savor - ${destCity}`}</div>
+      <div className="place-card">
+        <div className="place-title">{title}</div>
+        {children}
+      </div>
+    );
+  }
+
+  function ContentExplore() {
+    const city = destCity;
+    return (
+      <section className="places-panel" aria-label="Explore destination">
+        <div className="subtle-h">🌍 Explore — {city}</div>
         <div className="places-grid">
-          {know}
-          {blocks.map(({ title, q }) => (
-            <div key={title} className="place-card">
-              <div className="place-title">{title}</div>
-              <div style={{ color: "#475569", fontWeight: 500, fontSize: 13 }}>{q}</div>
-              <div className="place-links">
-                <a className="place-link" href={gmapsQueryLink(destCity, q)} target="_blank" rel="noreferrer">Google Maps</a>
-                <a className="place-link" href={tripadvisor(q, destCity)} target="_blank" rel="noreferrer">Tripadvisor</a>
-                {mode === "savor" && <a className="place-link" href={yelp(q, destCity)} target="_blank" rel="noreferrer">Yelp</a>}
-                {mode === "savor" && <a className="place-link" href={opentable(destCity)} target="_blank" rel="noreferrer">OpenTable</a>}
-                {mode === "savor" && <a className="place-link" href={michelin(destCity)} target="_blank" rel="noreferrer">Michelin</a>}
-                {mode === "explore" && <a className="place-link" href={lonelyplanet(destCity)} target="_blank" rel="noreferrer">Lonely Planet</a>}
-                {mode === "explore" && <a className="place-link" href={timeout(destCity)} target="_blank" rel="noreferrer">Time Out</a>}
-                <a className="place-link" href={web(`${q} in ${destCity}`)} target="_blank" rel="noreferrer">Web</a>
-              </div>
+          <SectionCard title="Top sights">
+            <div className="place-links">
+              <a className="place-link" href={gmapsQueryLink(city, "top attractions")} target="_blank" rel="noreferrer">Google Maps</a>
+              <a className="place-link" href={tripadvisor("top attractions", city)} target="_blank" rel="noreferrer">Tripadvisor</a>
+              <a className="place-link" href={lonelyplanet(city)} target="_blank" rel="noreferrer">Lonely Planet</a>
+              <a className="place-link" href={timeout(city)} target="_blank" rel="noreferrer">Time Out</a>
             </div>
-          ))}
+          </SectionCard>
+          <SectionCard title="Parks & views">
+            <div className="place-links">
+              <a className="place-link" href={gmapsQueryLink(city, "parks scenic views")} target="_blank" rel="noreferrer">Google Maps</a>
+              <a className="place-link" href={tripadvisor("parks", city)} target="_blank" rel="noreferrer">Tripadvisor</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Museums">
+            <div className="place-links">
+              <a className="place-link" href={gmapsQueryLink(city, "museums galleries")} target="_blank" rel="noreferrer">Google Maps</a>
+              <a className="place-link" href={tripadvisor("museums", city)} target="_blank" rel="noreferrer">Tripadvisor</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Family">
+            <div className="place-links">
+              <a className="place-link" href={gmapsQueryLink(city, "family activities")} target="_blank" rel="noreferrer">Google Maps</a>
+              <a className="place-link" href={tripadvisor("family activities", city)} target="_blank" rel="noreferrer">Tripadvisor</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Nightlife">
+            <div className="place-links">
+              <a className="place-link" href={gmapsQueryLink(city, "nightlife bars")} target="_blank" rel="noreferrer">Google Maps</a>
+              <a className="place-link" href={tripadvisor("nightlife", city)} target="_blank" rel="noreferrer">Tripadvisor</a>
+              <a className="place-link" href={timeout(city)} target="_blank" rel="noreferrer">Time Out</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Guides">
+            <div className="place-links">
+              <a className="place-link" href={wikivoyage(city)} target="_blank" rel="noreferrer">Wikivoyage</a>
+              <a className="place-link" href={wiki(city)} target="_blank" rel="noreferrer">Wikipedia</a>
+            </div>
+          </SectionCard>
+        </div>
+      </section>
+    );
+  }
+
+  function ContentSavor() {
+    const city = destCity;
+    return (
+      <section className="places-panel" aria-label="Savor destination">
+        <div className="subtle-h">🍽️ Savor — {city}</div>
+        <div className="places-grid">
+          <SectionCard title="Best restaurants">
+            <div className="place-links">
+              <a className="place-link" href={yelp("best restaurants", city)} target="_blank" rel="noreferrer">Yelp</a>
+              <a className="place-link" href={opentable(city)} target="_blank" rel="noreferrer">OpenTable</a>
+              <a className="place-link" href={michelin(city)} target="_blank" rel="noreferrer">Michelin</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Local eats">
+            <div className="place-links">
+              <a className="place-link" href={yelp("local food", city)} target="_blank" rel="noreferrer">Yelp</a>
+              <a className="place-link" href={gmapsQueryLink(city, "local food spots")} target="_blank" rel="noreferrer">Google Maps</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Cafés & coffee">
+            <div className="place-links">
+              <a className="place-link" href={gmapsQueryLink(city, "cafes coffee")} target="_blank" rel="noreferrer">Google Maps</a>
+              <a className="place-link" href={yelp("coffee", city)} target="_blank" rel="noreferrer">Yelp</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Street food">
+            <div className="place-links">
+              <a className="place-link" href={gmapsQueryLink(city, "street food")} target="_blank" rel="noreferrer">Google Maps</a>
+              <a className="place-link" href={yelp("street food", city)} target="_blank" rel="noreferrer">Yelp</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Desserts">
+            <div className="place-links">
+              <a className="place-link" href={gmapsQueryLink(city, "desserts bakeries")} target="_blank" rel="noreferrer">Google Maps</a>
+              <a className="place-link" href={yelp("desserts", city)} target="_blank" rel="noreferrer">Yelp</a>
+            </div>
+          </SectionCard>
+        </div>
+      </section>
+    );
+  }
+
+  function ContentMisc() {
+    const city = destCity;
+    return (
+      <section className="places-panel" aria-label="Miscellaneous">
+        <div className="subtle-h">🧭 Miscellaneous — {city}</div>
+        <div className="places-grid">
+          <SectionCard title="Know before you go">
+            <div className="place-links">
+              <a className="place-link" href={wikivoyage(city)} target="_blank" rel="noreferrer">Wikivoyage</a>
+              <a className="place-link" href={wiki(city)} target="_blank" rel="noreferrer">Wikipedia</a>
+              <a className="place-link" href={xe(city)} target="_blank" rel="noreferrer">XE currency</a>
+              <a className="place-link" href={usStateDept()} target="_blank" rel="noreferrer">US State Dept</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Weather">
+            <div className="place-links">
+              <a className="place-link" href={weather(city)} target="_blank" rel="noreferrer">Weather</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Pharmacies">
+            <div className="place-links">
+              <a className="place-link" href={pharmacies(city)} target="_blank" rel="noreferrer">Google Maps</a>
+            </div>
+          </SectionCard>
+          <SectionCard title="Car rental">
+            <div className="place-links">
+              <a className="place-link" href={carRental(city)} target="_blank" rel="noreferrer">Search cars</a>
+            </div>
+          </SectionCard>
         </div>
       </section>
     );
@@ -268,7 +353,7 @@ export default function Page() {
         <h1 style={{ margin: "0 0 6px", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em" }}>Find your perfect trip</h1>
         <p style={{ margin: 0, display: "flex", gap: 10, alignItems: "center", color: "#334155", fontWeight: 500, flexWrap: "wrap", fontSize: 15 }}>
           <span style={{ padding: "6px 12px", borderRadius: 999, background: "linear-gradient(180deg,#ffffff,#eef6ff)", border: "1px solid #cfe0ff", color: "#0b1220", fontWeight: 600 }}>Top-3 picks</span>
-          <span style={{ opacity: 0.6 }}>•</span><span>Explore & Savor your city guide</span>
+          <span style={{ opacity: 0.6 }}>•</span><span>Explore, Savor & Misc guides</span>
           <span style={{ opacity: 0.6 }}>•</span><span>Compare flights in style</span>
         </p>
       </section>
@@ -303,19 +388,19 @@ export default function Page() {
           </div>
 
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Depart</label>
+            <label style={s.label}>Depart</label>
             <input type="date" style={inputStyle} value={departDate} onChange={(e) => setDepartDate(e.target.value)} min={todayLocal} max={roundTrip && returnDate ? returnDate : undefined} />
           </div>
 
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Return</label>
+            <label style={s.label}>Return</label>
             <input type="date" style={inputStyle} value={returnDate} onChange={(e) => setReturnDate(e.target.value)} disabled={!roundTrip}
               min={departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1)} />
           </div>
 
           {/* Steppers (readOnly inputs – no spinners) */}
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Adults</label>
+            <label style={s.label}>Adults</label>
             <div className="stepper">
               <button type="button" onClick={() => setAdults((v) => Math.max(1, v - 1))}>−</button>
               <input className="no-spin" type="number" readOnly value={adults} style={inputStyle} />
@@ -323,7 +408,7 @@ export default function Page() {
             </div>
           </div>
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Children</label>
+            <label style={s.label}>Children</label>
             <div className="stepper">
               <button type="button" onClick={() => setChildren((v) => Math.max(0, v - 1))}>−</button>
               <input className="no-spin" type="number" readOnly value={children} style={inputStyle} />
@@ -331,7 +416,7 @@ export default function Page() {
             </div>
           </div>
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Infants</label>
+            <label style={s.label}>Infants</label>
             <div className="stepper">
               <button type="button" onClick={() => setInfants((v) => Math.max(0, v - 1))}>−</button>
               <input className="no-spin" type="number" readOnly value={infants} style={inputStyle} />
@@ -344,7 +429,7 @@ export default function Page() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {Array.from({ length: children }).map((_, i) => (
               <div key={i} style={{ display: "grid", gap: 6 }}>
-                <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Child {i + 1} age</label>
+                <label style={s.label}>Child {i + 1} age</label>
                 <select style={{ ...inputStyle, width: "100%", maxWidth: 140 }} value={childrenAges[i] ?? 8}
                   onChange={(e) => { const v = Math.max(1, Math.min(17, Number(e.target.value) || 8)); setChildrenAges(prev => { const next = prev.slice(); next[i] = v; return next; }); }}>
                   {Array.from({ length: 17 }, (_, n) => n + 1).map((age) => (<option key={age} value={age}>{age}</option>))}
@@ -357,19 +442,19 @@ export default function Page() {
         {/* Basic filters (refundable/greener removed) */}
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Cabin</label>
+            <label style={s.label}>Cabin</label>
             <select style={inputStyle} value={cabin} onChange={(e) => setCabin(e.target.value as Cabin)}>
               <option value="ECONOMY">Economy</option><option value="PREMIUM_ECONOMY">Premium Economy</option><option value="BUSINESS">Business</option><option value="FIRST">First</option>
             </select>
           </div>
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Stops</label>
+            <label style={s.label}>Stops</label>
             <select style={inputStyle} value={maxStops} onChange={(e) => setMaxStops(Number(e.target.value) as 0 | 1 | 2)}>
               <option value={0}>Nonstop</option><option value={1}>1 stop</option><option value={2}>More than 1 stop</option>
             </select>
           </div>
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Currency</label>
+            <label style={s.label}>Currency</label>
             <select style={inputStyle} value={currency} onChange={(e) => setCurrency(e.target.value)}>
               {["USD","EUR","GBP","INR","CAD","AUD","JPY","SGD","AED"].map((c) => (<option key={c} value={c}>{c}</option>))}
             </select>
@@ -377,21 +462,46 @@ export default function Page() {
           <div />
         </div>
 
+        {/* --- Hotel option (restored) --- */}
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "auto 1fr 1fr 1fr" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, color: "#0b1220" }}>
+            <input type="checkbox" checked={includeHotel} onChange={(e) => setIncludeHotel(e.target.checked)} />
+            Include hotel
+          </label>
+
+          <div>
+            <label style={s.label}>Check-in</label>
+            <input type="date" style={inputStyle} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} disabled={!includeHotel}
+              min={departDate || todayLocal} />
+          </div>
+          <div>
+            <label style={s.label}>Check-out</label>
+            <input type="date" style={inputStyle} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)} disabled={!includeHotel}
+              min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : (departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1))} />
+          </div>
+          <div>
+            <label style={s.label}>Min stars</label>
+            <select style={inputStyle} value={minHotelStar} onChange={(e) => setMinHotelStar(Number(e.target.value))} disabled={!includeHotel}>
+              <option value={0}>Any</option><option value={3}>3★+</option><option value={4}>4★+</option><option value={5}>5★</option>
+            </select>
+          </div>
+        </div>
+
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Min budget</label>
+            <label style={s.label}>Min budget</label>
             <input type="number" placeholder="min" min={0} className="no-spin" style={inputStyle}
               value={minBudget === "" ? "" : String(minBudget)}
               onChange={(e) => { if (e.target.value === "") return setMinBudget(""); const v = Number(e.target.value); setMinBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
           </div>
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Max budget</label>
+            <label style={s.label}>Max budget</label>
             <input type="number" placeholder="max" min={0} className="no-spin" style={inputStyle}
               value={maxBudget === "" ? "" : String(maxBudget)}
               onChange={(e) => { if (e.target.value === "") return setMaxBudget(""); const v = Number(e.target.value); setMaxBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
           </div>
           <div>
-            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Sort by (basis)</label>
+            <label style={s.label}>Sort by (basis)</label>
             <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <button type="button" style={segStyle("flightOnly" === sortBasis)} onClick={() => setSortBasis("flightOnly")}>Flight only</button>
               <button type="button" style={segStyle("bundle" === sortBasis)} onClick={() => setSortBasis("bundle")}>Bundle total</button>
@@ -417,7 +527,7 @@ export default function Page() {
               className={`tab ${exploreOpen ? "tab--active" : ""}`}
               role="tab"
               aria-selected={exploreOpen}
-              onClick={() => { setExploreOpen(v => !v); setSavorOpen(false); setCompareMode(false); }}
+              onClick={() => { setExploreOpen(v => !v); setSavorOpen(false); setMiscOpen(false); setCompareMode(false); }}
             >
               🌍 Explore
             </button>
@@ -425,15 +535,23 @@ export default function Page() {
               className={`tab ${savorOpen ? "tab--active" : ""}`}
               role="tab"
               aria-selected={savorOpen}
-              onClick={() => { setSavorOpen(v => !v); setExploreOpen(false); setCompareMode(false); }}
+              onClick={() => { setSavorOpen(v => !v); setExploreOpen(false); setMiscOpen(false); setCompareMode(false); }}
             >
               🍽️ Savor
+            </button>
+            <button
+              className={`tab ${miscOpen ? "tab--active" : ""}`}
+              role="tab"
+              aria-selected={miscOpen}
+              onClick={() => { setMiscOpen(v => !v); setExploreOpen(false); setSavorOpen(false); setCompareMode(false); }}
+            >
+              🧭 Miscellaneous
             </button>
             <button
               className={`tab tab--compare ${compareMode ? "tab--active" : ""}`}
               role="tab"
               aria-selected={compareMode}
-              onClick={() => { setCompareMode(v => !v); setExploreOpen(false); setSavorOpen(false); }}
+              onClick={() => { setCompareMode(v => !v); setExploreOpen(false); setSavorOpen(false); setMiscOpen(false); }}
             >
               ⚖️ Compare
             </button>
@@ -455,11 +573,12 @@ export default function Page() {
         </div>
       )}
 
-      {/* Explore / Savor panels (toggle on/off) */}
-      {tabsVisible && results && results.length > 0 && exploreOpen && <ContentPlaces mode="explore" />}
-      {tabsVisible && results && results.length > 0 && savorOpen && <ContentPlaces mode="savor" />}
+      {/* Explore / Savor / Misc panels (toggle on/off) */}
+      {tabsVisible && results && results.length > 0 && exploreOpen && <ContentExplore />}
+      {tabsVisible && results && results.length > 0 && savorOpen && <ContentSavor />}
+      {tabsVisible && results && results.length > 0 && miscOpen && <ContentMisc />}
 
-      {/* Compare modal (shows if >=2) */}
+      {/* Compare modal */}
       {compareMode && results && comparedIds.length >= 2 && (
         <ComparePanel
           items={results.filter(r => comparedIds.includes(r.id || `pkg-${(results as any[]).indexOf(r)}`))}
@@ -473,7 +592,7 @@ export default function Page() {
       {hotelWarning && !error && <div className="msg msg--warn">ⓘ {hotelWarning}</div>}
 
       {shownResults && shownResults.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20, maxWidth: 1240, margin: "0 auto", width: "100%" }} key={searchKey}>
+        <div className="main-wrap" key={searchKey}>
           {shownResults.map((pkg, i) => (
             <ResultCard
               key={pkg.id || i}
