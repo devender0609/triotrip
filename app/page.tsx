@@ -5,17 +5,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import SavedChip from "../components/SavedChip";
+import ComparePanel from "../components/ComparePanel";
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
-type MainTab = "explore" | "savor" | "compare";
 
 interface SearchPayload {
   origin: string; destination: string; departDate: string; returnDate?: string; roundTrip: boolean;
   passengers: number; passengersAdults: number; passengersChildren: number; passengersInfants: number; passengersChildrenAges?: number[];
   cabin: Cabin;
   includeHotel: boolean; hotelCheckIn?: string; hotelCheckOut?: string; nights?: number; minHotelStar?: number;
-  minBudget?: number; maxBudget?: number; currency: string; sort: SortKey; maxStops?: 0 | 1 | 2; refundable?: boolean; greener?: boolean;
+  minBudget?: number; maxBudget?: number; currency: string; sort: SortKey; maxStops?: 0 | 1 | 2;
   sortBasis?: "flightOnly" | "bundle";
 }
 
@@ -28,7 +28,6 @@ function extractIATA(display: string): string {
   m = /^([A-Z]{3})\b/.exec(s); if (m) return m[1];
   return "";
 }
-
 function extractCityOnly(input: string) {
   if (!input) return "";
   let s = String(input).replace(/\([A-Z]{3}\)/g, "").replace(/—/g, "-").replace(/\s{2,}/g, " ").trim();
@@ -37,14 +36,7 @@ function extractCityOnly(input: string) {
   const nice = filtered.find(p => /[a-z]/i.test(p)) || filtered[0] || s;
   return nice.replace(/\b[A-Z]{2}\b$/, "").trim();
 }
-
-const COMMON_COUNTRIES = new Set([
-  "United States","USA","Canada","Mexico","United Kingdom","UK","Ireland","France","Germany","Spain","Italy","Portugal",
-  "Netherlands","Belgium","Switzerland","Austria","Sweden","Norway","Denmark","Finland","Iceland","India","China","Japan",
-  "South Korea","Singapore","United Arab Emirates","UAE","Qatar","Saudi Arabia","Thailand","Vietnam","Indonesia","Malaysia",
-  "Philippines","Australia","New Zealand","Brazil","Argentina","Chile","Peru","Colombia","South Africa","Egypt","Turkey",
-  "Greece","Poland","Czechia","Czech Republic","Hungary","Romania"
-]);
+const COMMON_COUNTRIES = new Set(["United States","USA","Canada","Mexico","United Kingdom","UK","Ireland","France","Germany","Spain","Italy","Portugal","Netherlands","Belgium","Switzerland","Austria","Sweden","Norway","Denmark","Finland","Iceland","India","China","Japan","South Korea","Singapore","United Arab Emirates","UAE","Qatar","Saudi Arabia","Thailand","Vietnam","Indonesia","Malaysia","Philippines","Australia","New Zealand","Brazil","Argentina","Chile","Peru","Colombia","South Africa","Egypt","Turkey","Greece","Poland","Czechia","Czech Republic","Hungary","Romania"]);
 function extractCountryFromDisplay(input: string): string | undefined {
   if (!input) return;
   const cleaned = input.replace(/\([A-Z]{3}\)/g, " ").replace(/[–—]/g, "-");
@@ -59,16 +51,11 @@ function extractCountryFromDisplay(input: string): string | undefined {
   const guess = tokens.reverse().find(t => /[A-Za-z]{4,}/.test(t) && !/\bairport\b/i.test(t));
   return guess;
 }
-
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
   const d = new Date(iso); if (Number.isNaN(d.getTime())) return "";
   d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10);
 }
-
-const cth: React.CSSProperties = { textAlign: "left", padding: "12px 12px", borderBottom: "1px solid #e2e8f0", fontWeight: 600, color: "#0f172a" };
-const ctd: React.CSSProperties = { padding: "12px 12px", borderBottom: "1px solid #e2e8f0", fontWeight: 500 };
-function formatMins(m?: number) { const v = Number(m) || 0; const h = Math.floor(v/60); const mm = v%60; return `${h}h ${mm}m`; }
 
 export default function Page() {
   const [originCode, setOriginCode] = useState(""); const [originDisplay, setOriginDisplay] = useState("");
@@ -82,14 +69,18 @@ export default function Page() {
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
   const [currency, setCurrency] = useState("USD");
   const [minBudget, setMinBudget] = useState<number | "">(""); const [maxBudget, setMaxBudget] = useState<number | "">("");
-  const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2); const [refundable, setRefundable] = useState(false); const [greener, setGreener] = useState(false);
+  const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
 
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState(""); const [hotelCheckOut, setHotelCheckOut] = useState(""); const [minHotelStar, setMinHotelStar] = useState(0);
 
   const [sort, setSort] = useState<SortKey>("best"); const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
 
-  const [activeTab, setActiveTab] = useState<MainTab>("explore");
+  // Explore/Savor visibility (appear only after search) + toggle open/close
+  const [tabsVisible, setTabsVisible] = useState(false);
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const [savorOpen, setSavorOpen] = useState(false);
+
   const [compareMode, setCompareMode] = useState(false); const [comparedIds, setComparedIds] = useState<string[]>([]);
   useEffect(() => { if (!compareMode) setComparedIds([]); }, [compareMode]);
 
@@ -106,7 +97,6 @@ export default function Page() {
   }, []);
 
   const [searchKey, setSearchKey] = useState(0);
-  const [exploreVisible, setExploreVisible] = useState(false);
 
   useEffect(() => { setChildrenAges(prev => { const next = prev.slice(0, children); while (next.length < children) next.push(8); return next; }); }, [children]);
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
@@ -142,7 +132,7 @@ export default function Page() {
         nights: includeHotel && hotelCheckIn && hotelCheckOut ? Math.max(1, Math.round((+new Date(hotelCheckOut) - +new Date(hotelCheckIn)) / 86400000)) : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
         minBudget: minBudget === "" ? undefined : minBudget, maxBudget: maxBudget === "" ? undefined : maxBudget,
-        currency, sort, maxStops, refundable, greener, sortBasis,
+        currency, sort, maxStops, sortBasis,
       };
 
       const r = await fetch(`/api/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
@@ -150,8 +140,17 @@ export default function Page() {
 
       setHotelWarning(j?.hotelWarning || null);
       const merged = (Array.isArray(j.results) ? j.results : []).map((res: any) => ({ ...res, ...payload }));
-      setResults(merged); setComparedIds([]); setExploreVisible(true);
-    } catch (e: any) { setError(e?.message || "Search failed"); } finally { setLoading(false); }
+      setResults(merged);
+      setComparedIds([]);
+      setTabsVisible(true);
+      setExploreOpen(false);
+      setSavorOpen(false);
+      setCompareMode(false);
+    } catch (e: any) {
+      setError(e?.message || "Search failed");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const sortedResults = useMemo(() => {
@@ -169,7 +168,7 @@ export default function Page() {
 
   const shownResults = useMemo(() => (!sortedResults ? null : (showAll ? sortedResults : sortedResults.slice(0, 3))), [sortedResults, showAll]);
   function toggleCompare(id: string) { setComparedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id].slice(0, 3))); }
-  const comparedPkgs = useMemo(() => (results && comparedIds.length ? results.filter(r => comparedIds.includes(r.id)) : []), [results, comparedIds]);
+  const comparedPkgs = useMemo(() => (results && comparedIds.length ? results.filter(r => comparedIds.includes(r.id || `pkg-${(results as any[]).indexOf(r)}`)) : []), [results, comparedIds]);
 
   const s = {
     panel: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 14, maxWidth: 1240, margin: "0 auto", fontSize: 16 } as React.CSSProperties,
@@ -185,7 +184,7 @@ export default function Page() {
     if (!o || !d) return false; return o.trim().toLowerCase() !== d.trim().toLowerCase();
   }, [originDisplay, destDisplay]);
 
-  // Explore/Savor sources (reputable + city scoped)
+  // Links for Explore/Savor cards
   const gmapsQueryLink = (city: string, query: string) => `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`;
   const web = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
   const yelp = (q: string, city: string) => `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`;
@@ -199,7 +198,7 @@ export default function Page() {
   const xe = (city: string) => `https://www.xe.com/currencyconverter/convert/?Amount=1&To=USD&search=${encodeURIComponent(city)}`;
   const usStateDept = () => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`;
 
-  function ContentPlaces({ mode }: { mode: MainTab }) {
+  function ContentPlaces({ mode }: { mode: "explore" | "savor" }) {
     const blocks = mode === "explore"
       ? [
           { title: "Top sights", q: "top attractions" },
@@ -259,7 +258,7 @@ export default function Page() {
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
-      {/* remove underline/baseline on header links & logo without touching globals */}
+      {/* keep header tweaks */}
       <style jsx global>{`
         header a { text-decoration: none !important; border-bottom: 0 !important; }
         header img.tt-logo, header .tt-logo { border: 0 !important; box-shadow: none !important; }
@@ -274,10 +273,12 @@ export default function Page() {
         </p>
       </section>
 
-      <form style={s.panel} onSubmit={(e) => { e.preventDefault(); runSearch(); }}>
+      {/* Search form */}
+      <form style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 14, maxWidth: 1240, margin: "0 auto", fontSize: 16 }}
+            onSubmit={(e) => { e.preventDefault(); runSearch(); }}>
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 54px 1fr", alignItems: "end" }}>
           <div>
-            <label style={s.label}>Origin</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Origin</label>
             <AirportField id="origin" label="" code={originCode} initialDisplay={originDisplay}
               onTextChange={setOriginDisplay} onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }} />
           </div>
@@ -286,7 +287,7 @@ export default function Page() {
               style={{ height: 46, width: 46, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}>⇄</button>
           </div>
           <div>
-            <label style={s.label}>Destination</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Destination</label>
             <AirportField id="destination" label="" code={destCode} initialDisplay={destDisplay}
               onTextChange={setDestDisplay} onChangeCode={(code, display) => { setDestCode(code); setDestDisplay(display); }} />
           </div>
@@ -294,7 +295,7 @@ export default function Page() {
 
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "170px 1fr 1fr 1fr 1fr 1fr", alignItems: "end" }}>
           <div style={{ minWidth: 170 }}>
-            <label style={s.label}>Trip</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Trip</label>
             <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <button type="button" style={segStyle(!roundTrip)} onClick={() => setRoundTrip(false)}>One-way</button>
               <button type="button" style={segStyle(roundTrip)} onClick={() => setRoundTrip(true)}>Round-trip</button>
@@ -302,18 +303,19 @@ export default function Page() {
           </div>
 
           <div>
-            <label style={s.label}>Depart</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Depart</label>
             <input type="date" style={inputStyle} value={departDate} onChange={(e) => setDepartDate(e.target.value)} min={todayLocal} max={roundTrip && returnDate ? returnDate : undefined} />
           </div>
 
           <div>
-            <label style={s.label}>Return</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Return</label>
             <input type="date" style={inputStyle} value={returnDate} onChange={(e) => setReturnDate(e.target.value)} disabled={!roundTrip}
               min={departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1)} />
           </div>
 
+          {/* Steppers (readOnly inputs – no spinners) */}
           <div>
-            <label style={s.label}>Adults</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Adults</label>
             <div className="stepper">
               <button type="button" onClick={() => setAdults((v) => Math.max(1, v - 1))}>−</button>
               <input className="no-spin" type="number" readOnly value={adults} style={inputStyle} />
@@ -321,7 +323,7 @@ export default function Page() {
             </div>
           </div>
           <div>
-            <label style={s.label}>Children</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Children</label>
             <div className="stepper">
               <button type="button" onClick={() => setChildren((v) => Math.max(0, v - 1))}>−</button>
               <input className="no-spin" type="number" readOnly value={children} style={inputStyle} />
@@ -329,7 +331,7 @@ export default function Page() {
             </div>
           </div>
           <div>
-            <label style={s.label}>Infants</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Infants</label>
             <div className="stepper">
               <button type="button" onClick={() => setInfants((v) => Math.max(0, v - 1))}>−</button>
               <input className="no-spin" type="number" readOnly value={infants} style={inputStyle} />
@@ -342,7 +344,7 @@ export default function Page() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {Array.from({ length: children }).map((_, i) => (
               <div key={i} style={{ display: "grid", gap: 6 }}>
-                <label style={s.label}>Child {i + 1} age</label>
+                <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Child {i + 1} age</label>
                 <select style={{ ...inputStyle, width: "100%", maxWidth: 140 }} value={childrenAges[i] ?? 8}
                   onChange={(e) => { const v = Math.max(1, Math.min(17, Number(e.target.value) || 8)); setChildrenAges(prev => { const next = prev.slice(); next[i] = v; return next; }); }}>
                   {Array.from({ length: 17 }, (_, n) => n + 1).map((age) => (<option key={age} value={age}>{age}</option>))}
@@ -352,58 +354,44 @@ export default function Page() {
           </div>
         )}
 
+        {/* Basic filters (refundable/greener removed) */}
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
           <div>
-            <label style={s.label}>Cabin</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Cabin</label>
             <select style={inputStyle} value={cabin} onChange={(e) => setCabin(e.target.value as Cabin)}>
               <option value="ECONOMY">Economy</option><option value="PREMIUM_ECONOMY">Premium Economy</option><option value="BUSINESS">Business</option><option value="FIRST">First</option>
             </select>
           </div>
           <div>
-            <label style={s.label}>Stops</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Stops</label>
             <select style={inputStyle} value={maxStops} onChange={(e) => setMaxStops(Number(e.target.value) as 0 | 1 | 2)}>
               <option value={0}>Nonstop</option><option value={1}>1 stop</option><option value={2}>More than 1 stop</option>
             </select>
           </div>
-          <div><label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 500, color: "#334155" }}><input type="checkbox" checked={refundable} onChange={(e) => setRefundable(e.target.checked)} /> Refundable</label></div>
-          <div><label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 500, color: "#334155" }}><input type="checkbox" checked={greener} onChange={(e) => setGreener(e.target.checked)} /> Greener</label></div>
-        </div>
-
-        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div>
-            <label style={s.label}>Currency</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Currency</label>
             <select style={inputStyle} value={currency} onChange={(e) => setCurrency(e.target.value)}>
               {["USD","EUR","GBP","INR","CAD","AUD","JPY","SGD","AED"].map((c) => (<option key={c} value={c}>{c}</option>))}
             </select>
           </div>
-          <div>
-            <label style={s.label}>Min budget</label>
-            <input type="number" placeholder="min" min={0} style={inputStyle}
-              value={minBudget === "" ? "" : String(minBudget)}
-              onChange={(e) => { if (e.target.value === "") return setMinBudget(""); const v = Number(e.target.value); setMinBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
-          </div>
-          <div>
-            <label style={s.label}>Max budget</label>
-            <input type="number" placeholder="max" min={0} style={inputStyle}
-              value={maxBudget === "" ? "" : String(maxBudget)}
-              onChange={(e) => { if (e.target.value === "") return setMaxBudget(""); const v = Number(e.target.value); setMaxBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "170px 1fr 1fr 1fr" }}>
-          <div><label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 500, color: "#334155" }}><input type="checkbox" checked={includeHotel} onChange={(e) => setIncludeHotel(e.target.checked)} /> Include hotel</label></div>
-          <div><label style={s.label}>Hotel check-in</label><input type="date" style={inputStyle} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} disabled={!includeHotel} min={departDate || todayLocal} /></div>
-          <div><label style={s.label}>Hotel check-out</label><input type="date" style={inputStyle} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)} disabled={!includeHotel} min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : (departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1))} /></div>
-          <div><label style={s.label}>Min hotel stars</label>
-            <select style={inputStyle} value={minHotelStar} onChange={(e) => setMinHotelStar(Number(e.target.value))} disabled={!includeHotel}>
-              <option value={0}>Any</option><option value={3}>3★+</option><option value={4}>4★+</option><option value={5}>5★</option>
-            </select>
-          </div>
+          <div />
         </div>
 
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div>
-            <label style={s.label}>Sort by (basis)</label>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Min budget</label>
+            <input type="number" placeholder="min" min={0} className="no-spin" style={inputStyle}
+              value={minBudget === "" ? "" : String(minBudget)}
+              onChange={(e) => { if (e.target.value === "") return setMinBudget(""); const v = Number(e.target.value); setMinBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
+          </div>
+          <div>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Max budget</label>
+            <input type="number" placeholder="max" min={0} className="no-spin" style={inputStyle}
+              value={maxBudget === "" ? "" : String(maxBudget)}
+              onChange={(e) => { if (e.target.value === "") return setMaxBudget(""); const v = Number(e.target.value); setMaxBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
+          </div>
+          <div>
+            <label style={{ fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 }}>Sort by (basis)</label>
             <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <button type="button" style={segStyle("flightOnly" === sortBasis)} onClick={() => setSortBasis("flightOnly")}>Flight only</button>
               <button type="button" style={segStyle("bundle" === sortBasis)} onClick={() => setSortBasis("bundle")}>Bundle total</button>
@@ -421,35 +409,64 @@ export default function Page() {
         </div>
       </form>
 
-      <div className="toolbar">
-        <div className="tabs" role="tablist" aria-label="Content tabs">
-          <button className={`tab ${activeTab === "explore" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "explore"} onClick={() => { setActiveTab("explore"); setCompareMode(false); }}>{`🌍 Explore - ${destCity}`}</button>
-          <button className={`tab ${activeTab === "savor" ? "tab--active" : ""}`} role="tab" aria-selected={activeTab === "savor"} onClick={() => { setActiveTab("savor"); setCompareMode(false); }}>{`🍽️ Savor - ${destCity}`}</button>
-          <button className={`tab tab--compare ${compareMode ? "tab--active" : ""}`} role="tab" aria-selected={compareMode} onClick={() => { setActiveTab("compare"); setCompareMode((v) => !v); }}>⚖️ Compare</button>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <div role="tablist" aria-label="Sort" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {(["best", "cheapest", "fastest", "flexible"] as const).map((k) => (
-              <button key={k} role="tab" aria-selected={sort === k} className={`toolbar-chip ${sort === k ? "toolbar-chip--active" : ""}`} onClick={() => setSort(k)}>
-                {k === "best" ? "Best" : k[0].toUpperCase() + k.slice(1)}
-              </button>
-            ))}
+      {/* Tabs toolbar — appears only after Search */}
+      {tabsVisible && (
+        <div className="toolbar">
+          <div className="tabs" role="tablist" aria-label="Content tabs">
+            <button
+              className={`tab ${exploreOpen ? "tab--active" : ""}`}
+              role="tab"
+              aria-selected={exploreOpen}
+              onClick={() => { setExploreOpen(v => !v); setSavorOpen(false); setCompareMode(false); }}
+            >
+              🌍 Explore
+            </button>
+            <button
+              className={`tab ${savorOpen ? "tab--active" : ""}`}
+              role="tab"
+              aria-selected={savorOpen}
+              onClick={() => { setSavorOpen(v => !v); setExploreOpen(false); setCompareMode(false); }}
+            >
+              🍽️ Savor
+            </button>
+            <button
+              className={`tab tab--compare ${compareMode ? "tab--active" : ""}`}
+              role="tab"
+              aria-selected={compareMode}
+              onClick={() => { setCompareMode(v => !v); setExploreOpen(false); setSavorOpen(false); }}
+            >
+              ⚖️ Compare
+            </button>
           </div>
-          <button className={`toolbar-chip ${!showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(false)} title="Show top 3">Top-3</button>
-          <button className={`toolbar-chip ${showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(true)} title="Show all">All</button>
-          <button className="toolbar-chip" onClick={() => window.print()}>Print</button>
-          <SavedChip count={savedCount} />
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <div role="tablist" aria-label="Sort" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {(["best", "cheapest", "fastest", "flexible"] as const).map((k) => (
+                <button key={k} role="tab" aria-selected={sort === k} className={`toolbar-chip ${sort === k ? "toolbar-chip--active" : ""}`} onClick={() => setSort(k)}>
+                  {k === "best" ? "Best" : k[0].toUpperCase() + k.slice(1)}
+                </button>
+              ))}
+            </div>
+            <button className={`toolbar-chip ${!showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(false)} title="Show top 3">Top-3</button>
+            <button className={`toolbar-chip ${showAll ? "toolbar-chip--active" : ""}`} onClick={() => setShowAll(true)} title="Show all">All</button>
+            <button className="toolbar-chip" onClick={() => window.print()}>Print</button>
+            <SavedChip count={savedCount} />
+          </div>
         </div>
-      </div>
+      )}
 
-      {exploreVisible && results && results.length > 0 && activeTab !== "compare" && <ContentPlaces mode={activeTab} />}
+      {/* Explore / Savor panels (toggle on/off) */}
+      {tabsVisible && results && results.length > 0 && exploreOpen && <ContentPlaces mode="explore" />}
+      {tabsVisible && results && results.length > 0 && savorOpen && <ContentPlaces mode="savor" />}
 
+      {/* Compare modal (shows if >=2) */}
       {compareMode && results && comparedIds.length >= 2 && (
-        <section className="compare-panel" aria-label="Compare selected results">
-          <div className="compare-title">⚖️ Side-by-side Compare</div>
-          {/* table omitted here for brevity; unchanged from earlier */}
-        </section>
+        <ComparePanel
+          items={results.filter(r => comparedIds.includes(r.id || `pkg-${(results as any[]).indexOf(r)}`))}
+          currency={currency}
+          onClose={() => setCompareMode(false)}
+          onRemove={(id) => setComparedIds(prev => prev.filter(x => x !== id))}
+        />
       )}
 
       {error && <div className="msg msg--error" role="alert">⚠ {error}</div>}
@@ -460,7 +477,12 @@ export default function Page() {
           {shownResults.map((pkg, i) => (
             <ResultCard
               key={pkg.id || i}
-              pkg={pkg}
+              pkg={{
+                ...pkg,
+                passengersAdults: adults,
+                passengersChildren: children,
+                passengersInfants: infants,
+              }}
               index={i}
               currency={currency}
               pax={adults + children + infants}
