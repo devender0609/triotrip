@@ -80,6 +80,7 @@ export default function ResultCard({
     AIRLINE_SITE[airline] ||
     (airline ? `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}` : "");
 
+  /* Hotel helpers */
   function hotelPrimaryLink(h: any, cityFallback: string) {
     const official = ensureHttps(h?.website || h?.officialUrl || h?.url);
     if (official) return official;
@@ -121,6 +122,7 @@ export default function ResultCard({
     return { expedia: exp.toString(), hotels: hcx.toString(), maps: maps.toString() };
   }
 
+  // High-quality unique fallback images (no blur; seeded by hotel/city)
   const hotelImg = (h: any, i?: number) => {
     const candidate =
       ensureHttps(h?.image) || ensureHttps(h?.photo) || ensureHttps(h?.photoUrl) ||
@@ -139,6 +141,7 @@ export default function ResultCard({
       pkg?.destination || pkg?.to || pkg?.arrivalCity || "";
 
     const seed = hash(`${h?.id || ""}|${h?.name || ""}|${city}|${i ?? 0}`) % 1_000_000;
+    // Unsplash Source – stable seed, high-res, no blur
     return `https://source.unsplash.com/collection/483251/400x250/?sig=${seed}`;
   };
 
@@ -147,14 +150,17 @@ export default function ResultCard({
       className={`result-card ${compared ? "result-card--compared" : ""}`}
       onClick={() => onToggleCompare?.(id)}
     >
+      {/* Header */}
       <header style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, flexWrap:"wrap" }}>
         <div style={{ fontWeight: 900 }}>
           Option {index + 1} • {route} {dateOut ? `• ${dateOut}` : ""} {pkg.roundTrip && dateRet ? `↩ ${dateRet}` : ""}
         </div>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
           <div style={{ fontWeight:900 }}>{fmtMoney(price ?? undefined, currency)}</div>
-          <a className="book-link" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
-          {airline && <a className="book-link" href={AIRLINE_SITE[airline] || "#"} target="_blank" rel="noreferrer">{airline}</a>}
+          <a className="book-link" href={
+            `${TRIOTRIP_BASE}${TRIOTRIP_BOOK_PATH}?from=${from}&to=${to}&depart=${dateOut}${dateRet?`&return=${dateRet}`:""}&adults=${pkg.passengersAdults ?? 1}&children=${pkg.passengersChildren ?? 0}&infants=${pkg.passengersInfants ?? 0}`
+          } target="_blank" rel="noreferrer">TrioTrip</a>
+          {airline && <a className="book-link" href={airlineSite} target="_blank" rel="noreferrer">{airline}</a>}
           {onToggleCompare && (
             <button
               type="button"
@@ -178,12 +184,12 @@ export default function ResultCard({
               <div style={{ display:"grid", gridTemplateColumns:"1fr auto", alignItems:"center" }}>
                 <div>
                   <div style={{ fontWeight: 700 }}>{s.from} → {s.to}</div>
-                  <div className="small">{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)}</div>
+                  <div style={{ fontSize: 13, color:"#475569" }}>{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)}</div>
                 </div>
                 <div style={{ fontWeight: 700 }}>{fmtDur(s.duration_minutes)}</div>
               </div>
               {i < outSegs.length - 1 && (
-                <div className="center small">
+                <div className="center" style={{ fontSize: 13, color:"#334155" }}>
                   ⏱️ Layover in {s.to} • Departs {fmtTime(outSegs[i + 1].depart_time)}
                 </div>
               )}
@@ -201,12 +207,12 @@ export default function ResultCard({
               <div style={{ display:"grid", gridTemplateColumns:"1fr auto", alignItems:"center" }}>
                 <div>
                   <div style={{ fontWeight: 700 }}>{s.from} → {s.to}</div>
-                  <div className="small">{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)}</div>
+                  <div style={{ fontSize: 13, color:"#475569" }}>{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)}</div>
                 </div>
                 <div style={{ fontWeight: 700 }}>{fmtDur(s.duration_minutes)}</div>
               </div>
               {i < inSegs.length - 1 && (
-                <div className="center small">
+                <div className="center" style={{ fontSize: 13, color:"#334155" }}>
                   ⏱️ Layover in {s.to} • Departs {fmtTime(inSegs[i + 1].depart_time)}
                 </div>
               )}
@@ -215,7 +221,7 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* Hotels */}
+      {/* Hotels (3 compact rows) */}
       {showHotel && (
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ fontWeight: 800 }}>Hotels (top options)</div>
@@ -260,7 +266,7 @@ export default function ResultCard({
                         <a className="book-link book-link--maps" href={alt.maps} target="_blank" rel="noreferrer">Map</a>
                       </div>
                     </div>
-                    <div className="small">{h?.address || h?.city || city}</div>
+                    <div style={{ color:"#475569", fontSize:13 }}>{h?.address || h?.city || city}</div>
                   </div>
                 </div>
               );
