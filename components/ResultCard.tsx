@@ -1,7 +1,6 @@
 "use client";
 import React from "react";
 
-/* Airline sites for the alternate buttons */
 const AIRLINE_SITE: Record<string, string> = {
   American: "https://www.aa.com", "American Airlines": "https://www.aa.com",
   Delta: "https://www.delta.com", "Delta Air Lines": "https://www.delta.com",
@@ -14,11 +13,15 @@ const AIRLINE_SITE: Record<string, string> = {
   "British Airways":"https://www.britishairways.com",
 };
 
-/* Base + path used by the TrioTrip button (same tab so Back works) */
-const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "";
-const TRIOTRIP_BOOK_PATH = process.env.NEXT_PUBLIC_TRIOTRIP_BOOK_PATH || "/checkout";
+const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "https://triotrip.vercel.app";
+const TRIOTRIP_BOOK_PATH = process.env.NEXT_PUBLIC_TRIOTRIP_BOOK_PATH || "/book/checkout";
 
-/* ----------------- helpers ----------------- */
+const fmtMoney = (v?: number, c = "USD") => {
+  if (v == null || !Number.isFinite(v)) return "—";
+  try { return new Intl.NumberFormat(undefined, { style: "currency", currency: c }).format(v); }
+  catch { return `${c} ${v.toFixed(0)}`; }
+};
+
 function ensureHttps(u?: string | null) {
   if (!u) return "";
   let s = String(u).trim();
@@ -27,43 +30,27 @@ function ensureHttps(u?: string | null) {
   if (s.startsWith("http://")) s = s.replace(/^http:\/\//i, "https://");
   return s;
 }
-const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; } return Math.abs(h); };
-function fmtTime(t?: string) {
-  if (!t) return "";
-  return new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-function fmtDur(min?: number) {
-  if (min == null) return "";
-  const h = Math.floor(min / 60), m = Math.max(0, min % 60);
-  return h ? `${h}h ${m}m` : `${m}m`;
-}
+const hash = (s: string) => { let h = 0; for (let i=0;i<s.length;i++){ h=(h<<5)-h+s.charCodeAt(i); h|=0; } return Math.abs(h); };
+const fmtTime = (t?: string) => !t ? "" : new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const fmtDur  = (min?: number) => min==null ? "" : (Math.floor(min/60) ? `${Math.floor(min/60)}h ${min%60}m` : `${min%60}m`);
 
 type Props = {
   pkg: any; index?: number; currency?: string; pax?: number;
   comparedIds?: string[]; onToggleCompare?: (id: string) => void;
-  onSavedChangeGlobal?: (count: number) => void; large?: boolean; showHotel?: boolean;
+  large?: boolean; showHotel?: boolean;
 };
 
 export default function ResultCard({
   pkg, index = 0, currency = "USD", pax = 1,
-  comparedIds, onToggleCompare, onSavedChangeGlobal, large = true, showHotel,
+  comparedIds, onToggleCompare, large = true, showHotel,
 }: Props) {
   const id = pkg.id || `pkg-${index}`;
   const compared = !!comparedIds?.includes(id);
 
-  /* passengers */
-  const adults = Number(pkg.passengersAdults ?? pkg.adults ?? 1) || 1;
-  const children = Number(pkg.passengersChildren ?? pkg.children ?? 0) || 0;
-  const infants  = Number(pkg.passengersInfants  ?? pkg.infants  ?? 0) || 0;
-  const totalPax = Math.max(1, adults + children + infants);
-
-  /* flights */
   const outSegs: any[] = Array.isArray(pkg?.flight?.segments)
-    ? pkg.flight.segments
-    : (pkg.flight?.segments_out || []);
+    ? pkg.flight.segments : (pkg.flight?.segments_out || []);
   const inSegs: any[] = Array.isArray(pkg?.returnFlight?.segments)
-    ? pkg.returnFlight.segments
-    : (pkg.flight?.segments_in || []);
+    ? pkg.returnFlight.segments : (pkg.flight?.segments_in || []);
 
   const out0 = outSegs?.[0];
   const in0  = inSegs?.[0];
@@ -73,64 +60,29 @@ export default function ResultCard({
   const dateOut = (out0?.depart_time || "").slice(0, 10);
   const dateRet = (in0?.depart_time || "").slice(0, 10);
   const route   = `${from}-${to}`;
+  const airline = pkg.flight?.carrier_name || pkg.flight?.carrier || pkg.airline || "";
 
-  const airline =
-    pkg.flight?.carrier_name || pkg.flight?.carrier || pkg.airline || "";
+  const price =
+    pkg.total_cost ?? pkg.flight_total ??
+    pkg.flight?.price_usd_converted ?? pkg.flight?.price_usd ?? null;
 
-  const priceRaw =
-    (typeof pkg?.total_cost_converted === "number" && pkg.total_cost_converted) ||
-    (typeof pkg?.total_cost === "number" && pkg.total_cost) ||
-    (typeof pkg?.flight?.price_usd_converted === "number" && pkg.flight.price_usd_converted) ||
-    (typeof pkg?.flight?.price_usd === "number" && pkg.flight.price_usd) ||
-    (typeof pkg?.flight_total === "number" && pkg.flight_total) ||
-    0;
-
-  let priceFmt = "";
-  try {
-    priceFmt = new Intl.NumberFormat(undefined, { style: "currency", currency: (currency || "USD").toUpperCase() }).format(Math.round(Number(priceRaw) || 0));
-  } catch {
-    priceFmt = `$${Math.round(Number(priceRaw) || 0).toLocaleString()}`;
-  }
-
-  /* TrioTrip internal checkout (same tab) */
   const trioTrip =
     `${TRIOTRIP_BASE}${TRIOTRIP_BOOK_PATH}` +
     `?from=${encodeURIComponent(from)}` +
     `&to=${encodeURIComponent(to)}` +
-    (dateOut ? `&depart=${encodeURIComponent(dateOut)}` : "") +
+    `&depart=${encodeURIComponent(dateOut)}` +
     (dateRet ? `&return=${encodeURIComponent(dateRet)}` : "") +
-    `&adults=${adults}&children=${children}&infants=${infants}`;
+    `&adults=${pkg.passengersAdults ?? pkg.adults ?? 1}` +
+    `&children=${pkg.passengersChildren ?? pkg.children ?? 0}` +
+    `&infants=${pkg.passengersInfants ?? pkg.infants ?? 0}`;
 
-  /* Alternate flight helpers */
   const airlineSite =
     AIRLINE_SITE[airline] ||
     (airline ? `https://www.google.com/search?q=${encodeURIComponent(airline + " booking")}` : "");
 
-  const googleFlights =
-    `https://www.google.com/travel/flights?q=${encodeURIComponent(`${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${totalPax} travelers`)}`;
-
-  const ssOut = (dateOut || "").replace(/-/g, "");
-  const ssRet = (dateRet || "").replace(/-/g, "");
-  const skyScanner = (from && to && ssOut)
-    ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${dateRet ? `${ssRet}/` : ""}?adults=${adults}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
-    : "https://www.skyscanner.com/";
-
-  const wrapStyle: React.CSSProperties = {
-    display: "grid",
-    gap: 12,
-    border: compared ? "2px solid #0ea5e9" : "1px solid #e2e8f0",
-    borderRadius: 14,
-    padding: 12,
-    background: "linear-gradient(180deg,#ffffff,#f6fbff)",
-    boxShadow: "0 8px 20px rgba(2,6,23,.06)",
-    cursor: onToggleCompare ? "pointer" : "default",
-  };
-
-  /* ----------------- hotel links ----------------- */
   function hotelPrimaryLink(h: any, cityFallback: string) {
     const official = ensureHttps(h?.website || h?.officialUrl || h?.url);
     if (official) return official;
-
     const city = h?.city || cityFallback || pkg?.destination || "";
     const q = h?.name ? `${h.name}, ${city}` : city;
 
@@ -138,13 +90,12 @@ export default function ResultCard({
     if (q) b.searchParams.set("ss", q);
     if (pkg?.hotelCheckIn)  b.searchParams.set("checkin",  pkg.hotelCheckIn);
     if (pkg?.hotelCheckOut) b.searchParams.set("checkout", pkg.hotelCheckOut);
-    b.searchParams.set("group_adults", String(adults || 1));
-    if (children > 0) b.searchParams.set("group_children", String(children));
+    b.searchParams.set("group_adults", String((pkg.passengersAdults ?? 1) || 1));
+    if ((pkg.passengersChildren ?? 0) > 0) b.searchParams.set("group_children", String(pkg.passengersChildren));
     b.searchParams.set("no_rooms", "1");
-    b.searchParams.set("selected_currency", pkg.currency || currency || "USD");
+    b.searchParams.set("selected_currency", currency || "USD");
     return b.toString();
   }
-
   function hotelAltLinks(h: any, cityFallback: string) {
     const city = h?.city || cityFallback || pkg?.destination || "";
     const destName = h?.name ? `${h.name}, ${city}` : city;
@@ -153,15 +104,15 @@ export default function ResultCard({
     if (destName) exp.searchParams.set("destination", destName);
     if (pkg?.hotelCheckIn)  exp.searchParams.set("startDate", pkg.hotelCheckIn);
     if (pkg?.hotelCheckOut) exp.searchParams.set("endDate",   pkg.hotelCheckOut);
-    exp.searchParams.set("adults", String(adults || 1));
-    if (children > 0) exp.searchParams.set("children", String(children));
+    exp.searchParams.set("adults", String((pkg.passengersAdults ?? 1) || 1));
+    if ((pkg.passengersChildren ?? 0) > 0) exp.searchParams.set("children", String(pkg.passengersChildren));
 
     const hcx = new URL("https://www.hotels.com/Hotel-Search");
     if (destName) hcx.searchParams.set("destination", destName);
     if (pkg?.hotelCheckIn)  hcx.searchParams.set("checkIn",  pkg.hotelCheckIn);
     if (pkg?.hotelCheckOut) hcx.searchParams.set("checkOut", pkg.hotelCheckOut);
-    hcx.searchParams.set("adults", String(adults || 1));
-    if (children > 0) hcx.searchParams.set("children", String(children));
+    hcx.searchParams.set("adults", String((pkg.passengersAdults ?? 1) || 1));
+    if ((pkg.passengersChildren ?? 0) > 0) hcx.searchParams.set("children", String(pkg.passengersChildren));
 
     const maps = new URL("https://www.google.com/maps/search/");
     maps.searchParams.set("api", "1");
@@ -170,7 +121,6 @@ export default function ResultCard({
     return { expedia: exp.toString(), hotels: hcx.toString(), maps: maps.toString() };
   }
 
-  // deterministic unique hotel image (fallback to city if missing)
   const hotelImg = (h: any, i?: number) => {
     const candidate =
       ensureHttps(h?.image) || ensureHttps(h?.photo) || ensureHttps(h?.photoUrl) ||
@@ -188,54 +138,30 @@ export default function ResultCard({
       h?.city || h?.location?.city || h?.address?.city || h?.cityName ||
       pkg?.destination || pkg?.to || pkg?.arrivalCity || "";
 
-    const seedParts = [
-      h?.id || "", h?.name || "", city || "",
-      (h?.address?.line1 || h?.address || ""),
-      (typeof h?.lat === "number" && typeof h?.lng === "number") ? `${h.lat},${h.lng}` : "",
-      typeof i === "number" ? `idx:${i}` : "",
-    ];
-    const lock = hash(seedParts.filter(Boolean).join("|")) % 1_000_000;
-    const topic = city ? `hotel,${city}` : "hotel,travel";
-    return `https://loremflickr.com/400/250/${encodeURIComponent(topic)}?lock=${lock}`;
+    const seed = hash(`${h?.id || ""}|${h?.name || ""}|${city}|${i ?? 0}`) % 1_000_000;
+    return `https://source.unsplash.com/collection/483251/400x250/?sig=${seed}`;
   };
 
-  /* ----------------- render ----------------- */
   return (
     <section
       className={`result-card ${compared ? "result-card--compared" : ""}`}
-      style={wrapStyle}
       onClick={() => onToggleCompare?.(id)}
     >
-      {/* Header + quick actions */}
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <div style={{ fontWeight: 700, color: "#0f172a" }}>
+      <header style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+        <div style={{ fontWeight: 900 }}>
           Option {index + 1} • {route} {dateOut ? `• ${dateOut}` : ""} {pkg.roundTrip && dateRet ? `↩ ${dateRet}` : ""}
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {/* Price */}
-          <div style={{ fontWeight: 900, color: "#0b3b52", background: "#e7f5ff", border: "1px solid #cfe3ff", borderRadius: 10, padding: "6px 10px" }}>
-            💵 {priceFmt}
-          </div>
-          {/* Booking actions — internal TrioTrip opens SAME TAB */}
-          <a className="book-link" href={trioTrip} rel="noreferrer">TrioTrip</a>
-          <a className="book-link" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
-          <a className="book-link" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
-          {airline && <a className="book-link" href={airlineSite} target="_blank" rel="noreferrer">{airline}</a>}
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+          <div style={{ fontWeight:900 }}>{fmtMoney(price ?? undefined, currency)}</div>
+          <a className="book-link" href={trioTrip} target="_blank" rel="noreferrer">TrioTrip</a>
+          {airline && <a className="book-link" href={AIRLINE_SITE[airline] || "#"} target="_blank" rel="noreferrer">{airline}</a>}
           {onToggleCompare && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleCompare(id); }}
               aria-pressed={compared}
-              title={compared ? "Remove from Compare" : "Add to Compare"}
-              style={{
-                border: compared ? "2px solid #0ea5e9" : "1px solid #94a3b8",
-                background: compared ? "#e0f2fe" : "#fff",
-                color: "#0f172a",
-                padding: "6px 10px",
-                borderRadius: 10,
-                cursor: "pointer",
-                fontWeight: 700,
-              }}
+              className="segbtn"
+              style={{ borderColor: compared ? "#0ea5e9" : undefined, background: compared ? "#e0f2fe" : undefined }}
             >
               {compared ? "🆚 In Compare" : "➕ Compare"}
             </button>
@@ -245,28 +171,20 @@ export default function ResultCard({
 
       {/* Outbound */}
       {outSegs.length > 0 && (
-        <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 10, display: "grid", gap: 8, background: "linear-gradient(180deg,#ffffff,#eef6ff)" }}>
-          <div style={{ fontWeight: 600, color: "#0b3b52" }}>Outbound</div>
+        <div style={{ border:"1px solid #cfe3ff", borderRadius:12, padding:10, display:"grid", gap:8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
+          <div style={{ fontWeight: 800, color:"#0b3b52" }}>Outbound</div>
           {outSegs.map((s: any, i: number) => (
             <React.Fragment key={`o${i}`}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center" }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr auto", alignItems:"center" }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
-                  <div style={{ fontSize: 12, color: "#475569" }}>{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)}</div>
+                  <div style={{ fontWeight: 700 }}>{s.from} → {s.to}</div>
+                  <div className="small">{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)}</div>
                 </div>
-                <div style={{ fontWeight: 600 }}>{fmtDur(s.duration_minutes)}</div>
+                <div style={{ fontWeight: 700 }}>{fmtDur(s.duration_minutes)}</div>
               </div>
               {i < outSegs.length - 1 && (
-                <div style={{ display: "grid", placeItems: "center" }}>
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: 8,
-                    padding: "6px 10px", border: "1px dashed #94a3b8",
-                    background: "#fff", color: "#334155", borderRadius: 999, fontSize: 12
-                  }}>
-                    ⏱️ Layover in <strong style={{ marginLeft: 4 }}>{s.to}</strong>
-                    <span style={{ opacity: .7 }}>•</span>
-                    Next departs at <strong>{fmtTime(outSegs[i + 1].depart_time)}</strong>
-                  </div>
+                <div className="center small">
+                  ⏱️ Layover in {s.to} • Departs {fmtTime(outSegs[i + 1].depart_time)}
                 </div>
               )}
             </React.Fragment>
@@ -276,28 +194,20 @@ export default function ResultCard({
 
       {/* Return */}
       {inSegs.length > 0 && (
-        <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 10, display: "grid", gap: 8, background: "linear-gradient(180deg,#ffffff,#eef6ff)" }}>
-          <div style={{ fontWeight: 600, color: "#0b3b52" }}>Return</div>
+        <div style={{ border:"1px solid #cfe3ff", borderRadius:12, padding:10, display:"grid", gap:8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
+          <div style={{ fontWeight: 800, color:"#0b3b52" }}>Return</div>
           {inSegs.map((s: any, i: number) => (
             <React.Fragment key={`i${i}`}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center" }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr auto", alignItems:"center" }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{s.from} → {s.to}</div>
-                  <div style={{ fontSize: 12, color: "#475569" }}>{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)}</div>
+                  <div style={{ fontWeight: 700 }}>{s.from} → {s.to}</div>
+                  <div className="small">{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)}</div>
                 </div>
-                <div style={{ fontWeight: 600 }}>{fmtDur(s.duration_minutes)}</div>
+                <div style={{ fontWeight: 700 }}>{fmtDur(s.duration_minutes)}</div>
               </div>
               {i < inSegs.length - 1 && (
-                <div style={{ display: "grid", placeItems: "center" }}>
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: 8,
-                    padding: "6px 10px", border: "1px dashed #94a3b8",
-                    background: "#fff", color: "#334155", borderRadius: 999, fontSize: 12
-                  }}>
-                    ⏱️ Layover in <strong style={{ marginLeft: 4 }}>{s.to}</strong>
-                    <span style={{ opacity: .7 }}>•</span>
-                    Next departs at <strong>{fmtTime(inSegs[i + 1].depart_time)}</strong>
-                  </div>
+                <div className="center small">
+                  ⏱️ Layover in {s.to} • Departs {fmtTime(inSegs[i + 1].depart_time)}
                 </div>
               )}
             </React.Fragment>
@@ -308,7 +218,7 @@ export default function ResultCard({
       {/* Hotels */}
       {showHotel && (
         <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ fontWeight: 600, color: "#0f172a" }}>Hotels (top options)</div>
+          <div style={{ fontWeight: 800 }}>Hotels (top options)</div>
           {(Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels : (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : []))
             .slice(0, 3)
             .map((h: any, i: number) => {
@@ -318,28 +228,30 @@ export default function ResultCard({
               const img = hotelImg(h, i);
 
               return (
-                <div key={`h${i}`} style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 12, border: "1px solid #e2e8f0", borderRadius: 12, padding: 10, background: "#fff" }}>
-                  <a href={primary} target="_blank" rel="noreferrer" style={{ borderRadius: 10, overflow: "hidden", background: "#f1f5f9" }}>
+                <div key={`h${i}`} style={{ display:"grid", gridTemplateColumns:"160px 1fr", gap:12, border:"1px solid #e2e8f0", borderRadius:12, padding:10, background:"#fff" }}>
+                  <a href={primary} target="_blank" rel="noreferrer" style={{ borderRadius:10, overflow:"hidden", background:"#f1f5f9" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={img}
                       alt={h?.name || "Hotel"}
                       loading="lazy"
+                      width={160}
+                      height={100}
+                      style={{ width: 160, height: 100, objectFit: "cover" }}
                       onError={(e) => {
                         const t = e.currentTarget as HTMLImageElement;
                         t.onerror = null;
                         const seed = hash(`${h?.name || ""}|${city}|${i}`) % 1_000_000;
                         t.src = `https://picsum.photos/seed/${seed}/400/250`;
                       }}
-                      style={{ width: 160, height: 100, objectFit: "cover", display: "block" }}
                     />
                   </a>
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <a href={primary} target="_blank" rel="noreferrer" style={{ fontWeight: 700, color: "#0f172a", textDecoration: "none" }}>
+                  <div style={{ display:"grid", gap:6 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+                      <a href={primary} target="_blank" rel="noreferrer" style={{ fontWeight:900 }}>
                         {h?.name || "Hotel"}
                       </a>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                         <a className="book-link book-link--booking" href={primary} target="_blank" rel="noreferrer">
                           {primary.includes("booking.com") ? "Booking.com" : "Hotel site"}
                         </a>
@@ -348,7 +260,7 @@ export default function ResultCard({
                         <a className="book-link book-link--maps" href={alt.maps} target="_blank" rel="noreferrer">Map</a>
                       </div>
                     </div>
-                    <div style={{ color: "#475569", fontSize: 13 }}>{h?.address || h?.city || city}</div>
+                    <div className="small">{h?.address || h?.city || city}</div>
                   </div>
                 </div>
               );

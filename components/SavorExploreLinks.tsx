@@ -1,127 +1,150 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 
-type Category = "explore" | "savor" | "misc";
-
-type Props = {
-  category: Category;
-  countryCode?: string;
-  countryName?: string;
-  city: string;
-  limit?: number;
-  title: string;
-  query?: string;
-};
+const Q = (x: string) => encodeURIComponent(x.trim());
 
 const href = {
-  gmaps: (city: string, q?: string) =>
-    `https://www.google.com/maps/search/${encodeURIComponent((q ? `${q} in ` : "") + city)}`,
-  tripadvisor: (q: string | undefined, city: string) =>
-    `https://www.tripadvisor.com/Search?q=${encodeURIComponent(`${q || ""} ${city}`.trim())}`,
-  lonelyplanet: (city: string) => `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`,
-  timeout: (city: string) => `https://www.timeout.com/search?query=${encodeURIComponent(city)}`,
-  wiki: (city: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`,
-  wikivoyage: (city: string) =>
-    `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`,
-  yelp: (q: string | undefined, city: string) =>
-    `https://www.yelp.com/search?find_desc=${encodeURIComponent(q || "food")}&find_loc=${encodeURIComponent(city)}`,
-  opentable: (city: string) => `https://www.opentable.com/s?term=${encodeURIComponent(city)}`,
-  michelin: (city: string) => `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`,
-  weather: (city: string) => `https://www.google.com/search?q=${encodeURIComponent(`weather ${city}`)}`,
-  pharmacies: (city: string) =>
-    `https://www.google.com/maps/search/${encodeURIComponent(`pharmacies in ${city}`)}`,
-  cars: (city: string) => `https://www.google.com/search?q=${encodeURIComponent(`car rental ${city}`)}`,
-  currency: (city: string) => `https://www.xe.com/currencyconverter/?search=${encodeURIComponent(city)}`,
-  stateDept: () =>
-    `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`,
+  gmaps: (city: string, q?: string) => `https://www.google.com/maps/search/${Q((q ? q + " " : "") + city)}`,
+  tripadvisor: (q: string, city: string) => `https://www.tripadvisor.com/Search?q=${Q(q + " " + city)}`,
+  lonelyplanet: (city: string) => `https://www.lonelyplanet.com/search?q=${Q(city)}`,
+  timeout: (city: string) => `https://www.timeout.com/search?query=${Q(city)}`,
+  wiki: (city: string) => `https://en.wikipedia.org/wiki/Special:Search?search=${Q(city)}`,
+  wikivoyage: (city: string) => `https://en.wikivoyage.org/w/index.php?search=${Q(city)}`,
+
+  yelp: (city: string, term = "") => `https://www.yelp.com/search?find_desc=${Q(term)}&find_loc=${Q(city)}`,
+  michelin: (city: string) => `https://guide.michelin.com/en/search?q=${Q(city)}`,
+  eater: (city: string) => `https://www.eater.com/search?q=${Q(city)}`,
+
+  tourism: (countryCode: string, city: string) => {
+    const cc = (countryCode || "").toUpperCase();
+    if (cc === "US") return `https://www.travelusa.com/search?query=${Q(city)}`;
+    if (cc === "GB") return `https://www.visitbritain.com/en/search?search=${Q(city)}`;
+    if (cc === "FR") return `https://www.france.fr/en/search?keys=${Q(city)}`;
+    if (cc === "JP") return `https://www.japan.travel/en/search/?q=${Q(city)}`;
+    if (cc === "AE") return `https://www.visitdubai.com/en/search#q=${Q(city)}`;
+    if (cc === "SG") return `https://www.visitsingapore.com/en/search/?q=${Q(city)}`;
+    return `https://duckduckgo.com/?q=${Q(countryCode + " official tourism " + city)}`;
+  },
+
+  weather: (city: string) => `https://www.google.com/search?q=${Q(city + " weather")}`,
+  pharmacies: (city: string) => `https://www.google.com/maps/search/${Q("pharmacy " + city)}`,
+  carRental: (city: string) => `https://www.google.com/search?q=${Q("car rental " + city)}`,
+
+  cdcTravel: (cc: string) => `https://wwwnc.cdc.gov/travel/destinations/traveler/none/${Q(cc.toLowerCase())}`,
+  ukFCDO: (cc: string) => `https://www.gov.uk/foreign-travel-advice/${Q(cc.toLowerCase())}`,
+  stateDept: (cc: string) => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/${Q(cc)}-travel-advisory.html`,
 };
 
 export default function SavorExploreLinks({
-  category,
-  countryCode = "",
-  countryName = "",
-  city,
-  limit = 6,
-  title,
-  query,
-}: Props) {
-  const q = (query || title || "").toLowerCase();
+  category, countryCode = "", countryName = "", city, title, query = "", limit = 12,
+}: {
+  category: "explore" | "savor" | "misc";
+  countryCode?: string;
+  countryName?: string;
+  city: string;
+  title?: string;
+  query?: string;
+  limit?: number;
+}) {
+  const providers = useMemo(() => {
+    const list: { label: string; url: string }[] = [];
+    const add = (...items: { label: string; url: string }[]) => list.push(...items);
+    const q = query.trim().toLowerCase();
 
-  let providers: { label: string; url: string }[] = [];
+    if (category === "explore") {
+      if (!q || /guide|top|sight|attraction/.test(q)) {
+        add(
+          { label: "Lonely Planet", url: href.lonelyplanet(city) },
+          { label: "Time Out", url: href.timeout(city) },
+          { label: "Tripadvisor – Things to Do", url: href.tripadvisor("top sights", city) },
+          { label: "Wikivoyage", url: href.wikivoyage(city) }
+        );
+      }
+      if (!q || /museum/.test(q)) {
+        add(
+          { label: "Tripadvisor – Museums", url: href.tripadvisor("museums", city) },
+          { label: "Google Maps – Museums", url: href.gmaps(city, "museums") }
+        );
+      }
+      if (!q || /park|view|scenic|hike/.test(q)) {
+        add(
+          { label: "Google Maps – Parks", url: href.gmaps(city, "parks") },
+          { label: "Google Maps – Viewpoints", url: href.gmaps(city, "viewpoints") }
+        );
+      }
+      if (!q || /family|kids/.test(q)) {
+        add(
+          { label: "Tripadvisor – Family", url: href.tripadvisor("family activities", city) },
+          { label: "Google Maps – Kids", url: href.gmaps(city, "kid friendly") }
+        );
+      }
+      if (!q || /night|bar|club/.test(q)) {
+        add(
+          { label: "Tripadvisor – Nightlife", url: href.tripadvisor("nightlife", city) },
+          { label: "Google Maps – Bars & Clubs", url: href.gmaps(city, "bars clubs") }
+        );
+      }
+      if (countryCode) add({ label: "Official Tourism", url: href.tourism(countryCode, city) });
+    }
 
-  if (category === "explore") {
-    providers = [
-      { label: "Google Maps", url: href.gmaps(city, q) },
-      { label: "Tripadvisor", url: href.tripadvisor(q, city) },
-      { label: "Lonely Planet", url: href.lonelyplanet(city) },
-      { label: "Time Out", url: href.timeout(city) },
-      { label: "Wikipedia", url: href.wiki(city) },
-      { label: "Wikivoyage", url: href.wikivoyage(city) },
-    ];
-  } else if (category === "savor") {
-    providers = [
-      { label: "Yelp", url: href.yelp(q, city) },
-      { label: "OpenTable", url: href.opentable(city) },
-      { label: "Michelin", url: href.michelin(city) },
-      { label: "Google Maps", url: href.gmaps(city, q) },
-    ];
-  } else {
-    // misc
-    if (/know|advice|tips|before/i.test(q) || /know/.test(title.toLowerCase())) {
-      providers.push(
-        { label: "Wikivoyage", url: href.wikivoyage(city) },
-        { label: "Wikipedia", url: href.wiki(city) },
-        { label: "XE currency", url: href.currency(city) },
-        { label: "US State Dept", url: href.stateDept() }
-      );
-    } else if (/weather/i.test(q)) {
-      providers.push({ label: "Weather", url: href.weather(city) });
-    } else if (/pharm/i.test(q)) {
-      providers.push({ label: "Google Maps", url: href.pharmacies(city) });
-    } else if (/car|rental|cars/i.test(q)) {
-      providers.push({ label: "Search cars", url: href.cars(city) });
-    } else {
-      providers.push(
-        { label: "Wikivoyage", url: href.wikivoyage(city) },
-        { label: "Wikipedia", url: href.wiki(city) }
+    if (category === "savor") {
+      if (!q || /restaurant|food|eat/.test(q)) {
+        add(
+          { label: "Google Maps – Restaurants", url: href.gmaps(city, "restaurants") },
+          { label: "Yelp – Restaurants", url: href.yelp(city, "restaurants") },
+          { label: "Michelin Guide", url: href.michelin(city) }
+        );
+      }
+      if (!q || /cafe|coffee/.test(q)) {
+        add(
+          { label: "Google Maps – Cafés", url: href.gmaps(city, "cafes") },
+          { label: "Yelp – Cafés", url: href.yelp(city, "cafes") }
+        );
+      }
+      if (!q || /bar|cocktail|pub/.test(q)) {
+        add(
+          { label: "Google Maps – Bars", url: href.gmaps(city, "bars") },
+          { label: "Yelp – Bars", url: href.yelp(city, "bars") }
+        );
+      }
+      if (!q || /market|street/.test(q)) {
+        add(
+          { label: "Google Maps – Markets", url: href.gmaps(city, "markets") },
+          { label: "Tripadvisor – Markets", url: href.tripadvisor("markets", city) }
+        );
+      }
+    }
+
+    if (category === "misc") {
+      if (countryCode) {
+        add(
+          { label: "CDC Traveler Health", url: href.cdcTravel(countryCode) },
+          { label: "UK FCDO Advice", url: href.ukFCDO(countryCode) },
+          { label: "US State Dept", url: href.stateDept(countryCode) },
+        );
+      }
+      add(
+        { label: "Weather", url: href.weather(city) },
+        { label: "Pharmacies (Maps)", url: href.pharmacies(city) },
+        { label: "Car rental", url: href.carRental(city) },
       );
     }
-  }
 
-  if (limit > 0) providers = providers.slice(0, limit);
+    const dedup = new Map<string, { label: string; url: string }>();
+    for (const it of list) dedup.set(`${it.label}::${it.url}`, it);
+    return Array.from(dedup.values()).slice(0, limit);
+  }, [category, city, countryCode, countryName, query, limit]);
+
+  if (!city) return null;
 
   return (
-    <div className="place-card">
-      <div className="place-title">{title}</div>
-      <div className="place-links">
-        {providers.map((p) => (
-          <a
-            key={p.label}
-            className="place-link"
-            href={p.url}
-            target="_blank"
-            rel="noreferrer"
-            title={`${p.label} — ${city}${countryName ? ", " + countryName : ""}`}
-          >
-            {p.label}
-          </a>
-        ))}
-      </div>
-      <style jsx>{`
-        .place-card {
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 10px;
-          background: linear-gradient(180deg, #ffffff, #f9fbff);
-        }
-        .place-title { font-weight: 800; margin-bottom: 6px; color: #0f172a; }
-        .place-links { display: flex; flex-wrap: wrap; gap: 8px; }
-        .place-link {
-          display: inline-block; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 10px;
-          text-decoration: none; background: #fff; font-weight: 700;
-        }
-      `}</style>
+    <div className="badge-row">
+      {providers.map((p) => (
+        <a key={`${p.label}-${p.url}`} href={p.url} target="_blank" rel="noreferrer" className="badge-link">
+          {p.label}
+        </a>
+      ))}
     </div>
   );
 }
