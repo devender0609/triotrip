@@ -1,93 +1,100 @@
 "use client";
-import React from "react";
-import SavorExploreLinks from "@/components/SavorExploreLinks";
+
+import React, { useEffect, useState } from "react";
+import SavorExploreLinks from "./SavorExploreLinks";
 
 export default function ExploreSavorTabs({
   destinationCity,
   destinationCountry,
-  mode,       // "explore" | "savor" | "misc"
-  showTabs,   // kept for compatibility; not used to render tabs here
+  countryCode,
+  showTabs,
 }: {
   destinationCity: string;
   destinationCountry: string;
-  mode: "explore" | "savor" | "misc";
-  showTabs?: boolean;
+  countryCode?: string;
+  showTabs: boolean;
 }) {
-  const city = destinationCity || "Destination";
-  const countryName = destinationCountry || "";
+  const city = destinationCity || "";
+  const ctry = destinationCountry || "";
+  const cc = (countryCode || "").toUpperCase();
+
+  const [openExplore, setOpenExplore] = useState(false);
+  const [openSavor, setOpenSavor] = useState(false);
+  const [openMisc, setOpenMisc] = useState(false);
+
+  useEffect(() => {
+    // collapse when destination changes
+    setOpenExplore(false);
+    setOpenSavor(false);
+    setOpenMisc(false);
+  }, [city, ctry, cc]);
+
+  if (!showTabs || !city) return null;
 
   return (
-    <div className="card">
-      {mode === "explore" && (
-        <div className="places-grid">
-          <div className="places-col">
-            <h3 className="section-title">🧭 Guides</h3>
-            <SavorExploreLinks category="explore" city={city} countryName={countryName} title="Guides" limit={12} />
+    <section style={{ marginTop: 12 }}>
+      <div className="tabs" role="tablist" aria-label="Explore Savor Misc">
+        <button className={`tab ${openExplore ? "active":""}`} role="tab" aria-selected={openExplore} onClick={() => setOpenExplore(v=>!v)}>🗺️ Explore</button>
+        <button className={`tab ${openSavor ? "active":""}`} role="tab" aria-selected={openSavor} onClick={() => setOpenSavor(v=>!v)}>🍽️ Savor</button>
+        <button className={`tab ${openMisc ? "active":""}`} role="tab" aria-selected={openMisc} onClick={() => setOpenMisc(v=>!v)}>🧭 Misc</button>
+      </div>
+
+      {openExplore && (
+        <div className="row-grid">
+          <div>
+            <div className="section-title">Top sights</div>
+            <SavorExploreLinks category="explore" countryCode={cc} countryName={ctry} city={city} query="top sights" limit={8}/>
+            <hr className="soft" />
+            <div className="section-title">Parks & views</div>
+            <SavorExploreLinks category="explore" countryCode={cc} countryName={ctry} city={city} query="parks viewpoints" limit={8}/>
           </div>
-          <div className="places-col">
-            <h3 className="section-title">🏛️ Museums</h3>
-            <SavorExploreLinks category="explore" city={city} countryName={countryName} title="Museums" query="museums" limit={12} />
-          </div>
-          <div className="places-col">
-            <h3 className="section-title">🌆 Top sights</h3>
-            <SavorExploreLinks category="explore" city={city} countryName={countryName} title="Top sights" query="top attractions" limit={12} />
-          </div>
-          <div className="places-col">
-            <h3 className="section-title">🌳 Parks & views</h3>
-            <SavorExploreLinks category="explore" city={city} countryName={countryName} title="Parks & views" query="parks viewpoints" limit={12} />
-          </div>
-          <div className="places-col">
-            <h3 className="section-title">👨‍👩‍👧 Family</h3>
-            <SavorExploreLinks category="explore" city={city} countryName={countryName} title="Family" query="family kids" limit={12} />
-          </div>
-          <div className="places-col">
-            <h3 className="section-title">🌙 Nightlife</h3>
-            <SavorExploreLinks category="explore" city={city} countryName={countryName} title="Nightlife" query="nightlife" limit={12} />
+          <div>
+            <div className="section-title">Museums</div>
+            <SavorExploreLinks category="explore" countryCode={cc} countryName={ctry} city={city} query="museums" limit={8}/>
+            <hr className="soft" />
+            <div className="section-title">Family</div>
+            <SavorExploreLinks category="explore" countryCode={cc} countryName={ctry} city={city} query="family kids" limit={8}/>
+            <hr className="soft" />
+            <div className="section-title">Nightlife</div>
+            <SavorExploreLinks category="explore" countryCode={cc} countryName={ctry} city={city} query="nightlife" limit={8}/>
+            <hr className="soft" />
+            <div className="section-title">Guides</div>
+            <SavorExploreLinks category="explore" countryCode={cc} countryName={ctry} city={city} query="guides" limit={8}/>
           </div>
         </div>
       )}
 
-      {mode === "savor" && (
-        <div className="places-grid">
-          <div className="places-col">
-            <h3 className="section-title">🍽️ Restaurants</h3>
-            <SavorExploreLinks category="savor" city={city} countryName={countryName} title="Restaurants" query="restaurants" limit={12} />
+      {openSavor && (
+        <div className="row-grid">
+          <div>
+            <div className="section-title">Restaurants</div>
+            <SavorExploreLinks category="savor" countryCode={cc} countryName={ctry} city={city} query="restaurants" limit={8}/>
+            <hr className="soft" />
+            <div className="section-title">Cafés</div>
+            <SavorExploreLinks category="savor" countryCode={cc} countryName={ctry} city={city} query="cafes coffee" limit={8}/>
           </div>
-          <div className="places-col">
-            <h3 className="section-title">☕ Cafés</h3>
-            <SavorExploreLinks category="savor" city={city} countryName={countryName} title="Cafés" query="cafes coffee" limit={12} />
-          </div>
-          <div className="places-col">
-            <h3 className="section-title">🍸 Bars</h3>
-            <SavorExploreLinks category="savor" city={city} countryName={countryName} title="Bars" query="bars" limit={12} />
-          </div>
-          <div className="places-col">
-            <h3 className="section-title">🛒 Markets</h3>
-            <SavorExploreLinks category="savor" city={city} countryName={countryName} title="Markets" query="markets street food" limit={12} />
+          <div>
+            <div className="section-title">Bars</div>
+            <SavorExploreLinks category="savor" countryCode={cc} countryName={ctry} city={city} query="bars" limit={8}/>
+            <hr className="soft" />
+            <div className="section-title">Markets & street food</div>
+            <SavorExploreLinks category="savor" countryCode={cc} countryName={ctry} city={city} query="markets street food" limit={8}/>
           </div>
         </div>
       )}
 
-      {mode === "misc" && (
-        <div className="places-grid">
-          <div className="places-col">
-            <h3 className="section-title">ℹ️ Know before you go</h3>
-            <SavorExploreLinks category="misc" city={city} countryName={countryName} title="Know before you go" limit={12} />
+      {openMisc && (
+        <div className="row-grid">
+          <div>
+            <div className="section-title">Know before you go</div>
+            <SavorExploreLinks category="misc" countryCode={cc} countryName={ctry} city={city} query="kbyg" limit={6}/>
           </div>
-          <div className="places-col">
-            <h3 className="section-title">🌦️ Weather</h3>
-            <SavorExploreLinks category="misc" city={city} countryName={countryName} title="Weather" query="weather" limit={12} />
-          </div>
-          <div className="places-col">
-            <h3 className="section-title">💊 Pharmacies</h3>
-            <SavorExploreLinks category="misc" city={city} countryName={countryName} title="Pharmacies" query="pharmacy" limit={12} />
-          </div>
-          <div className="places-col">
-            <h3 className="section-title">🚗 Car rental</h3>
-            <SavorExploreLinks category="misc" city={city} countryName={countryName} title="Car rental" query="car rental" limit={12} />
+          <div>
+            <div className="section-title">Weather / Pharmacies / Car rental</div>
+            <SavorExploreLinks category="misc" countryCode={cc} countryName={ctry} city={city} query="utilities" limit={8}/>
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
