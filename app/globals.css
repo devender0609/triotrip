@@ -91,7 +91,7 @@ button:disabled { opacity:.6; cursor:not-allowed; }
 }
 .toolbar-chip--active{ border-color:#7dd3fc; box-shadow:0 0 0 2px rgba(125,211,252,.3); }
 
-/* --- Result Card (light framing only; most inline styles are in the component) --- */
+/* --- Result Card (light framing only) --- */
 .result-card{
   background:linear-gradient(180deg,#ffffff,#f6fbff);
   border:1px solid #e2e8f0; border-radius:14px; padding:12px;
@@ -136,7 +136,7 @@ button:disabled { opacity:.6; cursor:not-allowed; }
   background:#fff; text-decoration:none; font-weight:700; color:#0f172a;
 }
 
-/* --- Utility widths so the page never grows wider than your current layout --- */
+/* --- Utility widths (keep existing page width) --- */
 .container,
 .main-wrap { max-width: 1240px; margin: 0 auto; width: 100%; }
 
