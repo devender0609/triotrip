@@ -6,7 +6,7 @@ import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import SavedChip from "../components/SavedChip";
 import ComparePanel from "../components/ComparePanel";
-import { savorSet, miscSet } from "@/lib/savorExplore";
+import { savorSet, miscSet, exploreSet } from "@/lib/savorExplore";
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
@@ -61,11 +61,11 @@ function plusDays(iso: string, days: number) {
 /* ---- Country name -> ISO-ish code (subset) ---- */
 const NAME_TO_CODE: Record<string,string> = {
   "United States":"US","United Kingdom":"GB","Canada":"CA","Mexico":"MX","Brazil":"BR","Argentina":"AR",
-  "France":"FR","Germany":"DE","Italy":"IT","Spain":"ES","Ireland":"IE","Netherlands":"NL","Belgium":"BE","Portugal":"PT",
+  "France":"FR","Germany":"DE","Italy":"IT","Spain":"ES","Ireland":"IE","Netherlands":"NL","Belgium":"BE","Portugal":"PT","Switzerland":"CH","Austria":"AT","Czechia":"CZ","Czech Republic":"CZ","Greece":"GR","Poland":"PL","Romania":"RO","Hungary":"HU","Turkey":"TR",
   "Sweden":"SE","Norway":"NO","Denmark":"DK","Finland":"FI","Iceland":"IS",
   "Australia":"AU","New Zealand":"NZ",
   "Japan":"JP","South Korea":"KR","China":"CN","India":"IN","United Arab Emirates":"AE","Singapore":"SG","Hong Kong":"HK",
-  "Thailand":"TH","Malaysia":"MY","Philippines":"PH","Vietnam":"VN","Saudi Arabia":"SA","Qatar":"QA","Kuwait":"KW"
+  "Thailand":"TH","Malaysia":"MY","Philippines":"PH","Vietnam":"VN","Saudi Arabia":"SA","Qatar":"QA","Kuwait":"KW","Egypt":"EG","South Africa":"ZA","Indonesia":"ID","Chile":"CL","Peru":"PE","Colombia":"CO"
 };
 function countryCodeFromName(name?: string): string | undefined {
   if (!name) return;
@@ -86,7 +86,7 @@ export default function Page() {
   const [minBudget, setMinBudget] = useState<number | "">(""); const [maxBudget, setMaxBudget] = useState<number | "">("");
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
 
-  /* ---- Hotel (restored) ---- */
+  /* ---- Hotel (optional) ---- */
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
@@ -94,7 +94,7 @@ export default function Page() {
 
   const [sort, setSort] = useState<SortKey>("best"); const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
 
-  // Tabs: visible after a successful search; each toggles open/close
+  // Tabs visible after Search; each tab toggles show/hide
   const [tabsVisible, setTabsVisible] = useState(false);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [savorOpen, setSavorOpen] = useState(false);
@@ -191,7 +191,6 @@ export default function Page() {
   const comparedPkgs = useMemo(() => (results && comparedIds.length ? results.filter(r => comparedIds.includes(r.id || `pkg-${(results as any[]).indexOf(r)}`)) : []), [results, comparedIds]);
 
   const s = {
-    panel: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 16, display: "grid", gap: 14, maxWidth: 1240, margin: "0 auto", fontSize: 16 } as React.CSSProperties,
     label: { fontWeight: 500, color: "#334155", display: "block", marginBottom: 6, fontSize: 15 } as React.CSSProperties,
   };
   const inputStyle: React.CSSProperties = { height: 50, padding: "0 14px", border: "1px solid #e2e8f0", borderRadius: 12, width: "100%", background: "#fff", fontSize: 16 };
@@ -207,7 +206,7 @@ export default function Page() {
     if (!o || !d) return false; return o.trim().toLowerCase() !== d.trim().toLowerCase();
   }, [originDisplay, destDisplay]);
 
-  /* ---------- Link builders for Explore/Savor/Misc ---------- */
+  /* ---------- Small, single-use link builders ---------- */
   const gmapsQueryLink = (city: string, query: string) => `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`;
   const tripadvisor = (q: string, city: string) => `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q + " " + city)}`;
   const lonelyplanet = (city: string) => `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`;
@@ -234,6 +233,11 @@ export default function Page() {
 
   function ContentExplore() {
     const city = destCity;
+    // core labels shown in Explore
+    const coreExplore = new Set(["Google Maps","Tripadvisor","Lonely Planet","Time Out","Wikivoyage","Wikipedia"]);
+    const exploreExtras = useMemo(() =>
+      exploreSet(destCity, destCountryCode).filter(p => !coreExplore.has(p.label)), [destCity, destCountryCode]);
+
     return (
       <section className="places-panel" aria-label="Explore destination">
         <div className="subtle-h">🌍 Explore — {city}</div>
@@ -277,6 +281,17 @@ export default function Page() {
               <a className="place-link" href={wiki(city)} target="_blank" rel="noreferrer">Wikipedia</a>
             </div>
           </SectionCard>
+
+          {/* Show only if there are region-specific extras (e.g., Baidu in CN) */}
+          {exploreExtras.length > 0 && (
+            <SectionCard title="Regional maps & guides">
+              <div className="place-links">
+                {exploreExtras.map(p => (
+                  <a key={"rex-"+p.id} className="place-link" href={p.url} target="_blank" rel="noreferrer">{p.label}</a>
+                ))}
+              </div>
+            </SectionCard>
+          )}
         </div>
       </section>
     );
@@ -284,6 +299,10 @@ export default function Page() {
 
   function ContentSavor() {
     const city = destCity;
+    const coreSavor = new Set(["Yelp","OpenTable","Michelin","Google Maps"]);
+    const savorExtras = useMemo(() =>
+      savorSet(destCity, destCountryCode).filter(p => !coreSavor.has(p.label)), [destCity, destCountryCode]);
+
     return (
       <section className="places-panel" aria-label="Savor destination">
         <div className="subtle-h">🍽️ Savor — {city}</div>
@@ -320,16 +339,16 @@ export default function Page() {
             </div>
           </SectionCard>
 
-          {/* Auto-added regional providers (no duplicates vs. core list) */}
-          <SectionCard title="Regional dining">
-            <div className="place-links">
-              {savorSet(destCity, destCountryCode).map(p => (
-                ["Yelp","OpenTable","Michelin","Google Maps"].includes(p.label) ? null : (
-                  <a key={"auto-"+p.id} className="place-link" href={p.url} target="_blank" rel="noreferrer">{p.label}</a>
-                )
-              ))}
-            </div>
-          </SectionCard>
+          {/* Only render if there are extras for this country/region */}
+          {savorExtras.length > 0 && (
+            <SectionCard title="Regional dining">
+              <div className="place-links">
+                {savorExtras.map(p => (
+                  <a key={"sdx-"+p.id} className="place-link" href={p.url} target="_blank" rel="noreferrer">{p.label}</a>
+                ))}
+              </div>
+            </SectionCard>
+          )}
         </div>
       </section>
     );
@@ -337,6 +356,10 @@ export default function Page() {
 
   function ContentMisc() {
     const city = destCity;
+    const coreMisc = new Set(["Wikivoyage","Wikipedia","XE currency","Weather","Google Maps (Pharmacies)","Search cars","US State Dept","UK FCDO","Canada Travel","Australia Smartraveller"]);
+    const miscExtras = useMemo(() =>
+      miscSet(destCity, destCountryName, destCountryCode).filter(p => !coreMisc.has(p.label)), [destCity, destCountryName, destCountryCode]);
+
     return (
       <section className="places-panel" aria-label="Miscellaneous">
         <div className="subtle-h">🧭 Miscellaneous — {city}</div>
@@ -365,16 +388,16 @@ export default function Page() {
             </div>
           </SectionCard>
 
-          {/* Auto-added regional/advisory providers (no duplicates vs. core list) */}
-          <SectionCard title="Regional info">
-            <div className="place-links">
-              {miscSet(destCity, destCountryName, destCountryCode).map(p => (
-                ["Wikivoyage","Wikipedia","XE currency","Weather","Google Maps (Pharmacies)","Search cars","US State Dept","UK FCDO","Canada Travel","Australia Smartraveller"].includes(p.label) ? null : (
-                  <a key={"auto-"+p.id} className="place-link" href={p.url} target="_blank" rel="noreferrer">{p.label}</a>
-                )
-              ))}
-            </div>
-          </SectionCard>
+          {/* Only render if there are extras for this country/region */}
+          {miscExtras.length > 0 && (
+            <SectionCard title="Regional info">
+              <div className="place-links">
+                {miscExtras.map(p => (
+                  <a key={"mix-"+p.id} className="place-link" href={p.url} target="_blank" rel="noreferrer">{p.label}</a>
+                ))}
+              </div>
+            </SectionCard>
+          )}
         </div>
       </section>
     );
@@ -382,10 +405,13 @@ export default function Page() {
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
-      {/* keep header tweaks */}
       <style jsx global>{`
         header a { text-decoration: none !important; border-bottom: 0 !important; }
         header img.tt-logo, header .tt-logo { border: 0 !important; box-shadow: none !important; }
+        .place-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+        .place-title { font-weight: 800; margin-bottom: 8px; color: #0f172a; }
+        .place-links { display: flex; flex-wrap: wrap; gap: 8px; }
+        .place-link { display: inline-block; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 10px; text-decoration: none; background: #fff; font-weight: 700; }
       `}</style>
 
       <section>
@@ -407,7 +433,7 @@ export default function Page() {
               onTextChange={setOriginDisplay} onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }} />
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center" }} aria-hidden>
-            <button type="button" title="Swap origin & destination" onClick={swapOriginDest}
+            <button type="button" title="Swap origin & destination" onClick={() => swapOriginDest()}
               style={{ height: 46, width: 46, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}>⇄</button>
           </div>
           <div>
@@ -478,7 +504,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* Basic filters (refundable/greener removed) */}
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
           <div>
             <label style={s.label}>Cabin</label>
@@ -501,7 +526,7 @@ export default function Page() {
           <div />
         </div>
 
-        {/* --- Hotel option (restored) --- */}
+        {/* --- Hotel option --- */}
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "auto 1fr 1fr 1fr" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, color: "#0b1220" }}>
             <input type="checkbox" checked={includeHotel} onChange={(e) => setIncludeHotel(e.target.checked)} />
@@ -629,7 +654,6 @@ export default function Page() {
 
       {error && <div className="msg msg--error" role="alert">⚠ {error}</div>}
       {hotelWarning && !error && <div className="msg msg--warn">ⓘ {hotelWarning}</div>}
-
       {shownResults && shownResults.length > 0 && (
         <div className="main-wrap" key={searchKey}>
           {shownResults.map((pkg, i) => (
