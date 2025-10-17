@@ -6,6 +6,7 @@ import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import SavedChip from "../components/SavedChip";
 import ComparePanel from "../components/ComparePanel";
+import { savorSet, miscSet } from "@/lib/savorExplore";
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
@@ -55,6 +56,20 @@ function plusDays(iso: string, days: number) {
   if (!iso) return "";
   const d = new Date(iso); if (Number.isNaN(d.getTime())) return "";
   d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10);
+}
+
+/* ---- Country name -> ISO-ish code (subset) ---- */
+const NAME_TO_CODE: Record<string,string> = {
+  "United States":"US","United Kingdom":"GB","Canada":"CA","Mexico":"MX","Brazil":"BR","Argentina":"AR",
+  "France":"FR","Germany":"DE","Italy":"IT","Spain":"ES","Ireland":"IE","Netherlands":"NL","Belgium":"BE","Portugal":"PT",
+  "Sweden":"SE","Norway":"NO","Denmark":"DK","Finland":"FI","Iceland":"IS",
+  "Australia":"AU","New Zealand":"NZ",
+  "Japan":"JP","South Korea":"KR","China":"CN","India":"IN","United Arab Emirates":"AE","Singapore":"SG","Hong Kong":"HK",
+  "Thailand":"TH","Malaysia":"MY","Philippines":"PH","Vietnam":"VN","Saudi Arabia":"SA","Qatar":"QA","Kuwait":"KW"
+};
+function countryCodeFromName(name?: string): string | undefined {
+  if (!name) return;
+  return NAME_TO_CODE[name];
 }
 
 export default function Page() {
@@ -184,6 +199,9 @@ export default function Page() {
   const segStyle = (active: boolean): React.CSSProperties => (active ? { ...segBase, background: "linear-gradient(180deg,#ffffff,#eef6ff)", color: "#0f172a", border: "1px solid #bfdbfe" } : segBase);
 
   const destCity = useMemo(() => (extractCityOnly(destDisplay) || "Destination"), [destDisplay]);
+  const destCountryName = useMemo(() => extractCountryFromDisplay(destDisplay) || "", [destDisplay]);
+  const destCountryCode = useMemo(() => countryCodeFromName(destCountryName) || "", [destCountryName]);
+
   const isInternational = useMemo(() => {
     const o = extractCountryFromDisplay(originDisplay) || ""; const d = extractCountryFromDisplay(destDisplay) || "";
     if (!o || !d) return false; return o.trim().toLowerCase() !== d.trim().toLowerCase();
@@ -191,7 +209,6 @@ export default function Page() {
 
   /* ---------- Link builders for Explore/Savor/Misc ---------- */
   const gmapsQueryLink = (city: string, query: string) => `https://www.google.com/maps/search/${encodeURIComponent(`${query} in ${city}`)}`;
-  const web = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
   const tripadvisor = (q: string, city: string) => `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q + " " + city)}`;
   const lonelyplanet = (city: string) => `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`;
   const timeout = (city: string) => `https://www.timeout.com/search?query=${encodeURIComponent(city)}`;
@@ -203,7 +220,7 @@ export default function Page() {
   const opentable = (city: string) => `https://www.opentable.com/s?term=${encodeURIComponent(city)}`;
   const michelin = (city: string) => `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`;
   const weather = (city: string) => `https://www.google.com/search?q=${encodeURIComponent(`weather ${city}`)}`;
-  const carRental = (city: string) => `https://www.google.com/travel/things-to-do?dest=${encodeURIComponent(city)}#cars`; // simple car lookup; you can swap to your provider
+  const carRental = (city: string) => `https://www.google.com/search?q=${encodeURIComponent(`car rental ${city}`)}`;
   const pharmacies = (city: string) => gmapsQueryLink(city, "pharmacies");
 
   function SectionCard({ title, children }: React.PropsWithChildren<{ title: string }>) {
@@ -302,6 +319,17 @@ export default function Page() {
               <a className="place-link" href={yelp("desserts", city)} target="_blank" rel="noreferrer">Yelp</a>
             </div>
           </SectionCard>
+
+          {/* Auto-added regional providers (no duplicates vs. core list) */}
+          <SectionCard title="Regional dining">
+            <div className="place-links">
+              {savorSet(destCity, destCountryCode).map(p => (
+                ["Yelp","OpenTable","Michelin","Google Maps"].includes(p.label) ? null : (
+                  <a key={"auto-"+p.id} className="place-link" href={p.url} target="_blank" rel="noreferrer">{p.label}</a>
+                )
+              ))}
+            </div>
+          </SectionCard>
         </div>
       </section>
     );
@@ -334,6 +362,17 @@ export default function Page() {
           <SectionCard title="Car rental">
             <div className="place-links">
               <a className="place-link" href={carRental(city)} target="_blank" rel="noreferrer">Search cars</a>
+            </div>
+          </SectionCard>
+
+          {/* Auto-added regional/advisory providers (no duplicates vs. core list) */}
+          <SectionCard title="Regional info">
+            <div className="place-links">
+              {miscSet(destCity, destCountryName, destCountryCode).map(p => (
+                ["Wikivoyage","Wikipedia","XE currency","Weather","Google Maps (Pharmacies)","Search cars","US State Dept","UK FCDO","Canada Travel","Australia Smartraveller"].includes(p.label) ? null : (
+                  <a key={"auto-"+p.id} className="place-link" href={p.url} target="_blank" rel="noreferrer">{p.label}</a>
+                )
+              ))}
             </div>
           </SectionCard>
         </div>

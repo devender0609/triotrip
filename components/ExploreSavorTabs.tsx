@@ -1,172 +1,120 @@
 "use client";
 
 import React from "react";
+import SavorExploreLinks from "./SavorExploreLinks";
+
+/**
+ * ExploreSavorTabs
+ * A compact, reusable panel that renders Explore / Savor / Misc sections
+ * using the country/continent-aware link sets from lib/savorExplore.
+ *
+ * Usage:
+ *  <ExploreSavorTabs
+ *    city="Tokyo"
+ *    countryName="Japan"
+ *    countryCode="JP"
+ *    show={["explore","savor","misc"]}  // optional; defaults to all three
+ *    limit={8}                          // optional; soft cap per section
+ *  />
+ */
 
 type Category = "explore" | "savor" | "misc";
 
 type Props = {
-  category: Category;
-  /** ISO-like country code (optional) */
-  countryCode?: string;
-  /** Country name (optional) */
-  countryName?: string;
-  /** Destination city (required) */
+  /** Display city name (e.g., "Tokyo" or "Paris, France"). Required. */
   city: string;
-  /** Max links to show (soft cap) */
+  /** ISO-like country code (e.g., "JP"). Optional but recommended. */
+  countryCode?: string;
+  /** Country name (e.g., "Japan"). Optional, used for advisories. */
+  countryName?: string;
+  /** Which sections to show. Defaults to all three. */
+  show?: Category[];
+  /** Soft cap for links per section. Defaults to 6. */
   limit?: number;
-  /** Section title to display on the card */
-  title: string;
-  /** Optional query string to specialize provider links (e.g., "museums") */
-  query?: string;
+  /** Optional heading shown at top of the panel. */
+  heading?: string;
 };
 
-const href = {
-  gmaps: (city: string, q?: string) =>
-    `https://www.google.com/maps/search/${encodeURIComponent(
-      (q ? `${q} in ` : "") + city
-    )}`,
-  tripadvisor: (q: string | undefined, city: string) =>
-    `https://www.tripadvisor.com/Search?q=${encodeURIComponent(
-      `${q || ""} ${city}`.trim()
-    )}`,
-  lonelyplanet: (city: string) =>
-    `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`,
-  timeout: (city: string) =>
-    `https://www.timeout.com/search?query=${encodeURIComponent(city)}`,
-  wiki: (city: string) =>
-    `https://en.wikipedia.org/wiki/${encodeURIComponent(
-      city.replace(/\s+/g, "_")
-    )}`,
-  wikivoyage: (city: string) =>
-    `https://en.wikivoyage.org/wiki/${encodeURIComponent(
-      city.replace(/\s+/g, "_")
-    )}`,
-  yelp: (q: string | undefined, city: string) =>
-    `https://www.yelp.com/search?find_desc=${encodeURIComponent(
-      q || "food"
-    )}&find_loc=${encodeURIComponent(city)}`,
-  opentable: (city: string) =>
-    `https://www.opentable.com/s?term=${encodeURIComponent(city)}`,
-  michelin: (city: string) =>
-    `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`,
-  weather: (city: string) =>
-    `https://www.google.com/search?q=${encodeURIComponent(`weather ${city}`)}`,
-  pharmacies: (city: string) =>
-    `https://www.google.com/maps/search/${encodeURIComponent(
-      `pharmacies in ${city}`
-    )}`,
-  cars: (city: string) =>
-    `https://www.google.com/search?q=${encodeURIComponent(
-      `car rental ${city}`
-    )}`,
-  currency: (city: string) =>
-    `https://www.xe.com/currencyconverter/?search=${encodeURIComponent(city)}`,
-  stateDept: () =>
-    `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`,
-};
-
-export default function SavorExploreLinks({
-  category,
-  countryCode = "",
-  countryName = "",
+export default function ExploreSavorTabs({
   city,
+  countryCode,
+  countryName,
+  show = ["explore", "savor", "misc"],
   limit = 6,
-  title,
-  query,
+  heading,
 }: Props) {
-  const q = (query || title || "").toLowerCase();
-
-  // Choose providers based on category
-  let providers: { label: string; url: string }[] = [];
-
-  if (category === "explore") {
-    providers = [
-      { label: "Google Maps", url: href.gmaps(city, q) },
-      { label: "Tripadvisor", url: href.tripadvisor(q, city) },
-      { label: "Lonely Planet", url: href.lonelyplanet(city) },
-      { label: "Time Out", url: href.timeout(city) },
-      { label: "Wikipedia", url: href.wiki(city) },
-      { label: "Wikivoyage", url: href.wikivoyage(city) },
-    ];
-  } else if (category === "savor") {
-    providers = [
-      { label: "Yelp", url: href.yelp(q, city) },
-      { label: "OpenTable", url: href.opentable(city) },
-      { label: "Michelin", url: href.michelin(city) },
-      { label: "Google Maps", url: href.gmaps(city, q) },
-    ];
-  } else {
-    // misc
-    if (/know|advice|tips|before/i.test(q) || /know/.test(title.toLowerCase())) {
-      providers.push(
-        { label: "Wikivoyage", url: href.wikivoyage(city) },
-        { label: "Wikipedia", url: href.wiki(city) },
-        { label: "XE currency", url: href.currency(city) },
-        { label: "US State Dept", url: href.stateDept() }
-      );
-    } else if (/weather/i.test(q)) {
-      providers.push({ label: "Weather", url: href.weather(city) });
-    } else if (/pharm/i.test(q)) {
-      providers.push({ label: "Google Maps", url: href.pharmacies(city) });
-    } else if (/car|rental|cars/i.test(q)) {
-      providers.push({ label: "Search cars", url: href.cars(city) });
-    } else {
-      // generic fallback
-      providers.push(
-        { label: "Wikivoyage", url: href.wikivoyage(city) },
-        { label: "Wikipedia", url: href.wiki(city) }
-      );
-    }
-  }
-
-  if (limit > 0) providers = providers.slice(0, limit);
+  // normalize/guard
+  const _city = city?.trim() || "Destination";
 
   return (
-    <div className="place-card">
-      <div className="place-title">{title}</div>
-      <div className="place-links">
-        {providers.map((p) => (
-          <a
-            key={p.label}
-            className="place-link"
-            href={p.url}
-            target="_blank"
-            rel="noreferrer"
-            title={`${p.label} — ${city}${
-              countryName ? ", " + countryName : ""
-            }`}
-          >
-            {p.label}
-          </a>
-        ))}
+    <section className="estabs">
+      {heading && <div className="estabs__heading">{heading}</div>}
+
+      <div className="estabs__grid">
+        {show.includes("explore") && (
+          <SavorExploreLinks
+            category="explore"
+            city={_city}
+            countryCode={countryCode}
+            countryName={countryName}
+            limit={limit}
+            title="🌍 Explore"
+          />
+        )}
+
+        {show.includes("savor") && (
+          <SavorExploreLinks
+            category="savor"
+            city={_city}
+            countryCode={countryCode}
+            countryName={countryName}
+            limit={limit}
+            title="🍽️ Savor"
+          />
+        )}
+
+        {show.includes("misc") && (
+          <SavorExploreLinks
+            category="misc"
+            city={_city}
+            countryCode={countryCode}
+            countryName={countryName}
+            limit={limit}
+            title="🧭 Miscellaneous"
+          />
+        )}
       </div>
+
       <style jsx>{`
-        .place-card {
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 10px;
-          background: linear-gradient(180deg, #ffffff, #f9fbff);
+        .estabs {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 16px;
         }
-        .place-title {
-          font-weight: 800;
-          margin-bottom: 6px;
-          color: #0f172a;
-        }
-        .place-links {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .place-link {
-          display: inline-block;
-          padding: 6px 10px;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          text-decoration: none;
-          background: #fff;
+        .estabs__heading {
           font-weight: 700;
+          font-size: 18px;
+          color: #0f172a;
+          margin-bottom: 10px;
+        }
+        .estabs__grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        @media (max-width: 1024px) {
+          .estabs__grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 640px) {
+          .estabs__grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
-    </div>
+    </section>
   );
 }

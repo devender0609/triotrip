@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { exploreSet, savorSet, miscSet } from "../lib/savorExplore";
 
 type Category = "explore" | "savor" | "misc";
 
@@ -11,105 +12,23 @@ type Props = {
   city: string;
   limit?: number;
   title: string;
-  query?: string;
-};
-
-const href = {
-  gmaps: (city: string, q?: string) =>
-    `https://www.google.com/maps/search/${encodeURIComponent(
-      (q ? `${q} in ` : "") + city
-    )}`,
-  tripadvisor: (q: string | undefined, city: string) =>
-    `https://www.tripadvisor.com/Search?q=${encodeURIComponent(
-      `${q || ""} ${city}`.trim()
-    )}`,
-  lonelyplanet: (city: string) =>
-    `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`,
-  timeout: (city: string) =>
-    `https://www.timeout.com/search?query=${encodeURIComponent(city)}`,
-  wiki: (city: string) =>
-    `https://en.wikipedia.org/wiki/${encodeURIComponent(
-      city.replace(/\s+/g, "_")
-    )}`,
-  wikivoyage: (city: string) =>
-    `https://en.wikivoyage.org/wiki/${encodeURIComponent(
-      city.replace(/\s+/g, "_")
-    )}`,
-  yelp: (q: string | undefined, city: string) =>
-    `https://www.yelp.com/search?find_desc=${encodeURIComponent(
-      q || "food"
-    )}&find_loc=${encodeURIComponent(city)}`,
-  opentable: (city: string) =>
-    `https://www.opentable.com/s?term=${encodeURIComponent(city)}`,
-  michelin: (city: string) =>
-    `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`,
-  weather: (city: string) =>
-    `https://www.google.com/search?q=${encodeURIComponent(`weather ${city}`)}`,
-  pharmacies: (city: string) =>
-    `https://www.google.com/maps/search/${encodeURIComponent(
-      `pharmacies in ${city}`
-    )}`,
-  cars: (city: string) =>
-    `https://www.google.com/search?q=${encodeURIComponent(
-      `car rental ${city}`
-    )}`,
-  currency: (city: string) =>
-    `https://www.xe.com/currencyconverter/?search=${encodeURIComponent(city)}`,
-  stateDept: () =>
-    `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`,
+  query?: string; // not used for provider selection now, but kept for compatibility
 };
 
 export default function SavorExploreLinks({
   category,
-  countryCode = "",
-  countryName = "",
+  countryCode,
+  countryName,
   city,
   limit = 6,
   title,
-  query,
 }: Props) {
-  const q = (query || title || "").toLowerCase();
-
-  let providers: { label: string; url: string }[] = [];
-
-  if (category === "explore") {
-    providers = [
-      { label: "Google Maps", url: href.gmaps(city, q) },
-      { label: "Tripadvisor", url: href.tripadvisor(q, city) },
-      { label: "Lonely Planet", url: href.lonelyplanet(city) },
-      { label: "Time Out", url: href.timeout(city) },
-      { label: "Wikipedia", url: href.wiki(city) },
-      { label: "Wikivoyage", url: href.wikivoyage(city) },
-    ];
-  } else if (category === "savor") {
-    providers = [
-      { label: "Yelp", url: href.yelp(q, city) },
-      { label: "OpenTable", url: href.opentable(city) },
-      { label: "Michelin", url: href.michelin(city) },
-      { label: "Google Maps", url: href.gmaps(city, q) },
-    ];
-  } else {
-    // misc
-    if (/know|advice|tips|before/i.test(q) || /know/.test(title.toLowerCase())) {
-      providers.push(
-        { label: "Wikivoyage", url: href.wikivoyage(city) },
-        { label: "Wikipedia", url: href.wiki(city) },     // << fixed here
-        { label: "XE currency", url: href.currency(city) },
-        { label: "US State Dept", url: href.stateDept() }
-      );
-    } else if (/weather/i.test(q)) {
-      providers.push({ label: "Weather", url: href.weather(city) });
-    } else if (/pharm/i.test(q)) {
-      providers.push({ label: "Google Maps", url: href.pharmacies(city) });
-    } else if (/car|rental|cars/i.test(q)) {
-      providers.push({ label: "Search cars", url: href.cars(city) });
-    } else {
-      providers.push(
-        { label: "Wikivoyage", url: href.wikivoyage(city) },
-        { label: "Wikipedia", url: href.wiki(city) }
-      );
-    }
-  }
+  let providers =
+    category === "explore"
+      ? exploreSet(city, countryCode)
+      : category === "savor"
+      ? savorSet(city, countryCode)
+      : miscSet(city, countryName, countryCode);
 
   if (limit > 0) providers = providers.slice(0, limit);
 
@@ -118,14 +37,7 @@ export default function SavorExploreLinks({
       <div className="place-title">{title}</div>
       <div className="place-links">
         {providers.map((p) => (
-          <a
-            key={p.label}
-            className="place-link"
-            href={p.url}
-            target="_blank"
-            rel="noreferrer"
-            title={`${p.label} — ${city}${countryName ? ", " + countryName : ""}`}
-          >
+          <a key={p.id} className="place-link" href={p.url} target="_blank" rel="noreferrer">
             {p.label}
           </a>
         ))}

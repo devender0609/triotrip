@@ -1,106 +1,121 @@
 // lib/savorExplore.ts
-type Provider = {
-  id: string;
-  name: string;
-  categories: ("explore"|"savor")[];
-  global?: boolean;
-  supported_countries?: "GLOBAL";
-  supported_regions?: string[]; // ISO alpha-2 codes
-  link_template: string; // expect tokens: {PLACE}, optional {DATE_TIME}
-  notes?: string;
+export const countryToContinent: Record<string, "AF"|"AS"|"EU"|"NA"|"OC"|"SA"|"AN"> = {
+  US: "NA", CA: "NA", MX: "NA", BR: "SA", AR: "SA",
+  GB: "EU", FR: "EU", DE: "EU", IT: "EU", ES: "EU", IE: "EU", NL: "EU", BE: "EU", PT: "EU", SE: "EU", NO: "EU", DK: "EU", FI: "EU", IS: "EU",
+  AU: "OC", NZ: "OC",
+  JP: "AS", KR: "AS", CN: "AS", IN: "AS", AE: "AS", SG: "AS", HK: "AS", TH: "AS", MY: "AS", PH: "AS", VN: "AS",
 };
 
-export type Category = "explore" | "savor";
+export const href = {
+  gmaps: (city: string, q?: string) =>
+    `https://www.google.com/maps/search/${encodeURIComponent(((q ? q + " " : "") + city).trim())}`,
+  tripadvisor: (q: string, city: string) =>
+    `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q || city)}`,
+  lonelyplanet: (city: string) =>
+    `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`,
+  timeout: (city: string) =>
+    `https://www.timeout.com/search?query=${encodeURIComponent(city)}`,
+  wiki: (city: string) =>
+    `https://en.wikipedia.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`,
+  wikivoyage: (city: string) =>
+    `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`,
+  xe: (city: string) =>
+    `https://www.xe.com/currencyconverter/?search=${encodeURIComponent(city)}`,
+  weather: (city: string) =>
+    `https://www.google.com/search?q=${encodeURIComponent("weather " + city)}`,
+  pharmacies: (city: string) =>
+    `https://www.google.com/maps/search/${encodeURIComponent("pharmacies " + city)}`,
+  cars: (city: string) =>
+    `https://www.google.com/search?q=${encodeURIComponent("car rental " + city)}`,
 
-export type PickOptions = {
-  countryCode?: string;   // ISO alpha-2 (preferred)
-  countryName?: string;   // if you don't have code
-  city?: string;
-  when?: string;          // optional ISO datetime for reservations
-  limit?: number;         // max providers
+  // Dining / reservations (global)
+  yelp: (q: string, city: string) =>
+    `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`,
+  opentable: (city: string) =>
+    `https://www.opentable.com/s?term=${encodeURIComponent(city)}`,
+  michelin: (city: string) =>
+    `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`,
+
+  // Regional maps & dining
+  baiduMap: (city: string) => `https://map.baidu.com/search/${encodeURIComponent(city)}`,
+  dianping: (city: string) => `https://www.dianping.com/search/keyword/0/0_${encodeURIComponent(city)}`,
+  tabelog: (city: string) => `https://tabelog.com/en/rstLst/?sa=${encodeURIComponent(city)}`,
+  mangoPlate: (city: string) => `https://www.mangoplate.com/search/${encodeURIComponent(city)}`,
+  zomato: (city: string) => `https://www.zomato.com/search?place_name=${encodeURIComponent(city)}`,
+  openrice: (city: string) => `https://www.openrice.com/en/hongkong/restaurants?what=&where=${encodeURIComponent(city)}`,
+  thefork: (city: string) => `https://www.thefork.com/search/?city=${encodeURIComponent(city)}`,
+  quandoo: (city: string) => `https://www.quandoo.com/en/find?query=${encodeURIComponent(city)}`,
+
+  // Advisories
+  usStateDept: () => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`,
+  ukFCDO: (countryName?: string) =>
+    `https://www.gov.uk/foreign-travel-advice${countryName ? "/" + encodeURIComponent(countryName.toLowerCase().replace(/\s+/g,"-")) : ""}`,
+  caTravel: (countryName?: string) =>
+    `https://travel.gc.ca/destinations${countryName ? "/" + encodeURIComponent(countryName.toLowerCase().replace(/\s+/g,"-")) : ""}`,
+  auSmartraveller: (countryName?: string) =>
+    `https://www.smartraveller.gov.au/destinations${countryName ? "/" + encodeURIComponent(countryName.toLowerCase().replace(/\s+/g,"-")) : ""}`,
 };
 
-// Simple country aliases -> ISO codes
-const COUNTRY_ALIASES: Record<string, string> = {
-  "United States": "US",
-  "USA": "US",
-  "United Kingdom": "UK",
-  "South Korea": "KR",
-  "North Korea": "KP",
-  "UAE": "AE",
-  "Emirates": "AE",
-  "Hong Kong": "HK",
-  "Czech Republic": "CZ",
-  "Türkiye": "TR",
-  "Turkey": "TR",
+type Provider = { label: string; url: string; id: string };
+const dedupe = (arr: Provider[]) => {
+  const seen = new Set<string>();
+  return arr.filter(p => (seen.has(p.id) ? false : (seen.add(p.id), true)));
 };
 
-// Utility: resolve country code if possible
-function resolveCountryCode(opts: PickOptions): string | undefined {
-  let code = (opts.countryCode || "").toUpperCase().trim();
-  if (code) return code;
-  const nm = (opts.countryName || "").trim();
-  if (!nm) return undefined;
-  return COUNTRY_ALIASES[nm] || undefined;
+export function exploreSet(city: string, countryCode?: string): Provider[] {
+  const list: Provider[] = [
+    { id: "gmaps", label: "Google Maps", url: href.gmaps(city, "top attractions") },
+    { id: "tripadvisor", label: "Tripadvisor", url: href.tripadvisor("top attractions", city) },
+    { id: "lonelyplanet", label: "Lonely Planet", url: href.lonelyplanet(city) },
+    { id: "timeout", label: "Time Out", url: href.timeout(city) },
+  ];
+  if (countryCode?.toUpperCase() === "CN") {
+    list.unshift({ id: "baidu", label: "Baidu Maps", url: href.baiduMap(city) });
+  }
+  return dedupe(list);
 }
 
-// Load providers statically (bundled at build time)
-import providersJson from "../data/providers.json";
-const PROVIDERS: Provider[] = providersJson as unknown as Provider[];
+export function savorSet(city: string, countryCode?: string): Provider[] {
+  const cc = countryCode?.toUpperCase();
+  const base: Provider[] = [
+    { id: "gmaps", label: "Google Maps", url: href.gmaps(city, "best restaurants") },
+    { id: "opentable", label: "OpenTable", url: href.opentable(city) },
+    { id: "michelin", label: "Michelin", url: href.michelin(city) },
+  ];
+  const regional: Provider[] = [];
 
-function providerApplies(p: Provider, countryCode?: string): boolean {
-  if (p.global || p.supported_countries === "GLOBAL") return true;
-  if (!countryCode) return false;
-  if (Array.isArray(p.supported_regions)) {
-    return p.supported_regions.includes(countryCode);
+  if (cc === "CN") regional.push({ id: "dianping", label: "Dianping", url: href.dianping(city) });
+  if (cc === "JP") regional.push({ id: "tabelog", label: "Tabelog", url: href.tabelog(city) });
+  if (cc === "KR") regional.push({ id: "mangoplate", label: "MangoPlate", url: href.mangoPlate(city) });
+  if (["HK","SG","MY","TH","PH","VN"].includes(cc || "")) regional.push({ id: "openrice", label: "OpenRice", url: href.openrice(city) });
+  if (["IN","AE","SA","QA","KW"].includes(cc || "")) regional.push({ id: "zomato", label: "Zomato", url: href.zomato(city) });
+
+  const continent = countryToContinent[cc || ""] || "";
+  if (continent === "EU" || cc === "GB") regional.push({ id: "thefork", label: "TheFork", url: href.thefork(city) }, { id: "quandoo", label: "Quandoo", url: href.quandoo(city) });
+  if (cc === "AU") regional.push({ id: "thefork", label: "TheFork", url: href.thefork(city) });
+
+  if (!["CN","JP","KR"].includes(cc || "")) {
+    base.push({ id: "yelp", label: "Yelp", url: href.yelp("restaurants", city) });
   }
-  return false;
+
+  return dedupe([...regional, ...base]);
 }
 
-function buildLink(tpl: string, place: string, when?: string): string {
-  const encodedPlace = encodeURIComponent(place);
-  let url = tpl.replace("{PLACE}", encodedPlace);
-  if (tpl.includes("{DATE_TIME}")) {
-    url = url.replace("{DATE_TIME}", encodeURIComponent(when || new Date().toISOString()));
+export function miscSet(city: string, countryName?: string, countryCode?: string): Provider[] {
+  const list: Provider[] = [
+    { id: "wikivoyage", label: "Wikivoyage", url: href.wikivoyage(city) },
+    { id: "wikipedia", label: "Wikipedia", url: href.wiki(city) },
+    { id: "xe", label: "XE currency", url: href.xe(city) },
+    { id: "weather", label: "Weather", url: href.weather(city) },
+    { id: "pharmacies", label: "Google Maps (Pharmacies)", url: href.pharmacies(city) },
+    { id: "cars", label: "Search cars", url: href.cars(city) },
+    { id: "us", label: "US State Dept", url: href.usStateDept() },
+    { id: "uk", label: "UK FCDO", url: href.ukFCDO(countryName) },
+    { id: "ca", label: "Canada Travel", url: href.caTravel(countryName) },
+    { id: "au", label: "Australia Smartraveller", url: href.auSmartraveller(countryName) },
+  ];
+  if (countryCode?.toUpperCase() === "CN") {
+    list.unshift({ id: "baidu", label: "Baidu Maps", url: href.baiduMap(city) });
   }
-  return url;
-}
-
-export function pickSites(category: Category, opts: PickOptions): { id: string; name: string; url: string; }[] {
-  const code = resolveCountryCode(opts);
-  const place = (opts.city || opts.countryName || code || "").trim();
-  const when = opts.when;
-  const limit = Math.max(1, Math.min(6, opts.limit ?? 4));
-
-  const matches = PROVIDERS
-    .filter(p => p.categories.includes(category))
-    .filter(p => providerApplies(p, code));
-
-  // Rank: simple rule — prefer regional (non-global) providers first, then global
-  const ranked = matches.sort((a, b) => {
-    const aRegional = !!a.supported_regions;
-    const bRegional = !!b.supported_regions;
-    if (aRegional !== bRegional) return aRegional ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-
-  // Build URLs and dedupe by base domain
-  const out: { id:string; name:string; url:string; domain:string }[] = [];
-  for (const p of ranked) {
-    const url = buildLink(p.link_template, place, when);
-    // domain dedupe
-    try {
-      const u = new URL(url);
-      const domain = u.hostname.replace(/^www\./, "");
-      if (!out.find(x => x.domain === domain)) {
-        out.push({ id: p.id, name: p.name, url, domain });
-      }
-    } catch {
-      // fallback: keep
-      out.push({ id: p.id, name: p.name, url, domain: p.id });
-    }
-    if (out.length >= limit) break;
-  }
-
-  return out.map(({id,name,url}) => ({id,name,url}));
+  return dedupe(list);
 }
