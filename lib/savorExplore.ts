@@ -1,22 +1,22 @@
 // lib/savorExplore.ts
-// Region-aware link builders + robust country resolution + provider availability rules.
+// Region-aware providers + robust country resolution (text or IATA) + availability rules.
 
-type CC = "AF"|"AS"|"EU"|"NA"|"OC"|"SA"|"AN";
+export type CC = "AF"|"AS"|"EU"|"NA"|"OC"|"SA"|"AN";
 
-export const countryToContinent: Record<string, CC> = {
-  // North America
+const countryToContinent: Record<string, CC> = {
   US:"NA", CA:"NA", MX:"NA",
-  // South America
   BR:"SA", AR:"SA", CL:"SA", PE:"SA", CO:"SA",
-  // Europe (subset + GB)
   GB:"EU", IE:"EU", FR:"EU", DE:"EU", IT:"EU", ES:"EU", PT:"EU", NL:"EU", BE:"EU", CH:"EU", AT:"EU",
   SE:"EU", NO:"EU", DK:"EU", FI:"EU", IS:"EU", CZ:"EU", PL:"EU", GR:"EU", RO:"EU", HU:"EU", TR:"EU",
-  // Oceania
   AU:"OC", NZ:"OC",
-  // Asia (subset)
   JP:"AS", KR:"AS", CN:"AS", IN:"AS", AE:"AS", SG:"AS", HK:"AS", TH:"AS", MY:"AS", PH:"AS", VN:"AS", ID:"AS", QA:"AS", KW:"AS", SA:"AS",
-  // Africa (a few)
   ZA:"AF", EG:"AF",
+};
+
+// Minimal IATA→country for India + common cases (extend as needed)
+const IATA_TO_CC: Record<string, string> = {
+  DEL:"IN", BOM:"IN", BLR:"IN", MAA:"IN", HYD:"IN", CCU:"IN", GOI:"IN", PNQ:"IN", AMD:"IN",
+  COK:"IN", TRV:"IN", IXC:"IN", JAI:"IN", LKO:"IN", PAT:"IN", NAG:"IN", VNS:"IN",
 };
 
 const NAME_SYNONYM_TO_CC: Record<string,string> = {
@@ -33,69 +33,57 @@ const NAME_SYNONYM_TO_CC: Record<string,string> = {
   "qatar":"QA","kuwait":"KW","saudi arabia":"SA",
 };
 
-export function resolveCountryCodeRough(countryName?: string): string | undefined {
-  if (!countryName) return;
-  const s = countryName.trim().toLowerCase();
-  return NAME_SYNONYM_TO_CC[s];
-}
-
 export function resolveCountryFromDisplay(display?: string): {name?: string; code?: string} {
   if (!display) return {};
-  // Strip IATA codes like (DEL), symbols, extra whitespace
   const cleaned = display.replace(/\([A-Z]{3}\)/g, " ").replace(/[–—]/g, "-").replace(/\s{2,}/g, " ").trim();
   const tokens = cleaned.split(/[,|-]+/).map(t => t.trim()).filter(Boolean);
-
-  // Look from right to left for a known country word
   for (let i = tokens.length - 1; i >= 0; i--) {
-    const guess = tokens[i];
-    const code = resolveCountryCodeRough(guess);
-    if (code) return { name: capitalizeWords(guess), code };
+    const guess = tokens[i].toLowerCase();
+    const code = NAME_SYNONYM_TO_CC[guess];
+    if (code) return { name: capitalize(tokens[i]), code };
   }
-  // Handle common short forms in airport-only entries (e.g., "New Delhi (DEL)")
-  const last = tokens[tokens.length-1] || "";
-  const c2 = resolveCountryCodeRough(last);
-  if (c2) return { name: capitalizeWords(last), code: c2 };
-
-  // Give up gently
   return {};
 }
 
-const capitalizeWords = (s: string) => s.replace(/\b[a-z]/g, m => m.toUpperCase());
+export function resolveCountryFromIATA(iata?: string): {name?: string; code?: string} {
+  if (!iata) return {};
+  const code = IATA_TO_CC[iata.toUpperCase()];
+  if (!code) return {};
+  return { name: codeToName(code), code };
+}
 
-/* ------------------- Providers ------------------- */
+export function codeToName(code: string): string {
+  const map: Record<string,string> = {
+    US:"United States", GB:"United Kingdom", IN:"India", CN:"China", JP:"Japan", KR:"South Korea",
+    AE:"United Arab Emirates", SG:"Singapore", HK:"Hong Kong", FR:"France", DE:"Germany", IT:"Italy",
+    ES:"Spain", PT:"Portugal", IE:"Ireland", NL:"Netherlands", BE:"Belgium", CH:"Switzerland", AT:"Austria",
+    CZ:"Czechia", PL:"Poland", GR:"Greece", RO:"Romania", HU:"Hungary", TR:"Turkey",
+    SE:"Sweden", NO:"Norway", DK:"Denmark", FI:"Finland", IS:"Iceland",
+    AU:"Australia", NZ:"New Zealand",
+    BR:"Brazil", AR:"Argentina", CL:"Chile", PE:"Peru", CO:"Colombia",
+    ZA:"South Africa", EG:"Egypt", TH:"Thailand", MY:"Malaysia", PH:"Philippines", VN:"Vietnam", ID:"Indonesia",
+    QA:"Qatar", KW:"Kuwait", SA:"Saudi Arabia", MX:"Mexico", CA:"Canada"
+  };
+  return map[code] || code;
+}
 
+const capitalize = (s:string) => s.replace(/\b[a-z]/g, m => m.toUpperCase());
+
+/* ---------- HREF builders ---------- */
 export const href = {
-  // Core maps & info (global)
-  gmaps: (city: string, q?: string) =>
-    `https://www.google.com/maps/search/${encodeURIComponent(((q ? q + " " : "") + city).trim())}`,
-  tripadvisor: (q: string, city: string) =>
-    `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q || city)}`,
-  lonelyplanet: (city: string) =>
-    `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`,
-  timeout: (city: string) =>
-    `https://www.timeout.com/search?query=${encodeURIComponent(city)}`,
-  wiki: (city: string) =>
-    `https://en.wikipedia.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`,
-  wikivoyage: (city: string) =>
-    `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`,
-  xe: (city: string) =>
-    `https://www.xe.com/currencyconverter/?search=${encodeURIComponent(city)}`,
-  weather: (city: string) =>
-    `https://www.google.com/search?q=${encodeURIComponent("weather " + city)}`,
-  pharmacies: (city: string) =>
-    `https://www.google.com/maps/search/${encodeURIComponent("pharmacies " + city)}`,
-  cars: (city: string) =>
-    `https://www.google.com/search?q=${encodeURIComponent("car rental " + city)}`,
-
-  // Dining / reservations (global-ish)
-  yelp: (q: string, city: string) =>
-    `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`,
-  opentable: (city: string) =>
-    `https://www.opentable.com/s?term=${encodeURIComponent(city)}`,
-  michelin: (city: string) =>
-    `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`,
-
-  // Regional maps & dining
+  gmaps: (city: string, q?: string) => `https://www.google.com/maps/search/${encodeURIComponent(((q ? q + " " : "") + city).trim())}`,
+  tripadvisor: (q: string, city: string) => `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q || city)}`,
+  lonelyplanet: (city: string) => `https://www.lonelyplanet.com/search?q=${encodeURIComponent(city)}`,
+  timeout: (city: string) => `https://www.timeout.com/search?query=${encodeURIComponent(city)}`,
+  wiki: (city: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`,
+  wikivoyage: (city: string) => `https://en.wikivoyage.org/wiki/${encodeURIComponent(city.replace(/\s+/g, "_"))}`,
+  xe: (city: string) => `https://www.xe.com/currencyconverter/?search=${encodeURIComponent(city)}`,
+  weather: (city: string) => `https://www.google.com/search?q=${encodeURIComponent("weather " + city)}`,
+  pharmacies: (city: string) => `https://www.google.com/maps/search/${encodeURIComponent("pharmacies " + city)}`,
+  cars: (city: string) => `https://www.google.com/search?q=${encodeURIComponent("car rental " + city)}`,
+  yelp: (q: string, city: string) => `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}&find_loc=${encodeURIComponent(city)}`,
+  opentable: (city: string) => `https://www.opentable.com/s?term=${encodeURIComponent(city)}`,
+  michelin: (city: string) => `https://guide.michelin.com/en/search?q=&city=${encodeURIComponent(city)}`,
   baiduMap: (city: string) => `https://map.baidu.com/search/${encodeURIComponent(city)}`,
   dianping: (city: string) => `https://www.dianping.com/search/keyword/0/0_${encodeURIComponent(city)}`,
   tabelog: (city: string) => `https://tabelog.com/en/rstLst/?sa=${encodeURIComponent(city)}`,
@@ -107,51 +95,36 @@ export const href = {
   openrice: (city: string) => `https://www.openrice.com/en/hongkong/restaurants?what=&where=${encodeURIComponent(city)}`,
   thefork: (city: string) => `https://www.thefork.com/search/?city=${encodeURIComponent(city)}`,
   quandoo: (city: string) => `https://www.quandoo.com/en/find?query=${encodeURIComponent(city)}`,
-
-  // Advisories
   usStateDept: () => `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html`,
-  ukFCDO: (countryName?: string) =>
-    `https://www.gov.uk/foreign-travel-advice${countryName ? "/" + encodeURIComponent(countryName.toLowerCase().replace(/\s+/g,"-")) : ""}`,
-  caTravel: (countryName?: string) =>
-    `https://travel.gc.ca/destinations${countryName ? "/" + encodeURIComponent(countryName.toLowerCase().replace(/\s+/g,"-")) : ""}`,
-  auSmartraveller: (countryName?: string) =>
-    `https://www.smartraveller.gov.au/destinations${countryName ? "/" + encodeURIComponent(countryName.toLowerCase().replace(/\s+/g,"-")) : ""}`,
+  ukFCDO: (countryName?: string) => `https://www.gov.uk/foreign-travel-advice${countryName ? "/" + encodeURIComponent(countryName.toLowerCase().replace(/\s+/g,"-")) : ""}`,
+  caTravel: (countryName?: string) => `https://travel.gc.ca/destinations${countryName ? "/" + encodeURIComponent(countryName.toLowerCase().replace(/\s+/g,"-")) : ""}`,
+  auSmartraveller: (countryName?: string) => `https://www.smartraveller.gov.au/destinations${countryName ? "/" + encodeURIComponent(countryName.toLowerCase().replace(/\s+/g,"-")) : ""}`,
 };
 
 export type Provider = { label: string; url: string; id: string };
+const dedupe = (arr: Provider[]) => { const s = new Set<string>(); return arr.filter(p => (s.has(p.id) ? false : (s.add(p.id), true))); };
 
-const dedupe = (arr: Provider[]) => {
-  const seen = new Set<string>();
-  return arr.filter(p => (seen.has(p.id) ? false : (seen.add(p.id), true)));
+/* ---------- Availability rules ---------- */
+const HIDE_GLOBAL_IN_COUNTRY: Record<string, {yelp?:boolean; opentable?:boolean; michelin?:boolean}> = {
+  IN: { yelp: true, opentable: true, michelin: true },
+  CN: { yelp: true, opentable: true },
+  JP: { yelp: true, opentable: true },
+  KR: { yelp: true, opentable: true },
+  HK: { yelp: true }, SG: { yelp: true },
+  MY: { yelp: true }, TH: { yelp: true }, PH: { yelp: true }, VN: { yelp: true },
+  AE: { yelp: true }, SA: { yelp: true }, QA: { yelp: true }, KW: { yelp: true },
 };
 
-/* ------------------- Availability rules -------------------
-   We *hide* weak providers for certain countries and *add* strong regionals.
-   Examples:
-   - IN: hide Yelp/OpenTable/Michelin (spotty), add Zomato + EazyDiner.
-   - CN: add Baidu/Dianping; (keep Google Maps, but users may prefer Baidu).
-   - JP: add Tabelog.
-   - KR: add MangoPlate (+ Naver/Kakao maps in Explore extras).
-   - HK/SG/MY/TH/PH/VN: add OpenRice.
-   - EU/GB/AU: add TheFork/Quandoo.
-*/
-const RESERVATION_STRONG: (cc: string) => Provider[] = (cc) => {
+const RESERVATION_STRONG = (cc: string): Provider[] => {
   const regionals: Provider[] = [];
-  const continent = countryToContinent[cc];
+  const cont = countryToContinent[cc];
 
-  // EU / GB / AU
-  if (continent === "EU" || cc === "GB") {
+  if (cont === "EU" || cc === "GB") {
     regionals.push({ id:"thefork", label:"TheFork", url:href.thefork("{CITY}") });
     regionals.push({ id:"quandoo", label:"Quandoo", url:href.quandoo("{CITY}") });
   }
-  if (cc === "AU") {
-    regionals.push({ id:"thefork", label:"TheFork", url:href.thefork("{CITY}") });
-  }
-  // SEA / HK / SG
-  if (["HK","SG","MY","TH","PH","VN"].includes(cc)) {
-    regionals.push({ id:"openrice", label:"OpenRice", url:href.openrice("{CITY}") });
-  }
-  // JP / KR / CN / IN / GCC
+  if (cc === "AU") regionals.push({ id:"thefork", label:"TheFork", url:href.thefork("{CITY}") });
+  if (["HK","SG","MY","TH","PH","VN"].includes(cc)) regionals.push({ id:"openrice", label:"OpenRice", url:href.openrice("{CITY}") });
   if (cc === "JP") regionals.push({ id:"tabelog", label:"Tabelog", url:href.tabelog("{CITY}") });
   if (cc === "KR") regionals.push({ id:"mangoplate", label:"MangoPlate", url:href.mangoPlate("{CITY}") });
   if (cc === "CN") regionals.push({ id:"dianping", label:"Dianping", url:href.dianping("{CITY}") });
@@ -162,20 +135,9 @@ const RESERVATION_STRONG: (cc: string) => Provider[] = (cc) => {
   return regionals;
 };
 
-const HIDE_GLOBAL_IN_COUNTRY: Record<string, {yelp?:boolean; opentable?:boolean; michelin?:boolean}> = {
-  IN: { yelp: true, opentable: true, michelin: true },
-  CN: { yelp: true, opentable: true }, // Michelin has some CN cities, still often not helpful for casual trips
-  JP: { yelp: true, opentable: true },
-  KR: { yelp: true, opentable: true },
-  HK: { yelp: true }, SG: { yelp: true },
-  MY: { yelp: true }, TH: { yelp: true }, PH: { yelp: true }, VN: { yelp: true },
-  AE: { yelp: true }, SA: { yelp: true }, QA: { yelp: true }, KW: { yelp: true },
-};
+const applyCity = (u:string, city:string) => u.replace("{CITY}", city);
 
-function applyCity(url: string, city: string) { return url.replace("{CITY}", city); }
-
-/* ------------------- Public builders ------------------- */
-
+/* ---------- Public sets ---------- */
 export function exploreSet(city: string, countryCode?: string): Provider[] {
   const cc = (countryCode || "").toUpperCase();
   const list: Provider[] = [
@@ -183,32 +145,23 @@ export function exploreSet(city: string, countryCode?: string): Provider[] {
     { id: "tripadvisor", label: "Tripadvisor", url: href.tripadvisor("top attractions", city) },
     { id: "lonelyplanet", label: "Lonely Planet", url: href.lonelyplanet(city) },
     { id: "timeout", label: "Time Out", url: href.timeout(city) },
+    { id: "wikivoyage", label: "Wikivoyage", url: href.wikivoyage(city) },
+    { id: "wikipedia", label: "Wikipedia", url: href.wiki(city) },
   ];
-  // CN primary local map; KR extras
   if (cc === "CN") list.unshift({ id: "baidu", label: "Baidu Maps", url: href.baiduMap(city) });
-  if (cc === "KR") {
-    list.push({ id:"naver", label:"Naver Map", url:href.naverMap(city) });
-    list.push({ id:"kakao", label:"Kakao Map", url:href.kakaoMap(city) });
-  }
+  if (cc === "KR") { list.push({ id:"naver", label:"Naver Map", url:href.naverMap(city) }); list.push({ id:"kakao", label:"Kakao Map", url:href.kakaoMap(city) }); }
   return dedupe(list);
 }
 
 export function savorSet(city: string, countryCode?: string): Provider[] {
   const cc = (countryCode || "").toUpperCase();
-  const base: Provider[] = [];
-
   const hide = HIDE_GLOBAL_IN_COUNTRY[cc] || {};
-  // Global-ish (conditionally included)
+  const base: Provider[] = [];
   if (!hide.yelp) base.push({ id: "yelp", label: "Yelp", url: href.yelp("restaurants", city) });
   if (!hide.opentable) base.push({ id: "opentable", label: "OpenTable", url: href.opentable(city) });
   if (!hide.michelin) base.push({ id: "michelin", label: "Michelin", url: href.michelin(city) });
-
-  // Regionals
   const extras = RESERVATION_STRONG(cc).map(p => ({ ...p, url: applyCity(p.url, city) }));
-
-  // Always include a Google Maps food query for safety
   const mapsFood: Provider = { id: "gmaps", label: "Google Maps", url: href.gmaps(city, "best restaurants") };
-
   return dedupe([...extras, ...base, mapsFood]);
 }
 
@@ -226,8 +179,13 @@ export function miscSet(city: string, countryName?: string, countryCode?: string
     { id: "ca", label: "Canada Travel", url: href.caTravel(countryName) },
     { id: "au", label: "Australia Smartraveller", url: href.auSmartraveller(countryName) },
   ];
-  if (cc === "CN") {
-    list.unshift({ id: "baidu", label: "Baidu Maps", url: href.baiduMap(city) });
-  }
+  if (cc === "CN") list.unshift({ id: "baidu", label: "Baidu Maps", url: href.baiduMap(city) });
   return dedupe(list);
+}
+
+/* ---------- Helpers you’ll use from page.tsx ---------- */
+export function robustCountryFrom(destDisplay?: string, destIata?: string): { name?: string; code?: string } {
+  const byText = resolveCountryFromDisplay(destDisplay);
+  if (byText.code) return byText;
+  return resolveCountryFromIATA(destIata);
 }

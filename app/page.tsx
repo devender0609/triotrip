@@ -6,7 +6,8 @@ import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import SavedChip from "../components/SavedChip";
 import ComparePanel from "../components/ComparePanel";
-import { savorSet, miscSet, exploreSet } from "@/lib/savorExplore";
+// ⬇️ NEW: import robust resolver + codeToName
+import { savorSet, miscSet, exploreSet, robustCountryFrom, codeToName } from "@/lib/savorExplore";
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
@@ -37,6 +38,8 @@ function extractCityOnly(input: string) {
   const nice = filtered.find(p => /[a-z]/i.test(p)) || filtered[0] || s;
   return nice.replace(/\b[A-Z]{2}\b$/, "").trim();
 }
+
+/* These helpers remain for other logic (e.g., international check) */
 const COMMON_COUNTRIES = new Set(["United States","USA","Canada","Mexico","United Kingdom","UK","Ireland","France","Germany","Spain","Italy","Portugal","Netherlands","Belgium","Switzerland","Austria","Sweden","Norway","Denmark","Finland","Iceland","India","China","Japan","South Korea","Singapore","United Arab Emirates","UAE","Qatar","Saudi Arabia","Thailand","Vietnam","Indonesia","Malaysia","Philippines","Australia","New Zealand","Brazil","Argentina","Chile","Peru","Colombia","South Africa","Egypt","Turkey","Greece","Poland","Czechia","Czech Republic","Hungary","Romania"]);
 function extractCountryFromDisplay(input: string): string | undefined {
   if (!input) return;
@@ -56,20 +59,6 @@ function plusDays(iso: string, days: number) {
   if (!iso) return "";
   const d = new Date(iso); if (Number.isNaN(d.getTime())) return "";
   d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10);
-}
-
-/* ---- Country name -> ISO-ish code (subset) ---- */
-const NAME_TO_CODE: Record<string,string> = {
-  "United States":"US","United Kingdom":"GB","Canada":"CA","Mexico":"MX","Brazil":"BR","Argentina":"AR",
-  "France":"FR","Germany":"DE","Italy":"IT","Spain":"ES","Ireland":"IE","Netherlands":"NL","Belgium":"BE","Portugal":"PT","Switzerland":"CH","Austria":"AT","Czechia":"CZ","Czech Republic":"CZ","Greece":"GR","Poland":"PL","Romania":"RO","Hungary":"HU","Turkey":"TR",
-  "Sweden":"SE","Norway":"NO","Denmark":"DK","Finland":"FI","Iceland":"IS",
-  "Australia":"AU","New Zealand":"NZ",
-  "Japan":"JP","South Korea":"KR","China":"CN","India":"IN","United Arab Emirates":"AE","Singapore":"SG","Hong Kong":"HK",
-  "Thailand":"TH","Malaysia":"MY","Philippines":"PH","Vietnam":"VN","Saudi Arabia":"SA","Qatar":"QA","Kuwait":"KW","Egypt":"EG","South Africa":"ZA","Indonesia":"ID","Chile":"CL","Peru":"PE","Colombia":"CO"
-};
-function countryCodeFromName(name?: string): string | undefined {
-  if (!name) return;
-  return NAME_TO_CODE[name];
 }
 
 export default function Page() {
@@ -198,8 +187,14 @@ export default function Page() {
   const segStyle = (active: boolean): React.CSSProperties => (active ? { ...segBase, background: "linear-gradient(180deg,#ffffff,#eef6ff)", color: "#0f172a", border: "1px solid #bfdbfe" } : segBase);
 
   const destCity = useMemo(() => (extractCityOnly(destDisplay) || "Destination"), [destDisplay]);
-  const destCountryName = useMemo(() => extractCountryFromDisplay(destDisplay) || "", [destDisplay]);
-  const destCountryCode = useMemo(() => countryCodeFromName(destCountryName) || "", [destCountryName]);
+
+  // ⬇️ NEW: robust country resolution (uses destination display text OR IATA code, e.g. DEL → IN)
+  const destCountryResolved = useMemo(
+    () => robustCountryFrom(destDisplay, destCode),
+    [destDisplay, destCode]
+  );
+  const destCountryCode = destCountryResolved.code || "";
+  const destCountryName = destCountryResolved.name || (destCountryCode ? codeToName(destCountryCode) : "");
 
   const isInternational = useMemo(() => {
     const o = extractCountryFromDisplay(originDisplay) || ""; const d = extractCountryFromDisplay(destDisplay) || "";
@@ -233,10 +228,11 @@ export default function Page() {
 
   function ContentExplore() {
     const city = destCity;
-    // core labels shown in Explore
     const coreExplore = new Set(["Google Maps","Tripadvisor","Lonely Planet","Time Out","Wikivoyage","Wikipedia"]);
-    const exploreExtras = useMemo(() =>
-      exploreSet(destCity, destCountryCode).filter(p => !coreExplore.has(p.label)), [destCity, destCountryCode]);
+    const exploreExtras = useMemo(
+      () => exploreSet(destCity, destCountryCode).filter(p => !coreExplore.has(p.label)),
+      [destCity, destCountryCode]
+    );
 
     return (
       <section className="places-panel" aria-label="Explore destination">
@@ -282,7 +278,6 @@ export default function Page() {
             </div>
           </SectionCard>
 
-          {/* Show only if there are region-specific extras (e.g., Baidu in CN) */}
           {exploreExtras.length > 0 && (
             <SectionCard title="Regional maps & guides">
               <div className="place-links">
@@ -300,8 +295,10 @@ export default function Page() {
   function ContentSavor() {
     const city = destCity;
     const coreSavor = new Set(["Yelp","OpenTable","Michelin","Google Maps"]);
-    const savorExtras = useMemo(() =>
-      savorSet(destCity, destCountryCode).filter(p => !coreSavor.has(p.label)), [destCity, destCountryCode]);
+    const savorExtras = useMemo(
+      () => savorSet(destCity, destCountryCode).filter(p => !coreSavor.has(p.label)),
+      [destCity, destCountryCode]
+    );
 
     return (
       <section className="places-panel" aria-label="Savor destination">
@@ -339,7 +336,6 @@ export default function Page() {
             </div>
           </SectionCard>
 
-          {/* Only render if there are extras for this country/region */}
           {savorExtras.length > 0 && (
             <SectionCard title="Regional dining">
               <div className="place-links">
@@ -357,8 +353,10 @@ export default function Page() {
   function ContentMisc() {
     const city = destCity;
     const coreMisc = new Set(["Wikivoyage","Wikipedia","XE currency","Weather","Google Maps (Pharmacies)","Search cars","US State Dept","UK FCDO","Canada Travel","Australia Smartraveller"]);
-    const miscExtras = useMemo(() =>
-      miscSet(destCity, destCountryName, destCountryCode).filter(p => !coreMisc.has(p.label)), [destCity, destCountryName, destCountryCode]);
+    const miscExtras = useMemo(
+      () => miscSet(destCity, destCountryName, destCountryCode).filter(p => !coreMisc.has(p.label)),
+      [destCity, destCountryName, destCountryCode]
+    );
 
     return (
       <section className="places-panel" aria-label="Miscellaneous">
@@ -388,7 +386,6 @@ export default function Page() {
             </div>
           </SectionCard>
 
-          {/* Only render if there are extras for this country/region */}
           {miscExtras.length > 0 && (
             <SectionCard title="Regional info">
               <div className="place-links">
