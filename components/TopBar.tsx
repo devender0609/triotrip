@@ -1,9 +1,7 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
-import SavedChip from "./SavedChip";
 
-const CURRENCY_FLAG: Record<string, string> = {
+const FLAGS: Record<string, string> = {
   USD: "🇺🇸",
   EUR: "🇪🇺",
   GBP: "🇬🇧",
@@ -16,85 +14,44 @@ const CURRENCY_FLAG: Record<string, string> = {
 };
 
 export default function TopBar() {
-  const [currency, setCurrency] = useState("USD");
-  const [savedCount, setSavedCount] = useState(0);
+  const [currency, setCurrency] = useState<string>(() => {
+    if (typeof window === "undefined") return "USD";
+    return localStorage.getItem("tt.currency") || "USD";
+  });
 
-  // hydrate currency from localStorage and watch for cross-tab changes
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("triptrio:currency");
-      if (stored && CURRENCY_FLAG[stored]) setCurrency(stored);
-    } catch {}
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "triptrio:currency" && e.newValue && CURRENCY_FLAG[e.newValue]) {
-        setCurrency(e.newValue);
-      }
-      if (e.key === "triptrio:saved") {
-        try {
-          const arr = JSON.parse(e.newValue || "[]");
-          setSavedCount(Array.isArray(arr) ? arr.length : 0);
-        } catch {
-          setSavedCount(0);
-        }
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
-  // load saved count on mount
-  useEffect(() => {
-    try {
-      const arr = JSON.parse(localStorage.getItem("triptrio:saved") || "[]");
-      setSavedCount(Array.isArray(arr) ? arr.length : 0);
-    } catch {}
-  }, []);
-
-  function changeCurrency(next: string) {
-    setCurrency(next);
-    try {
-      localStorage.setItem("triptrio:currency", next);
-      // broadcast to page.tsx
-      window.dispatchEvent(new CustomEvent("triptrio:currency:changed", { detail: next }));
-    } catch {}
-  }
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-currency", currency);
+      localStorage.setItem("tt.currency", currency);
+      const el = document.getElementById("tt-saved-count");
+      if (el && !el.textContent) el.textContent = "0";
+    }
+  }, [currency]);
 
   return (
-    <div className="topbar-outer">
-      <div className="main-wrap topbar-inner">
-        <a href="/" className="brand">
-          <img src="/logo.png" alt="" width={34} height={34} style={{ borderRadius: 8 }} />
-          <span className="brand-title">TrioTrip</span>
+    <header className="topbar">
+      <div className="topbar-inner">
+        <a href="/" className="brand" aria-label="TrioTrip home">
+          <img src="/logo.png" alt="" />
+          <h1>TrioTrip</h1>
         </a>
 
-        <div className="topbar-right">
-          <span className="pill"><SavedChip count={savedCount} /></span>
-          <a className="pill" href="/login">Login</a>
-
-          <div className="pill pill--ghost" title="Currency">
-            <span style={{ fontWeight: 800, marginRight: 8 }}>
-              {CURRENCY_FLAG[currency] || "💱"}
-            </span>
-            <select
-              value={currency}
-              onChange={(e) => changeCurrency(e.target.value)}
-              style={{
-                border: 0,
-                background: "transparent",
-                outline: "none",
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              {Object.keys(CURRENCY_FLAG).map((c) => (
-                <option key={c} value={c}>
-                  {CURRENCY_FLAG[c]} {c}
-                </option>
+        <div className="pills">
+          <div className="curr" title="Currency">
+            <span className="curr-flag" aria-hidden>{FLAGS[currency] || "🏳️"}</span>
+            <select aria-label="Currency" value={currency} onChange={e => setCurrency(e.target.value)}>
+              {Object.keys(FLAGS).map(c => (
+                <option key={c} value={c}>{FLAGS[c]} {c}</option>
               ))}
             </select>
           </div>
+
+          <a href="/saved" className="pill ghost">
+            💾 Saved <span id="tt-saved-count" className="count" />
+          </a>
+          <a href="/login" className="pill">🔐 Login</a>
         </div>
       </div>
-    </div>
+    </header>
   );
 }

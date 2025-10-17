@@ -1,73 +1,55 @@
 "use client";
 import React from "react";
 
-function money(v?: number, c = "USD") {
-  if (v == null || !Number.isFinite(v)) return "—";
-  try { return new Intl.NumberFormat(undefined, { style: "currency", currency: c }).format(v); }
-  catch { return `${c} ${v.toFixed(0)}`; }
-}
-const sumMin = (segs: any[] = []) => segs.reduce((t, s) => t + (Number(s?.duration_minutes) || 0), 0);
+const fmt = (n?: number | string, cur = "") => {
+  if (n == null || n === "") return "—";
+  const val = typeof n === "string" ? parseFloat(n) : n;
+  try {
+    return new Intl.NumberFormat(undefined, { style: cur ? "currency" : "decimal", currency: cur || "USD", maximumFractionDigits: 0 }).format(val);
+  } catch { return String(val); }
+};
 
-export default function ComparePanel({
-  items, currency, onClose, onRemove,
-}: {
-  items: any[]; currency: string; onClose: () => void; onRemove: (id: string) => void;
-}) {
-  return (
-    <div className="compare-overlay" role="dialog" aria-modal>
+type Lite = {
+  id: string;
+  price?: { amount?: number | string; currency?: string };
+  flight?: { segments?: any[]; total_duration_minutes?: number; stops?: number };
+  returnFlight?: { segments?: any[]; total_duration_minutes?: number; stops?: number };
+};
+
+export default function ComparePanel({ items }: { items: Lite[] }) {
+  if (!items?.length) {
+    return (
       <div className="compare-panel">
-        <div className="compare-head">
-          <strong>Compare ({items.length}/3)</strong>
-          <button className="ghost" onClick={onClose}>Close</button>
-        </div>
-
-        <div className="compare-grid">
-          {items.length === 0 ? (
-            <div className="msg msg--warn">Click <b>🆚 Compare</b>, then click any 1–3 result cards to add them here.</div>
-          ) : (
-            <table className="compare-table">
-              <thead>
-                <tr>
-                  <th>Option</th>
-                  <th>Route / Dates</th>
-                  <th>Stops</th>
-                  <th>Outbound</th>
-                  <th>Return</th>
-                  <th>Price</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((p, i) => {
-                  const out = p.flight?.segments_out || p.flight?.segments || [];
-                  const ret = p.returnFlight?.segments || p.flight?.segments_in || [];
-                  const price =
-                    p.total_cost ?? p.flight_total ??
-                    p.flight?.price_usd_converted ?? p.flight?.price_usd ?? null;
-
-                  const id = p.id || `pkg-${i}`;
-                  const from = out[0]?.from || p.origin;
-                  const to = (out[out.length - 1]?.to) || p.destination;
-
-                  return (
-                    <tr key={id}>
-                      <td><span className="compare-badge">#{i + 1}</span></td>
-                      <td>{from} → {to} {p.departDate}{p.returnDate ? ` • ↩ ${p.returnDate}` : ""}</td>
-                      <td>{typeof p.maxStops === "number" ? (p.maxStops === 0 ? "Nonstop" : `${p.maxStops}+`) : "—"}</td>
-                      <td>{out.length} seg • {Math.round(sumMin(out) / 60)}h</td>
-                      <td>{ret.length ? `${ret.length} seg • ${Math.round(sumMin(ret) / 60)}h` : "—"}</td>
-                      <td>{money(price ?? undefined, currency)}</td>
-                      <td className="right">
-                        <button className="segbtn" onClick={() => onRemove(id)}>Remove</button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <div style={{ color: "#475569" }}>Add results to <b>Compare</b> by clicking the ➕ Compare button on any card.</div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <section className="compare-panel">
+      <header style={{ fontWeight: 800, marginBottom: 8 }}>🆚 Compare</header>
+      <div className="compare-grid">
+        {items.map((p) => {
+          const price = p.price?.amount;
+          const cur = p.price?.currency || "USD";
+          const out = p.flight;
+          const ret = p.returnFlight;
+          const totalMin = (Number(out?.total_duration_minutes)||0) + (Number(ret?.total_duration_minutes)||0);
+
+          return (
+            <div key={p.id} className="result-card" style={{ background: "#fff" }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                💸 {fmt(price, cur)} &nbsp; • &nbsp; ⏱️ {totalMin ? `${Math.floor(totalMin/60)}h ${totalMin%60}m` : "—"}
+              </div>
+              <div style={{ fontSize: 13, color: "#334155" }}>
+                ✈️ Outbound: {out?.stops == null ? "—" : (out.stops === 0 ? "Nonstop" : `${out.stops} stop${out.stops===1?"":"s"}`)}
+                <br/>
+                ↩ Return: {ret?.stops == null ? "—" : (ret.stops === 0 ? "Nonstop" : `${ret.stops} stop${ret.stops===1?"":"s"}`)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
