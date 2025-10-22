@@ -65,12 +65,15 @@ export default function Page() {
     return dt.toISOString().slice(0, 10);
   };
 
-  function inc(setter: (n: number) => void) {
+  // --- fixed typings for counters ---
+  function inc(setter: React.Dispatch<React.SetStateAction<number>>) {
     setter((x) => x + 1);
   }
-  function dec(setter: (n: number) => void) {
+  function dec(setter: React.Dispatch<React.SetStateAction<number>>) {
     setter((x) => Math.max(0, x - 1));
   }
+  // -----------------------------------
+
   function swapOriginDest() {
     const [a, b] = swap(origin, destination);
     setOrigin(a);
@@ -283,6 +286,10 @@ export default function Page() {
             compared={comparedIds.includes(pkg?.id)}
             onToggleCompare={toggleCompare}
             currency={currency}
+            // Optional props supported by ResultCard now; pass if your callsites expect them
+            pax={adults + children + infants}
+            comparedIds={comparedIds}
+            showHotel={includeHotel}
           />
         ))}
       </section>
