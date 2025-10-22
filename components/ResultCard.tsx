@@ -32,6 +32,7 @@ function fmtTime(t?: string) {
   if (!t) return "";
   return new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
+function layoverMinutes(a?: string, b?: string){ if(!a||!b) return 0; const A=new Date(a).getTime(); const B=new Date(b).getTime(); return Math.max(0, Math.round((B-A)/60000)); }
 function fmtDur(min?: number) {
   if (min == null) return "";
   const h = Math.floor(min / 60), m = Math.max(0, min % 60);
@@ -209,7 +210,7 @@ export default function ResultCard({
       {/* Header + quick actions */}
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 700, color: "#0f172a" }}>
-          Option {index + 1} • {route} {dateOut ? `• ${dateOut}` : ""} {pkg.roundTrip && dateRet ? `↩ ${dateRet}` : ""}
+          Option {index + 1} • {route} {dateOut ? `• ${dateOut}` : ""} {pkg.roundTrip && dateRet ? `↩ ${dateRet}` : ""} {airline ? `• ${airline}` : ""}
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {/* Price */}
@@ -246,7 +247,7 @@ export default function ResultCard({
       {/* Outbound */}
       {outSegs.length > 0 && (
         <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 10, display: "grid", gap: 8, background: "linear-gradient(180deg,#ffffff,#eef6ff)" }}>
-          <div style={{ fontWeight: 600, color: "#0b3b52" }}>Outbound</div>
+          <div style={{ fontWeight: 600, color: "#0b3b52" }}>Outbound {dateOut ? `• ${dateOut}` : ""}</div>
           {outSegs.map((s: any, i: number) => (
             <React.Fragment key={`o${i}`}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center" }}>
@@ -260,12 +261,14 @@ export default function ResultCard({
                 <div style={{ display: "grid", placeItems: "center" }}>
                   <div style={{
                     display: "inline-flex", alignItems: "center", gap: 8,
-                    padding: "6px 10px", border: "1px dashed #94a3b8",
-                    background: "#fff", color: "#334155", borderRadius: 999, fontSize: 12
+                    padding: "10px 14px", border: "2px dashed #5b728a",
+                    background: "#fff", color: "#0f172a", borderRadius: 999, fontSize: 14, boxShadow:"0 4px 10px rgba(2,6,23,.06)"
                   }}>
                     ⏱️ Layover in <strong style={{ marginLeft: 4 }}>{s.to}</strong>
                     <span style={{ opacity: .7 }}>•</span>
-                    Next departs at <strong>{fmtTime(outSegs[i + 1].depart_time)}</strong>
+                    {(() => { const mins = layoverMinutes(s.arrive_time, outSegs[i+1].depart_time); return <strong>{Math.floor(mins/60)}h {mins%60}m</strong>; })()}
+                    <span style={{ opacity: .7, marginLeft:8 }}>•</span>
+                    Next departs <strong>{fmtTime(outSegs[i + 1].depart_time)}</strong>
                   </div>
                 </div>
               )}
@@ -277,7 +280,7 @@ export default function ResultCard({
       {/* Return */}
       {inSegs.length > 0 && (
         <div style={{ border: "1px solid #cfe3ff", borderRadius: 12, padding: 10, display: "grid", gap: 8, background: "linear-gradient(180deg,#ffffff,#eef6ff)" }}>
-          <div style={{ fontWeight: 600, color: "#0b3b52" }}>Return</div>
+          <div style={{ fontWeight: 600, color: "#0b3b52" }}>Return {dateRet ? `• ${dateRet}` : ""}</div>
           {inSegs.map((s: any, i: number) => (
             <React.Fragment key={`i${i}`}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center" }}>
@@ -291,8 +294,8 @@ export default function ResultCard({
                 <div style={{ display: "grid", placeItems: "center" }}>
                   <div style={{
                     display: "inline-flex", alignItems: "center", gap: 8,
-                    padding: "6px 10px", border: "1px dashed #94a3b8",
-                    background: "#fff", color: "#334155", borderRadius: 999, fontSize: 12
+                    padding: "10px 14px", border: "2px dashed #5b728a",
+                    background: "#fff", color: "#0f172a", borderRadius: 999, fontSize: 14, boxShadow:"0 4px 10px rgba(2,6,23,.06)"
                   }}>
                     ⏱️ Layover in <strong style={{ marginLeft: 4 }}>{s.to}</strong>
                     <span style={{ opacity: .7 }}>•</span>

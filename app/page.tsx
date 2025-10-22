@@ -71,7 +71,12 @@ export default function Page() {
   const [adults, setAdults] = useState(1); const [children, setChildren] = useState(0); const [infants, setInfants] = useState(0);
   const [childrenAges, setChildrenAges] = useState<number[]>([]);
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState<string>(() => (typeof window !== "undefined" && localStorage.getItem("tt_currency")) || "USD");
+  useEffect(() => {
+    const handler = (e: any) => setCurrency((e?.detail?.code) || ((typeof window !== "undefined" && localStorage.getItem("tt_currency")) || "USD"));
+    if (typeof window !== "undefined") window.addEventListener("tt:currency", handler as any);
+    return () => { if (typeof window !== "undefined") window.removeEventListener("tt:currency", handler as any); };
+  }, []);
   const [minBudget, setMinBudget] = useState<number | "">(""); const [maxBudget, setMaxBudget] = useState<number | "">("");
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
 
@@ -515,10 +520,8 @@ export default function Page() {
             </select>
           </div>
           <div>
-            <label style={s.label}>Currency</label>
-            <select style={inputStyle} value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              {["USD","EUR","GBP","INR","CAD","AUD","JPY","SGD","AED"].map((c) => (<option key={c} value={c}>{c}</option>))}
-            </select>
+            {/* currency moved to header */}
+            <div style={{height:50}} />
           </div>
           <div />
         </div>
@@ -530,7 +533,7 @@ export default function Page() {
             Include hotel
           </label>
 
-          <div>
+          {includeHotel && (<><div>
             <label style={s.label}>Check-in</label>
             <input type="date" style={inputStyle} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} disabled={!includeHotel}
               min={departDate || todayLocal} />
@@ -545,7 +548,7 @@ export default function Page() {
             <select style={inputStyle} value={minHotelStar} onChange={(e) => setMinHotelStar(Number(e.target.value))} disabled={!includeHotel}>
               <option value={0}>Any</option><option value={3}>3★+</option><option value={4}>4★+</option><option value={5}>5★</option>
             </select>
-          </div>
+          </div></>) }
         </div>
 
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>

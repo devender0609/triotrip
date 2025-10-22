@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import AuthBar from "./AuthBar";
+import CurrencyPicker from "./CurrencyPicker";
 
 export default function Header() {
   return (

@@ -146,3 +146,7 @@ button:disabled { opacity:.6; cursor:not-allowed; }
   body { background:#fff; }
   .result-card { box-shadow: none; border-color:#cbd5e1; }
 }
+
+/* Remove number input spinners */
+input.no-spin::-webkit-outer-spin-button,input.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input.no-spin[type=number]{-moz-appearance:textfield}
