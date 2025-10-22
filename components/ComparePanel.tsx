@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 
-/* --------- tiny helpers (kept from your file) --------- */
+/* --------- tiny helpers (kept) --------- */
 const clean = (v: any) => (v == null ? "" : String(v).trim());
 const display = (v: any) => (clean(v) ? String(v) : "—");
 const get = (obj: any, path: string) =>
@@ -18,7 +18,7 @@ const firstArray = (obj: any, paths: string[]) => {
 const sumMinutes = (arr: any[], key = "duration_minutes") =>
   arr.reduce((t, s) => t + (Number(s?.[key]) || 0), 0);
 const stopsText = (n?: number) =>
-  typeof n === "number" ? (n === 0 ? "Nonstop" : `${n} stop${n === 1 ? "" : "s"}`) : "—`;
+  typeof n === "number" ? (n === 0 ? "Nonstop" : `${n} stop${n === 1 ? "" : "s"}`) : "—";
 
 const isIata = (s: string) => /^[A-Z]{3}$/.test(s);
 const iataFromString = (s?: string): string => {
@@ -82,25 +82,17 @@ function formatLeg(segs: any[]) {
   return parts.join("  •  ");
 }
 
-/* --------- props (widened) --------- */
+/* --------- widened props --------- */
 export type ComparePanelProps = {
-  /** Preferred: ids selected to compare */
   comparedIds?: string[];
-  /** Back-compat: some callsites may still pass `ids` */
   ids?: string[];
-  /** Direct items to render (highest priority if provided) */
   items?: any[];
-  /** Optional: supply the full package list; falls back to global */
   packages?: any[];
-  /** Display currency */
   currency?: string;
-  /** Close button (optional) */
   onClose?: () => void;
-  /** Optional remove handler per row */
   onRemove?: (id: string) => void;
 };
 
-/* --------- component --------- */
 export default function ComparePanel({
   comparedIds,
   ids,
@@ -110,25 +102,22 @@ export default function ComparePanel({
   onClose,
   onRemove,
 }: ComparePanelProps) {
-  // Resolve the selected ids (prefer `comparedIds`, then `ids`)
   const selectedIds: string[] = useMemo(() => {
     const a = Array.isArray(comparedIds) ? comparedIds : [];
     const b = Array.isArray(ids) ? ids : [];
     return a.length ? a : b;
   }, [comparedIds, ids]);
 
-  // Resolve the source dataset (prefer explicit items, then packages, then global)
   const sourceItems: any[] = useMemo(() => {
     if (Array.isArray(items)) return items;
     const all = Array.isArray(packages)
       ? packages
       : (globalThis as any)?.__TRIOTRIP__?.results ?? [];
-    if (!selectedIds?.length) return all; // allow comparing ALL results if user selects “all”
-    const set = new Set(selectedIds);
+    if (!selectedIds?.length) return all; // allow comparing ALL
+    const set = new Set(selectedIds.map(String));
     return all.filter((p: any) => set.has(String(p?.id)));
   }, [items, packages, selectedIds]);
 
-  // Currency formatter (defensive)
   const fmt = useMemo(() => {
     try {
       return new Intl.NumberFormat(undefined, {
