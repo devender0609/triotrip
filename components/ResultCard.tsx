@@ -313,7 +313,6 @@ export default function ResultCard({
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ fontWeight: 600, color: "#0f172a" }}>Hotels (top options)</div>
           {(Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels : (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : []))
-            .slice(0, 3)
             .map((h: any, i: number) => {
               const city = h?.city || pkg?.destination || "";
               const primary = hotelPrimaryLink(h, city);
@@ -342,6 +341,10 @@ export default function ResultCard({
                       <a href={primary} target="_blank" rel="noreferrer" style={{ fontWeight: 700, color: "#0f172a", textDecoration: "none" }}>
                         {h?.name || "Hotel"}
                       </a>
+                      <div style={{ fontSize: 12, color: "#475569" }}>
+                        {(() => { const s = hotelStars(h); return s ? `${"★".repeat(s)}${"☆".repeat(5-s)} (${s}★)` : ""; })()}
+                        {(() => { const pr = hotelPriceRange(h); return pr ? ` • ${pr}` : ""; })()}
+                      </div>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <a className="book-link book-link--booking" href={primary} target="_blank" rel="noreferrer">
                           {primary.includes("booking.com") ? "Booking.com" : "Hotel site"}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import AuthBar from "./AuthBar";
 import CurrencyPicker from "./CurrencyPicker";
+import CurrencyPicker from "./CurrencyPicker";
 
 export default function Header() {
   return (
@@ -21,6 +22,10 @@ export default function Header() {
       </Link>
 
       <nav className="nav" aria-label="Main">
+        <Link href="/saved">Saved</Link>
+        <CurrencyPicker />
+        <AuthBar />
+      </nav>
         <Link href="/saved">Saved</Link>
         <AuthBar />
       </nav>
@@ -50,12 +55,7 @@ export default function Header() {
           font-size: 20px;
           color: #0f172a; /* slate-900 */
         }
-        .nav {
-          display: flex;
-          gap: 14px;
-          align-items: center;
-          font-weight: 600;
-        }
+        .nav { display:flex; gap:14px; align-items:center; font-weight:600; }
         .nav a {
           color: #334155; /* slate-700 */
         }
