@@ -296,7 +296,7 @@ export default function Page() {
 
       {/* Compare panel */}
       {activeTab === "compare" && comparedIds.length > 0 && (
-        <ComparePanel ids={comparedIds} currency={currency} />
+        <ComparePanel comparedIds={comparedIds} currency={currency} />
       )}
 
       {/* Optional widgets */}
