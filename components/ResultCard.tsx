@@ -23,19 +23,34 @@ const AIRLINE_SITE: Record<string, string> = {
   "British Airways": "https://www.britishairways.com",
 };
 
-export default function ResultCard({
-  pkg,
-  index = 0,
-  compared = false,
-  onToggleCompare,
-  currency,
-}: {
+type ResultCardProps = {
   pkg: any;
   index?: number;
   compared?: boolean;
   onToggleCompare?: (id: string) => void;
   currency?: string;
-}) {
+
+  /** Optional props your page passes — now supported */
+  pax?: number;
+  comparedIds?: string[];
+  onSavedChangeGlobal?: (count: any) => void;
+  large?: boolean;
+  showHotel?: boolean; // when false, hide hotel panel even if pkg.hotels exist
+};
+
+export default function ResultCard({
+  pkg,
+  index = 0,
+  compared,
+  onToggleCompare,
+  currency,
+
+  pax,
+  comparedIds,
+  onSavedChangeGlobal, // currently unused; accepted to satisfy call sites
+  large,                // currently unused; accepted to satisfy call sites
+  showHotel,            // when false, hide hotels panel
+}: ResultCardProps) {
   const id =
     pkg?.id ||
     `pkg-${pkg?.origin || ""}-${pkg?.destination || ""}-${pkg?.departDate || ""}-${pkg?.returnDate || ""}-${index}`;
@@ -43,7 +58,8 @@ export default function ResultCard({
   const adults = Number(pkg.passengersAdults ?? pkg.adults ?? 1) || 1;
   const children = Number(pkg.passengersChildren ?? pkg.children ?? 0) || 0;
   const infants = Number(pkg.passengersInfants ?? pkg.infants ?? 0) || 0;
-  const totalPax = Math.max(1, adults + children + infants);
+  let totalPax = Math.max(1, adults + children + infants);
+  if (typeof pax === "number" && isFinite(pax) && pax > 0) totalPax = Math.round(pax);
 
   /* flights */
   const outSegs: any[] = Array.isArray(pkg?.flight?.segments)
@@ -176,9 +192,8 @@ export default function ResultCard({
     if (q) b.searchParams.set("ss", q);
     if (pkg?.hotelCheckIn) b.searchParams.set("checkin", pkg.hotelCheckIn);
     if (pkg?.hotelCheckOut) b.searchParams.set("checkout", pkg.hotelCheckOut);
-    b.searchParams.set("group_adults", String(adults || 1));
-    if (children > 0) b.searchParams.set("group_children", String(children));
-    b.searchParams.set("no_rooms", "1");
+    b.searchParams.set("group_adults", String(Math.max(1, totalPax)));
+    if (totalPax > 1) b.searchParams.set("no_rooms", "1");
     b.searchParams.set("selected_currency", pkg.currency || currency || "USD");
     return b.toString();
   }
@@ -233,10 +248,13 @@ export default function ResultCard({
     return `https://picsum.photos/seed/${lock}/400/250`;
   }
 
+  // derive compared state if not passed
+  const isCompared = compared || (comparedIds ? comparedIds.includes(id) : false);
+
   const wrapStyle: React.CSSProperties = {
     display: "grid",
     gap: 12,
-    border: compared ? "2px solid #0ea5e9" : "1px solid #e2e8f0",
+    border: isCompared ? "2px solid #0ea5e9" : "1px solid #e2e8f0",
     borderRadius: 14,
     padding: 12,
     background: "linear-gradient(180deg,#ffffff,#f6fbff)",
@@ -246,7 +264,7 @@ export default function ResultCard({
 
   return (
     <section
-      className={`result-card ${compared ? "result-card--compared" : ""}`}
+      className={`result-card ${isCompared ? "result-card--compared" : ""}`}
       style={wrapStyle}
       onClick={() => onToggleCompare?.(id)}
     >
@@ -467,7 +485,7 @@ export default function ResultCard({
       )}
 
       {/* Hotels (unlimited) */}
-      {Array.isArray(pkg.hotels) && pkg.hotels.length > 0 && (
+      {showHotel !== false && Array.isArray(pkg.hotels) && pkg.hotels.length > 0 && (
         <div
           style={{
             display: "grid",
