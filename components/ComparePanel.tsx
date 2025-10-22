@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 
-/* --------- tiny helpers --------- */
+/* --------- tiny helpers (kept from your file) --------- */
 const clean = (v: any) => (v == null ? "" : String(v).trim());
 const display = (v: any) => (clean(v) ? String(v) : "—");
 const get = (obj: any, path: string) =>
@@ -18,7 +18,7 @@ const firstArray = (obj: any, paths: string[]) => {
 const sumMinutes = (arr: any[], key = "duration_minutes") =>
   arr.reduce((t, s) => t + (Number(s?.[key]) || 0), 0);
 const stopsText = (n?: number) =>
-  typeof n === "number" ? (n === 0 ? "Nonstop" : `${n} stop${n === 1 ? "" : "s"}`) : "—";
+  typeof n === "number" ? (n === 0 ? "Nonstop" : `${n} stop${n === 1 ? "" : "s"}`) : "—`;
 
 const isIata = (s: string) => /^[A-Z]{3}$/.test(s);
 const iataFromString = (s?: string): string => {
@@ -82,18 +82,59 @@ function formatLeg(segs: any[]) {
   return parts.join("  •  ");
 }
 
-/* --------- component --------- */
-type ComparePanelProps = {
-  items: any[];
-  currency: string;
-  onClose: () => void;
+/* --------- props (widened) --------- */
+export type ComparePanelProps = {
+  /** Preferred: ids selected to compare */
+  comparedIds?: string[];
+  /** Back-compat: some callsites may still pass `ids` */
+  ids?: string[];
+  /** Direct items to render (highest priority if provided) */
+  items?: any[];
+  /** Optional: supply the full package list; falls back to global */
+  packages?: any[];
+  /** Display currency */
+  currency?: string;
+  /** Close button (optional) */
+  onClose?: () => void;
+  /** Optional remove handler per row */
   onRemove?: (id: string) => void;
 };
 
-export default function ComparePanel({ items, currency, onClose, onRemove }: ComparePanelProps) {
+/* --------- component --------- */
+export default function ComparePanel({
+  comparedIds,
+  ids,
+  items,
+  packages,
+  currency = "USD",
+  onClose,
+  onRemove,
+}: ComparePanelProps) {
+  // Resolve the selected ids (prefer `comparedIds`, then `ids`)
+  const selectedIds: string[] = useMemo(() => {
+    const a = Array.isArray(comparedIds) ? comparedIds : [];
+    const b = Array.isArray(ids) ? ids : [];
+    return a.length ? a : b;
+  }, [comparedIds, ids]);
+
+  // Resolve the source dataset (prefer explicit items, then packages, then global)
+  const sourceItems: any[] = useMemo(() => {
+    if (Array.isArray(items)) return items;
+    const all = Array.isArray(packages)
+      ? packages
+      : (globalThis as any)?.__TRIOTRIP__?.results ?? [];
+    if (!selectedIds?.length) return all; // allow comparing ALL results if user selects “all”
+    const set = new Set(selectedIds);
+    return all.filter((p: any) => set.has(String(p?.id)));
+  }, [items, packages, selectedIds]);
+
+  // Currency formatter (defensive)
   const fmt = useMemo(() => {
     try {
-      return new Intl.NumberFormat(undefined, { style: "currency", currency: (currency || "USD").toUpperCase() });
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: (currency || "USD").toUpperCase(),
+      });
     } catch {
       return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
     }
@@ -103,12 +144,18 @@ export default function ComparePanel({ items, currency, onClose, onRemove }: Com
     <div className="cmp-overlay" role="dialog" aria-modal="true" aria-label="Compare flights">
       <div className="cmp-card">
         <div className="cmp-head">
-          <div className="cmp-title">🆚 Compare</div>
-          <button className="cmp-close" onClick={onClose} aria-label="Close">✕</button>
+          <div className="cmp-title">
+            🆚 Compare {sourceItems.length ? `(${sourceItems.length})` : ""}
+          </div>
+          {onClose && (
+            <button className="cmp-close" onClick={onClose} aria-label="Close">
+              ✕
+            </button>
+          )}
         </div>
 
-        {items.length < 2 ? (
-          <div className="cmp-empty">Pick at least two options to compare.</div>
+        {sourceItems.length === 0 ? (
+          <div className="cmp-empty">No options selected to compare.</div>
         ) : (
           <div className="cmp-tablewrap">
             <table className="cmp-table">
@@ -124,7 +171,7 @@ export default function ComparePanel({ items, currency, onClose, onRemove }: Com
                 </tr>
               </thead>
               <tbody>
-                {items.map((pkg) => {
+                {sourceItems.map((pkg, idx) => {
                   const f = pkg?.flight || {};
                   const outbound = firstArray(f, [
                     "outbound","segments_out","out","legs.0.segments","itineraries.0.segments",
@@ -136,9 +183,10 @@ export default function ComparePanel({ items, currency, onClose, onRemove }: Com
                   ]);
                   const durationOut = sumMinutes(outbound) || f?.duration_minutes || undefined;
                   const durationRet = sumMinutes(inbound) || undefined;
-                  const totalDur = typeof f?.duration_minutes === "number"
-                    ? f.duration_minutes
-                    : (durationOut || 0) + (durationRet || 0) || undefined;
+                  const totalDur =
+                    typeof f?.duration_minutes === "number"
+                      ? f.duration_minutes
+                      : (durationOut || 0) + (durationRet || 0) || undefined;
 
                   const stops = outbound.length ? outbound.length - 1 : undefined;
 
@@ -157,32 +205,47 @@ export default function ComparePanel({ items, currency, onClose, onRemove }: Com
                     f?.carrier ||
                     "Airline";
 
-                  const id = String(pkg?.id || "");
+                  const id = String(pkg?.id || idx);
+
                   return (
-                    <tr key={id || Math.random()}>
+                    <tr key={id}>
                       <td>
                         <div style={{ fontWeight: 800 }}>{display(airline)}</div>
-                        {onRemove && id && (
-                          <button className="smalllink" onClick={() => onRemove(id)}>remove</button>
+                        {onRemove && pkg?.id && (
+                          <button className="smalllink" onClick={() => onRemove(String(pkg.id))}>
+                            remove
+                          </button>
                         )}
                       </td>
                       <td>{fmt.format(Math.round(Number(price) || 0))}</td>
                       <td>{stopsText(typeof stops === "number" ? stops : undefined)}</td>
-                      <td>{typeof totalDur === "number" ? `${Math.floor(totalDur / 60)}h ${totalDur % 60}m` : "—"}</td>
+                      <td>
+                        {typeof totalDur === "number"
+                          ? `${Math.floor(totalDur / 60)}h ${totalDur % 60}m`
+                          : "—"}
+                      </td>
                       <td className="mono">{formatLeg(outbound)}</td>
                       <td className="mono">{inbound?.length ? formatLeg(inbound) : "—"}</td>
                       <td className="book">
                         {f?.bookingLinks?.airlineSite && (
-                          <a href={f.bookingLinks.airlineSite} target="_blank" rel="noopener noreferrer">Airline</a>
+                          <a href={f.bookingLinks.airlineSite} target="_blank" rel="noopener noreferrer">
+                            Airline
+                          </a>
                         )}
                         {f?.bookingLinks?.googleFlights && (
-                          <a href={f.bookingLinks.googleFlights} target="_blank" rel="noopener noreferrer">Google</a>
+                          <a href={f.bookingLinks.googleFlights} target="_blank" rel="noopener noreferrer">
+                            Google
+                          </a>
                         )}
                         {f?.bookingLinks?.skyscanner && (
-                          <a href={f.bookingLinks.skyscanner} target="_blank" rel="noopener noreferrer">Skyscanner</a>
+                          <a href={f.bookingLinks.skyscanner} target="_blank" rel="noopener noreferrer">
+                            Skyscanner
+                          </a>
                         )}
                         {f?.bookingLinks?.triptrio && (
-                          <a href={f.bookingLinks.triptrio} target="_blank" rel="noopener noreferrer">TripTrio</a>
+                          <a href={f.bookingLinks.triptrio} target="_blank" rel="noopener noreferrer">
+                            TripTrio
+                          </a>
                         )}
                       </td>
                     </tr>
