@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import AuthBar from "./AuthBar";
 import CurrencyPicker from "./CurrencyPicker";
-import CurrencyPicker from "./CurrencyPicker";
 
 export default function Header() {
   return (
@@ -26,9 +25,6 @@ export default function Header() {
         <CurrencyPicker />
         <AuthBar />
       </nav>
-        <Link href="/saved">Saved</Link>
-        <AuthBar />
-      </nav>
 
       <style jsx>{`
         .tt-header {
@@ -41,25 +37,33 @@ export default function Header() {
           gap: 16px;
           padding: 10px 16px;
           background: #fff;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid #e2e8f0; /* slate-200 */
         }
         .brand {
           display: inline-flex;
           align-items: center;
           gap: 10px;
+          color: #0f172a; /* slate-950 */
           text-decoration: none;
+          font-weight: 900;
         }
         .title {
-          font-weight: 900;
-          letter-spacing: -0.02em;
-          font-size: 20px;
-          color: #0f172a; /* slate-900 */
+          font-size: 18px;
+          letter-spacing: 0.3px;
         }
-        .nav { display:flex; gap:14px; align-items:center; font-weight:600; }
+        .nav {
+          display: flex;
+          gap: 14px;
+          align-items: center;
+          font-weight: 600;
+        }
         .nav a {
           color: #334155; /* slate-700 */
+          text-decoration: none;
         }
-        .nav a:hover { text-decoration: none; }
+        .nav a:hover {
+          text-decoration: none;
+        }
       `}</style>
     </header>
   );
