@@ -300,7 +300,7 @@ export default function Page() {
       )}
 
       {/* Optional widgets */}
-      <ExploreSavorTabs />
+      <ExploreSavorTabs city={destination || ""} />
       <SurveyWidget />
     </main>
   );
