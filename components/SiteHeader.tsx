@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import CurrencyPicker from "./CurrencyPicker";
+
 export default function SiteHeader() {
   const pathname = usePathname();
 
@@ -51,6 +53,11 @@ export default function SiteHeader() {
         .navlink:hover { background: #f1f5f9; }
         .navlink.active { background: #e2e8f0; }
       `}</style>
-    </header>
+      <div className="top-controls">
+    {/* Saved / Login already present; append Currency */}
+    <div className="spacer" />
+    <CurrencyPicker />
+  </div>
+</header>
   );
 }

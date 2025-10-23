@@ -21,6 +21,16 @@ interface SearchPayload {
   sortBasis?: "flightOnly" | "bundle";
 }
 
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem("currency");
+    if (stored) setCurrency(stored);
+    const onChange = (e: any) => setCurrency(e.detail || localStorage.getItem("currency") || "USD");
+    window.addEventListener("currency-change", onChange as any);
+    return () => window.removeEventListener("currency-change", onChange as any);
+  }, []);
+
 const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 const num = (v: any) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 
@@ -175,8 +185,8 @@ export default function Page() {
     return items;
   }, [results, sort, sortBasis]);
 
-  const shownResults = useMemo(() => (!sortedResults ? null : (showAll ? sortedResults : sortedResults.slice(0, 3))), [sortedResults, showAll]);
-  function toggleCompare(id: string) { setComparedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id].slice(0, 3))); }
+  const shownResults = useMemo(() => (!sortedResults ? null : (showAll ? sortedResults : sortedResults))), [sortedResults, showAll]);
+  function toggleCompare(id: string) { setComparedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))); }
   const comparedPkgs = useMemo(() => (results && comparedIds.length ? results.filter(r => comparedIds.includes(r.id || `pkg-${(results as any[]).indexOf(r)}`)) : []), [results, comparedIds]);
 
   const s = {
@@ -512,12 +522,6 @@ export default function Page() {
             <label style={s.label}>Stops</label>
             <select style={inputStyle} value={maxStops} onChange={(e) => setMaxStops(Number(e.target.value) as 0 | 1 | 2)}>
               <option value={0}>Nonstop</option><option value={1}>1 stop</option><option value={2}>More than 1 stop</option>
-            </select>
-          </div>
-          <div>
-            <label style={s.label}>Currency</label>
-            <select style={inputStyle} value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              {["USD","EUR","GBP","INR","CAD","AUD","JPY","SGD","AED"].map((c) => (<option key={c} value={c}>{c}</option>))}
             </select>
           </div>
           <div />
