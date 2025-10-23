@@ -5,11 +5,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import ComparePanel from "../components/ComparePanel";
-import ExploreSavorTabs from "../components/ExploreSavorTabs"; // from your zip
+import ExploreSavorTabs from "../components/ExploreSavorTabs"; // ← use your link panels
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
-type MainTab = "top3" | "all";
+type TabKey = "top3" | "all";
 type SubTab = "explore" | "savor" | "misc" | "compare";
 
 const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
@@ -32,11 +32,11 @@ function plusDays(iso: string, days: number) {
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }
+// very light city extraction from the destination display text
 function cityFromDisplay(txt: string) {
   if (!txt) return "";
-  // Common patterns: "BOS — Boston — Logan …", "Boston, MA (BOS)"
-  const dash = txt.split("—").map(s => s.trim()).filter(Boolean);
-  if (dash.length >= 2) return dash[1].split("—")[0].trim();
+  const parts = txt.split("—").map(s => s.trim()).filter(Boolean);
+  if (parts.length >= 2) return parts[1]; // e.g. "BOS — Boston — Logan …"
   return txt.split(",")[0].trim();
 }
 
@@ -78,11 +78,11 @@ export default function Page() {
   const [hotelCheckOut, setHotelCheckOut] = useState("");
   const [minHotelStar, setMinHotelStar] = useState(0);
 
-  // sorting / tabs
+  // sorting / tabs (only show after search)
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
-  const [mainTab, setMainTab] = useState<MainTab>("all");
-  const [subTab, setSubTab] = useState<SubTab>("explore");
+  const [activeTab, setActiveTab] = useState<TabKey>("all");
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>("explore");
   const [showControls, setShowControls] = useState(false);
 
   // results & compare
@@ -123,9 +123,9 @@ export default function Page() {
 
       const arr = Array.isArray(j.results) ? j.results : [];
       setResults(arr.map((res: any) => ({ ...res, ...payload })));
-      setShowControls(true);        // reveal chips + sub-tabs
-      setMainTab("all");
-      setSubTab("explore");
+      setShowControls(true);        // show chips + sub-tabs
+      setActiveTab("all");
+      setActiveSubTab("explore");   // default sub-tab after search
       setComparedIds([]);
     } catch (e: any) {
       setError(e?.message || "Search failed");
@@ -134,11 +134,10 @@ export default function Page() {
     }
   }
 
-  // sorting
+  // sort
   const sortedResults = useMemo(() => {
     if (!results) return null;
     const items = [...results];
-
     const flightPrice = (p: any) =>
       num(p.flight_total) ??
       num(p.total_cost_flight) ??
@@ -146,16 +145,13 @@ export default function Page() {
       num(p.flight?.price_usd) ??
       num(p.total_cost) ??
       9e15;
-
     const bundleTotal = (p: any) =>
       num(p.total_cost) ?? (num(p.flight_total) ?? flightPrice(p)) + (num(p.hotel_total) ?? 0);
-
     const outDur = (p: any) => {
       const segs = p.flight?.segments_out || [];
       const sum = segs.reduce((t: number, s: any) => t + (Number(s?.duration_minutes) || 0), 0);
       return Number.isFinite(sum) ? sum : 9e9;
     };
-
     const basisValue = (p: any) => (sortBasis === "bundle" ? bundleTotal(p) : flightPrice(p));
 
     if (sort === "cheapest") items.sort((a, b) => basisValue(a)! - basisValue(b)!);
@@ -167,44 +163,12 @@ export default function Page() {
           basisValue(a)! - basisValue(b)!
       );
     else items.sort((a, b) => basisValue(a)! - basisValue(b)! || outDur(a)! - outDur(b)!);
-
     return items;
   }, [results, sort, sortBasis]);
 
-  // main-tab logic incl. hotel buckets for Top-3
-  const shown: any[] = useMemo(() => {
-    if (!sortedResults) return [];
-    if (!includeHotel) {
-      // flights: Top-3 vs All is a simple slice
-      return mainTab === "all" ? sortedResults : sortedResults.slice(0, 3);
-    }
-
-    // includeHotel = true (results contain hotel objects)
-    if (mainTab === "all") {
-      // show all hotels (no cap). If a min star is chosen, the backend/filters already apply.
-      return sortedResults;
-    }
-
-    // TOP-3
-    const getStar = (p: any) =>
-      Math.floor(num(p.hotel?.stars) ?? num(p.hotel_stars) ?? num(p.star_rating) ?? 0);
-
-    // if a min star is set, just take top 3 overall that meet it
-    if (minHotelStar && minHotelStar > 0) {
-      return sortedResults.filter(p => getStar(p) >= minHotelStar).slice(0, 3);
-    }
-
-    // otherwise, show up to 3 per bucket for 5..2 stars
-    const buckets: Record<number, any[]> = { 5: [], 4: [], 3: [], 2: [] };
-    for (const p of sortedResults) {
-      const s = getStar(p);
-      if (s >= 5) { if (buckets[5].length < 3) buckets[5].push(p); continue; }
-      if (s === 4) { if (buckets[4].length < 3) buckets[4].push(p); continue; }
-      if (s === 3) { if (buckets[3].length < 3) buckets[3].push(p); continue; }
-      if (s === 2) { if (buckets[2].length < 3) buckets[2].push(p); continue; }
-    }
-    return [...buckets[5], ...buckets[4], ...buckets[3], ...buckets[2]];
-  }, [sortedResults, includeHotel, mainTab, minHotelStar]);
+  // tabs
+  const top3 = useMemo(() => (sortedResults ? sortedResults.slice(0, 3) : null), [sortedResults]);
+  const shown = (activeTab === "all" ? sortedResults : top3) || [];
 
   // unlimited compare
   function toggleCompare(id: string) {
@@ -340,14 +304,14 @@ export default function Page() {
         )}
       </form>
 
-      {/* Sub-tabs (with your full link panels) – ONLY after search */}
+      {/* Sub-tabs appear only AFTER search */}
       {showControls && (
         <>
           <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", color:"#475569", fontWeight:700 }}>
-            <button className={`subtab ${subTab==="explore"?"on":""}`} onClick={()=>setSubTab("explore")}>Explore</button>
-            <button className={`subtab ${subTab==="savor"?"on":""}`} onClick={()=>setSubTab("savor")}>Savor</button>
-            <button className={`subtab ${subTab==="misc"?"on":""}`} onClick={()=>setSubTab("misc")}>Miscellaneous</button>
-            <button className={`subtab ${subTab==="compare"?"on":""}`} onClick={()=>setSubTab("compare")}>Compare</button>
+            <button className={`subtab ${activeSubTab==="explore"?"on":""}`} onClick={()=>setActiveSubTab("explore")}>Explore</button>
+            <button className={`subtab ${activeSubTab==="savor"?"on":""}`} onClick={()=>setActiveSubTab("savor")}>Savor</button>
+            <button className={`subtab ${activeSubTab==="misc"?"on":""}`} onClick={()=>setActiveSubTab("misc")}>Miscellaneous</button>
+            <button className={`subtab ${activeSubTab==="compare"?"on":""}`} onClick={()=>setActiveSubTab("compare")}>Compare</button>
 
             <style jsx>{`
               .subtab { padding: 8px 12px; border-radius: 999px; background: #fff;
@@ -356,11 +320,18 @@ export default function Page() {
             `}</style>
           </div>
 
-          {/* Content panes */}
-          {subTab !== "compare" ? (
+          {/* Sub-tab content panes – uses your SavorExploreLinks via ExploreSavorTabs */}
+          {activeSubTab !== "compare" ? (
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff", padding: 12 }}>
-              {/* IMPORTANT: render full Explore/Savor/Misc panels like your zip by NOT filtering; component decides */}
-              <ExploreSavorTabs city={destCity || "Destination"} />
+              <ExploreSavorTabs
+                city={destCity || "Destination"}
+                // countryName/countryCode optional; component will infer providers by region too
+                show={
+                  activeSubTab === "explore" ? ["explore"] :
+                  activeSubTab === "savor"   ? ["savor"]   :
+                                               ["misc"]
+                }
+              />
             </div>
           ) : (
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff", padding: 12, color:"#334155" }}>
@@ -370,7 +341,7 @@ export default function Page() {
         </>
       )}
 
-      {/* Sort + Top-3/All + Print – AFTER search */}
+      {/* Controls (sort + Top-3/All + Print) appear only after first search */}
       {showControls && (
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <button className={`chip ${sort === "best" ? "on" : ""}`} onClick={() => setSort("best")}>Best</button>
@@ -378,8 +349,8 @@ export default function Page() {
           <button className={`chip ${sort === "fastest" ? "on" : ""}`} onClick={() => setSort("fastest")}>Fastest</button>
           <button className={`chip ${sort === "flexible" ? "on" : ""}`} onClick={() => setSort("flexible")}>Flexible</button>
           <span style={{ marginLeft: 8 }} />
-          <button className={`chip ${mainTab==="top3" ? "on":""}`} onClick={()=>setMainTab("top3")}>Top-3</button>
-          <button className={`chip ${mainTab==="all" ? "on":""}`} onClick={()=>setMainTab("all")}>All</button>
+          <button className={`chip ${activeTab==="top3" ? "on":""}`} onClick={()=>setActiveTab("top3")}>Top-3</button>
+          <button className={`chip ${activeTab==="all" ? "on":""}`} onClick={()=>setActiveTab("all")}>All</button>
           <button className="chip" onClick={() => window.print()}>Print</button>
 
           <style jsx>{`
