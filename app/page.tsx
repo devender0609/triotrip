@@ -404,14 +404,7 @@ function swapOriginDest() { setOriginCode(oc => { const dc = destCode; setDestCo
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
-      <style jsx global>{`
-        header a { text-decoration: none !important; border-bottom: 0 !important; }
-        header img.tt-logo, header .tt-logo { border: 0 !important; box-shadow: none !important; }
-        .place-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
-        .place-title { font-weight: 800; margin-bottom: 8px; color: #0f172a; }
-        .place-links { display: flex; flex-wrap: wrap; gap: 8px; }
-        .place-link { display: inline-block; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 10px; text-decoration: none; background: #fff; font-weight: 700; }
-      `}</style>
+      
 
       <section>
         <h1 style={{ margin: "0 0 6px", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em" }}>Find your perfect trip</h1>
@@ -699,3 +692,4 @@ function swapOriginDest() { setOriginCode(oc => { const dc = destCode; setDestCo
     </div>
   );
 }
+
