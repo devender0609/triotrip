@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import ComparePanel from "../components/ComparePanel";
-import ExploreSavorTabs from "../components/ExploreSavorTabs"; // ← use your link panels
+import ExploreSavorTabs from "../components/ExploreSavorTabs";
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
@@ -13,31 +13,32 @@ type TabKey = "top3" | "all";
 type SubTab = "explore" | "savor" | "misc" | "compare";
 
 const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-  .toISOString()
-  .slice(0, 10);
+  .toISOString().slice(0, 10);
 const num = (v: any) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 
 function extractIATA(display: string): string {
   const s = String(display || "").toUpperCase().trim();
-  let m = /\(([A-Z]{3})\)/.exec(s);
-  if (m) return m[1];
-  m = /^([A-Z]{3})\b/.exec(s);
-  if (m) return m[1];
+  let m = /\(([A-Z]{3})\)/.exec(s); if (m) return m[1];
+  m = /^([A-Z]{3})\b/.exec(s);      if (m) return m[1];
   return "";
 }
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
+  const d = new Date(iso); if (Number.isNaN(d.getTime())) return "";
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }
-// very light city extraction from the destination display text
 function cityFromDisplay(txt: string) {
   if (!txt) return "";
   const parts = txt.split("—").map(s => s.trim()).filter(Boolean);
-  if (parts.length >= 2) return parts[1]; // e.g. "BOS — Boston — Logan …"
+  if (parts.length >= 2) return parts[1];
   return txt.split(",")[0].trim();
+}
+function nightsBetween(a?: string, b?: string) {
+  if (!a || !b) return 0;
+  const A = new Date(a).getTime(), B = new Date(b).getTime();
+  if (!Number.isFinite(A) || !Number.isFinite(B)) return 0;
+  return Math.max(0, Math.round((B - A) / 86400000));
 }
 
 export default function Page() {
@@ -59,12 +60,8 @@ export default function Page() {
   // currency (from header)
   const [currency, setCurrency] = useState("USD");
   useEffect(() => {
-    try {
-      const cur = localStorage.getItem("triptrio:currency");
-      if (cur) setCurrency(cur);
-    } catch {}
-    const handler = (e: any) =>
-      setCurrency(e?.detail || localStorage.getItem("triptrio:currency") || "USD");
+    try { const cur = localStorage.getItem("triptrio:currency"); if (cur) setCurrency(cur); } catch {}
+    const handler = (e: any) => setCurrency(e?.detail || localStorage.getItem("triptrio:currency") || "USD");
     window.addEventListener("triptrio:currency", handler);
     return () => window.removeEventListener("triptrio:currency", handler);
   }, []);
@@ -72,13 +69,15 @@ export default function Page() {
   // flight filters
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
 
-  // hotel (optional)
+  // hotel
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
   const [minHotelStar, setMinHotelStar] = useState(0);
+  const [minBudget, setMinBudget] = useState<string>("");
+  const [maxBudget, setMaxBudget] = useState<string>("");
 
-  // sorting / tabs (only show after search)
+  // sorting / tabs
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
   const [activeTab, setActiveTab] = useState<TabKey>("all");
@@ -115,43 +114,46 @@ export default function Page() {
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
+        minBudget: includeHotel && minBudget ? Number(minBudget) : undefined,
+        maxBudget: includeHotel && maxBudget ? Number(maxBudget) : undefined,
         currency, maxStops
       };
 
-      const r = await fetch(`/api/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
+      const r = await fetch(`/api/search`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload), cache: "no-store"
+      });
       const j = await r.json(); if (!r.ok) throw new Error(j?.error || "Search failed");
-
       const arr = Array.isArray(j.results) ? j.results : [];
       setResults(arr.map((res: any) => ({ ...res, ...payload })));
-      setShowControls(true);        // show chips + sub-tabs
+      setShowControls(true);
       setActiveTab("all");
-      setActiveSubTab("explore");   // default sub-tab after search
+      setActiveSubTab("explore");
       setComparedIds([]);
     } catch (e: any) {
       setError(e?.message || "Search failed");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
   // sort
   const sortedResults = useMemo(() => {
     if (!results) return null;
     const items = [...results];
+
     const flightPrice = (p: any) =>
-      num(p.flight_total) ??
-      num(p.total_cost_flight) ??
-      num(p.flight?.price_usd_converted) ??
-      num(p.flight?.price_usd) ??
-      num(p.total_cost) ??
-      9e15;
+      num(p.flight_total) ?? num(p.total_cost_flight) ??
+      num(p.flight?.price_usd_converted) ?? num(p.flight?.price_usd) ??
+      num(p.total_cost) ?? 9e15;
+
     const bundleTotal = (p: any) =>
       num(p.total_cost) ?? (num(p.flight_total) ?? flightPrice(p)) + (num(p.hotel_total) ?? 0);
+
     const outDur = (p: any) => {
-      const segs = p.flight?.segments_out || [];
+      const segs = p.flight?.segments_out || p.flight?.segments || [];
       const sum = segs.reduce((t: number, s: any) => t + (Number(s?.duration_minutes) || 0), 0);
       return Number.isFinite(sum) ? sum : 9e9;
     };
+
     const basisValue = (p: any) => (sortBasis === "bundle" ? bundleTotal(p) : flightPrice(p));
 
     if (sort === "cheapest") items.sort((a, b) => basisValue(a)! - basisValue(b)!);
@@ -163,26 +165,22 @@ export default function Page() {
           basisValue(a)! - basisValue(b)!
       );
     else items.sort((a, b) => basisValue(a)! - basisValue(b)! || outDur(a)! - outDur(b)!);
+
     return items;
   }, [results, sort, sortBasis]);
 
-  // tabs
   const top3 = useMemo(() => (sortedResults ? sortedResults.slice(0, 3) : null), [sortedResults]);
   const shown = (activeTab === "all" ? sortedResults : top3) || [];
 
-  // unlimited compare
   function toggleCompare(id: string) {
     setComparedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
   }
 
-  const s = {
-    label: { fontWeight: 600, color: "#334155", display: "block", marginBottom: 6, fontSize: 14 } as React.CSSProperties,
-  };
-  const inputStyle: React.CSSProperties = {
-    height: 44, padding: "0 12px", border: "1px solid #e2e8f0", borderRadius: 12, width: "100%", background: "#fff", fontSize: 15
-  };
+  const s = { label: { fontWeight: 600, color: "#334155", display: "block", marginBottom: 6, fontSize: 14 } as React.CSSProperties };
+  const inputStyle: React.CSSProperties = { height: 44, padding: "0 12px", border: "1px solid #e2e8f0", borderRadius: 12, width: "100%", background: "#fff", fontSize: 15 };
 
   const destCity = cityFromDisplay(destDisplay);
+  const hotelNights = includeHotel ? nightsBetween(hotelCheckIn, hotelCheckOut) : 0;
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
@@ -195,18 +193,18 @@ export default function Page() {
           <div>
             <label style={s.label}>Origin</label>
             <AirportField id="origin" label="" code={originCode} initialDisplay={originDisplay}
-              onTextChange={setOriginDisplay} onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }} />
+              onTextChange={setOriginDisplay}
+              onChangeCode={(code, display) => { setOriginCode(code); setOriginDisplay(display); }} />
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center" }} aria-hidden>
-            <button
-              type="button" title="Swap origin & destination" onClick={() => swapOriginDest()}
-              style={{ height: 42, width: 42, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}
-            >⇄</button>
+            <button type="button" title="Swap origin & destination" onClick={swapOriginDest}
+              style={{ height: 42, width: 42, borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 18 }}>⇄</button>
           </div>
           <div>
             <label style={s.label}>Destination</label>
             <AirportField id="destination" label="" code={destCode} initialDisplay={destDisplay}
-              onTextChange={setDestDisplay} onChangeCode={(code, display) => { setDestCode(code); setDestDisplay(display); }} />
+              onTextChange={setDestDisplay}
+              onChangeCode={(code, display) => { setDestCode(code); setDestDisplay(display); }} />
           </div>
         </div>
 
@@ -265,20 +263,18 @@ export default function Page() {
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <button
-              type="submit"
-              style={{ padding: "10px 16px", borderRadius: 12, border: "1px solid #CBD5E1", background: "#0ea5e9", color: "#fff", fontWeight: 800, marginTop: 8, marginRight: 8 }}
-            >{loading ? "Searching..." : "Search"}</button>
-            <button
-              type="button" onClick={() => location.reload()} title="Reset all fields and results"
-              style={{ padding: "10px 16px", borderRadius: 12, border: "1px solid #CBD5E1", background: "#fff", fontWeight: 800, marginTop: 8 }}
-            >Reset</button>
+            <button type="submit" style={{ padding: "10px 16px", borderRadius: 12, border: "1px solid #CBD5E1", background: "#0ea5e9", color: "#fff", fontWeight: 800, marginTop: 8, marginRight: 8 }}>
+              {loading ? "Searching..." : "Search"}
+            </button>
+            <button type="button" onClick={() => location.reload()} title="Reset all fields and results" style={{ padding: "10px 16px", borderRadius: 12, border: "1px solid #CBD5E1", background: "#fff", fontWeight: 800, marginTop: 8 }}>
+              Reset
+            </button>
           </div>
         </div>
 
-        {/* Hotel controls only when Include hotel is on */}
+        {/* Hotel-only inputs */}
         {includeHotel && (
-          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(6, 1fr)" }}>
             <div>
               <label style={s.label}>Check-in</label>
               <input type="date" style={inputStyle} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} />
@@ -294,8 +290,16 @@ export default function Page() {
               </select>
             </div>
             <div>
+              <label style={s.label}>Min budget</label>
+              <input type="number" inputMode="numeric" placeholder="min" style={inputStyle} value={minBudget} onChange={(e)=>setMinBudget(e.target.value)} />
+            </div>
+            <div>
+              <label style={s.label}>Max budget</label>
+              <input type="number" inputMode="numeric" placeholder="max" style={inputStyle} value={maxBudget} onChange={(e)=>setMaxBudget(e.target.value)} />
+            </div>
+            <div>
               <label style={s.label}>Sort by (basis)</label>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
                 <button type="button" onClick={()=>setSortBasis("flightOnly")} style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${sortBasis==="flightOnly"?"#60a5fa":"#e2e8f0"}` }}>Flight only</button>
                 <button type="button" onClick={()=>setSortBasis("bundle")} style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${sortBasis==="bundle"?"#60a5fa":"#e2e8f0"}` }}>Bundle total</button>
               </div>
@@ -304,44 +308,29 @@ export default function Page() {
         )}
       </form>
 
-      {/* Sub-tabs appear only AFTER search */}
+      {/* Sub-tabs (only after search) */}
       {showControls && (
         <>
           <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", color:"#475569", fontWeight:700 }}>
             <button className={`subtab ${activeSubTab==="explore"?"on":""}`} onClick={()=>setActiveSubTab("explore")}>Explore</button>
-            <button className={`subtab ${activeSubTab==="savor"?"on":""}`} onClick={()=>setActiveSubTab("savor")}>Savor</button>
-            <button className={`subtab ${activeSubTab==="misc"?"on":""}`} onClick={()=>setActiveSubTab("misc")}>Miscellaneous</button>
+            <button className={`subtab ${activeSubTab==="savor"?"on":""}`}   onClick={()=>setActiveSubTab("savor")}>Savor</button>
+            <button className={`subtab ${activeSubTab==="misc"?"on":""}`}    onClick={()=>setActiveSubTab("misc")}>Miscellaneous</button>
             <button className={`subtab ${activeSubTab==="compare"?"on":""}`} onClick={()=>setActiveSubTab("compare")}>Compare</button>
-
             <style jsx>{`
-              .subtab { padding: 8px 12px; border-radius: 999px; background: #fff;
-                        border: 1px solid #e2e8f0; cursor: pointer; }
-              .subtab.on { background: linear-gradient(90deg,#06b6d4,#0ea5e9); color: #fff; border: none; }
+              .subtab{padding:8px 12px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;cursor:pointer}
+              .subtab.on{background:linear-gradient(90deg,#06b6d4,#0ea5e9);color:#fff;border:none}
             `}</style>
           </div>
 
-          {/* Sub-tab content panes – uses your SavorExploreLinks via ExploreSavorTabs */}
-          {activeSubTab !== "compare" ? (
+          {activeSubTab !== "compare" && (
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff", padding: 12 }}>
-              <ExploreSavorTabs
-                city={destCity || "Destination"}
-                // countryName/countryCode optional; component will infer providers by region too
-                show={
-                  activeSubTab === "explore" ? ["explore"] :
-                  activeSubTab === "savor"   ? ["savor"]   :
-                                               ["misc"]
-                }
-              />
-            </div>
-          ) : (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff", padding: 12, color:"#334155" }}>
-              <strong>Compare:</strong> add any number of results via “＋ Compare”; the tray appears when 2+ are selected.
+              <ExploreSavorTabs city={cityFromDisplay(destDisplay) || "Destination"} />
             </div>
           )}
         </>
       )}
 
-      {/* Controls (sort + Top-3/All + Print) appear only after first search */}
+      {/* Chips (sort + Top-3/All + Print) */}
       {showControls && (
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <button className={`chip ${sort === "best" ? "on" : ""}`} onClick={() => setSort("best")}>Best</button>
@@ -350,9 +339,8 @@ export default function Page() {
           <button className={`chip ${sort === "flexible" ? "on" : ""}`} onClick={() => setSort("flexible")}>Flexible</button>
           <span style={{ marginLeft: 8 }} />
           <button className={`chip ${activeTab==="top3" ? "on":""}`} onClick={()=>setActiveTab("top3")}>Top-3</button>
-          <button className={`chip ${activeTab==="all" ? "on":""}`} onClick={()=>setActiveTab("all")}>All</button>
+          <button className={`chip ${activeTab==="all" ? "on":""}`}  onClick={()=>setActiveTab("all")}>All</button>
           <button className="chip" onClick={() => window.print()}>Print</button>
-
           <style jsx>{`
             .chip{padding:8px 12px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;font-weight:700;cursor:pointer}
             .chip.on{background:linear-gradient(90deg,#06b6d4,#0ea5e9);color:#fff;border:none}
@@ -373,6 +361,8 @@ export default function Page() {
               currency={currency}
               pax={adults + children + infants}
               showHotel={includeHotel}
+              hotelNights={hotelNights}
+              showAllHotels={activeTab === "all"}
               comparedIds={comparedIds}
               onToggleCompare={(id)=>toggleCompare(id)}
               onSavedChangeGlobal={()=>{}}
@@ -381,7 +371,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* Unlimited compare tray/modal */}
+      {/* Compare tray (no hint text) */}
       {comparedIds.length >= 2 && (
         <ComparePanel
           items={shown.filter((r: any) => comparedIds.includes(String(r.id || "")))}
