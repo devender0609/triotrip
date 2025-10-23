@@ -110,7 +110,9 @@ export default function Page() {
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
   useEffect(() => { if (!includeHotel) { setHotelCheckIn(""); setHotelCheckOut(""); } }, [includeHotel]);
 
-  function swapOriginDest() { setOriginCode(oc => { const dc = destCode; setDestCode(oc); return dc; }); setOriginDisplay(od => { const dd = destDisplay; setDestDisplay(od); return dd; }); }
+  
+  useEffect(() => { if (!includeHotel) setSortBasis("flightOnly"); }, [includeHotel]);
+function swapOriginDest() { setOriginCode(oc => { const dc = destCode; setDestCode(oc); return dc; }); setOriginDisplay(od => { const dd = destDisplay; setDestDisplay(od); return dd; }); }
 
   async function runSearch() {
     setSearchKey(k => k + 1); setLoading(true); setError(null); setHotelWarning(null); setResults(null);
@@ -580,12 +582,12 @@ export default function Page() {
               onChange={(e) => { if (e.target.value === "") return setMaxBudget(""); const v = Number(e.target.value); setMaxBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
           </div>
           {includeHotel && (
-  <div>
+  {includeHotel && (<div>
     <label style={s.label}>Sort by (basis)</label>
     <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
       <button type="button" style={segStyle("flightOnly" === sortBasis)} onClick={() => setSortBasis("flightOnly")}>Flight only</button>
       <button type="button" style={segStyle("bundle" === sortBasis)} onClick={() => setSortBasis("bundle")}>Bundle total</button>
-    </div>
+    </div>)}
   </div>
 )}
         </div>
