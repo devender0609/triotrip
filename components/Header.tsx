@@ -5,7 +5,7 @@ import Image from "next/image";
 import AuthBar from "./AuthBar";
 import React from "react";
 
-/** Top header: Triotrip brand (no underline), Saved/Login (elegant pills), Currency with flag */
+/** Top header: TrioTrip brand (no underline), Saved/Login (elegant pills), Currency with flag */
 export default function Header() {
   const [currency, setCurrency] = React.useState<string>(() => {
     if (typeof window === "undefined") return "USD";
@@ -29,16 +29,18 @@ export default function Header() {
 
   return (
     <header className="tt-header" role="banner">
-      <Link href="/" className="brand" aria-label="TrioTrip home">
+      <Link href="/" className="brand" aria-label="TrioTrip home" style={{ textDecoration: "none" }}>
         <Image src="/logo.png" alt="TrioTrip logo" width={28} height={28} priority />
         <span className="title">TrioTrip</span>
       </Link>
 
       <nav className="nav" aria-label="Main">
         {/* Saved */}
-        <Link href="/saved" className="pill">Saved</Link>
+        <Link href="/saved" className="pill" style={{ textDecoration: "none" }}>
+          Saved
+        </Link>
 
-        {/* Auth (Login/Logout) as elegant pill(s) */}
+        {/* Auth (Login/Logout) styled as elegant pill(s) */}
         <div className="auth-wrap">
           <AuthBar />
         </div>
@@ -63,13 +65,26 @@ export default function Header() {
           display: flex; align-items: center; justify-content: space-between;
           gap: 16px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e5e7eb;
         }
-        .brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+        .brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none !important; border-bottom: none !important; }
         .title { font-weight: 900; letter-spacing: -0.02em; font-size: 18px; color: #0f172a; }
         .nav { display: flex; gap: 10px; align-items: center; font-weight: 600; }
+
+        /* Kill underlines globally for header links */
+        .nav :global(a) {
+          text-decoration: none !important;
+          border-bottom: none !important;
+          color: inherit;
+        }
+        .nav :global(a:hover), .nav :global(a:focus) {
+          text-decoration: none !important;
+          border-bottom: none !important;
+        }
+
         .pill {
           display: inline-flex; align-items: center; gap: 6px;
           padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 999px;
-          background: #fff; color: #0f172a; text-decoration: none;
+          background: #fff; color: #0f172a; text-decoration: none !important;
+          box-shadow: 0 1px 0 rgba(0,0,0,0.03);
         }
         .pill:hover { background: #f8fafc; }
 
@@ -78,6 +93,7 @@ export default function Header() {
           text-decoration: none !important;
           border: 1px solid #e2e8f0; border-radius: 999px; padding: 6px 12px;
           background: #fff; color: #0f172a; font-weight: 700; cursor: pointer;
+          box-shadow: 0 1px 0 rgba(0,0,0,0.03);
         }
         .auth-wrap :global(a:hover), .auth-wrap :global(button:hover) { background: #f8fafc; }
 
