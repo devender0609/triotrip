@@ -110,7 +110,9 @@ export default function Page() {
   useEffect(() => { if (!roundTrip) setReturnDate(""); }, [roundTrip]);
   useEffect(() => { if (!includeHotel) { setHotelCheckIn(""); setHotelCheckOut(""); } }, [includeHotel]);
 
-  function swapOriginDest() { setOriginCode(oc => { const dc = destCode; setDestCode(oc); return dc; }); setOriginDisplay(od => { const dd = destDisplay; setDestDisplay(od); return dd; }); }
+  
+  useEffect(() => { if (!includeHotel) setSortBasis("flightOnly"); }, [includeHotel]);
+function swapOriginDest() { setOriginCode(oc => { const dc = destCode; setDestCode(oc); return dc; }); setOriginDisplay(od => { const dd = destDisplay; setDestDisplay(od); return dd; }); }
 
   async function runSearch() {
     setSearchKey(k => k + 1); setLoading(true); setError(null); setHotelWarning(null); setResults(null);
@@ -401,16 +403,7 @@ export default function Page() {
   }
 
   return (
-    <div style={{ padding: 12, display: "grid", gap: 14 }}>
-      <style jsx global>{`
-        header a { text-decoration: none !important; border-bottom: 0 !important; }
-        header img.tt-logo, header .tt-logo { border: 0 !important; box-shadow: none !important; }
-        .place-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
-        .place-title { font-weight: 800; margin-bottom: 8px; color: #0f172a; }
-        .place-links { display: flex; flex-wrap: wrap; gap: 8px; }
-        .place-link { display: inline-block; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 10px; text-decoration: none; background: #fff; font-weight: 700; }
       `}</style>
-
       <section>
         <h1 style={{ margin: "0 0 6px", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em" }}>Find your perfect trip</h1>
         <p style={{ margin: 0, display: "flex", gap: 10, alignItems: "center", color: "#334155", fontWeight: 500, flexWrap: "wrap", fontSize: 15 }}>
@@ -524,17 +517,35 @@ export default function Page() {
         </div>
 
         {/* --- Hotel option --- */}
-        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "auto 1fr 1fr 1fr" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, color: "#0b1220" }}>
-            <input type="checkbox" checked={includeHotel} onChange={(e) => setIncludeHotel(e.target.checked)} />
-            Include hotel
-          </label>
-
-          <div>
-            <label style={s.label}>Check-in</label>
-            <input type="date" style={inputStyle} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)} disabled={!includeHotel}
-              min={departDate || todayLocal} />
-          </div>
+<div style={{ display: "grid", gap: 12, gridTemplateColumns: "auto" }}>
+  <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, color: "#0b1220" }}>
+    <input type="checkbox" checked={includeHotel} onChange={(e) => setIncludeHotel(e.target.checked)} />
+    Include hotel
+  </label>
+  {includeHotel && (
+    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
+      <div>
+        <label style={s.label}>Check-in</label>
+        <input type="date" style={inputStyle} value={hotelCheckIn} onChange={(e) => setHotelCheckIn(e.target.value)}
+          min={departDate || todayLocal} />
+      </div>
+      <div>
+        <label style={s.label}>Check-out</label>
+        <input type="date" style={inputStyle} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)}
+          min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : (departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1))} />
+      </div>
+      <div>
+        <label style={s.label}>Min stars</label>
+        <select style={inputStyle} value={minHotelStar} onChange={(e) => setMinHotelStar(Number(e.target.value))}>
+          <option value={0}>Any</option>
+          <option value={3}>3★+</option>
+          <option value={4}>4★+</option>
+          <option value={5}>5★</option>
+        </select>
+      </div>
+    </div>
+  )}
+</div>
           <div>
             <label style={s.label}>Check-out</label>
             <input type="date" style={inputStyle} value={hotelCheckOut} onChange={(e) => setHotelCheckOut(e.target.value)} disabled={!includeHotel}
@@ -561,13 +572,15 @@ export default function Page() {
               value={maxBudget === "" ? "" : String(maxBudget)}
               onChange={(e) => { if (e.target.value === "") return setMaxBudget(""); const v = Number(e.target.value); setMaxBudget(Number.isFinite(v) ? Math.max(0, v) : 0); }} />
           </div>
-          <div>
-            <label style={s.label}>Sort by (basis)</label>
-            <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <button type="button" style={segStyle("flightOnly" === sortBasis)} onClick={() => setSortBasis("flightOnly")}>Flight only</button>
-              <button type="button" style={segStyle("bundle" === sortBasis)} onClick={() => setSortBasis("bundle")}>Bundle total</button>
-            </div>
-          </div>
+          {includeHotel && (
+  {includeHotel && (<div>
+    <label style={s.label}>Sort by (basis)</label>
+    <div style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <button type="button" style={segStyle("flightOnly" === sortBasis)} onClick={() => setSortBasis("flightOnly")}>Flight only</button>
+      <button type="button" style={segStyle("bundle" === sortBasis)} onClick={() => setSortBasis("bundle")}>Bundle total</button>
+    </div>)}
+  </div>
+)}
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end" }}>

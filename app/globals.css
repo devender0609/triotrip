@@ -146,7 +146,3 @@ button:disabled { opacity:.6; cursor:not-allowed; }
   body { background:#fff; }
   .result-card { box-shadow: none; border-color:#cbd5e1; }
 }
-
-/* === Header tweaks moved from page.tsx (10/23/2025) === */
-header a { text-decoration: none !important; border-bottom: 0 !important; }
-header img.tt-logo, header .tt-logo { border: 0 !important; box-shadow: none !important; }

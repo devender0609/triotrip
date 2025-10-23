@@ -77,25 +77,19 @@ export default function ResultCard({
   const airline =
     pkg.flight?.carrier_name || pkg.flight?.carrier || pkg.airline || "";
 
-  const bundlePriceRaw =
-  (typeof pkg?.total_cost_converted === "number" && pkg.total_cost_converted) ||
-  (typeof pkg?.total_cost === "number" && pkg.total_cost) || 0;
-
-const flightPriceRaw =
-  (typeof pkg?.flight?.price_usd_converted === "number" && pkg.flight.price_usd_converted) ||
-  (typeof pkg?.flight?.price_usd === "number" && pkg.flight.price_usd) ||
-  (typeof pkg?.flight_total === "number" && pkg.flight_total) || 0;
-
-// choose price depending on whether hotel bundle is shown
-const priceRaw = showHotel ? (bundlePriceRaw || flightPriceRaw) : flightPriceRaw;
+  const priceRaw =
+    (typeof pkg?.total_cost_converted === "number" && pkg.total_cost_converted) ||
+    (typeof pkg?.total_cost === "number" && pkg.total_cost) ||
+    (typeof pkg?.flight?.price_usd_converted === "number" && pkg.flight.price_usd_converted) ||
+    (typeof pkg?.flight?.price_usd === "number" && pkg.flight.price_usd) ||
+    (typeof pkg?.flight_total === "number" && pkg.flight_total) ||
+    0;
 
   let priceFmt = "";
   try {
     priceFmt = new Intl.NumberFormat(undefined, { style: "currency", currency: (currency || "USD").toUpperCase() }).format(Math.round(Number(priceRaw) || 0));
   } catch {
-    priceFmt = `$${Math.round(Number(priceRaw) || 0).toLocaleString()}
-  const priceLabel = showHotel && (typeof bundlePriceRaw === "number" ? bundlePriceRaw > 0 : !!bundlePriceRaw) ? "Bundle total" : "Flight price";
-`;
+    priceFmt = `$${Math.round(Number(priceRaw) || 0).toLocaleString()}`;
   }
 
   /* TrioTrip internal checkout (same tab) */
@@ -220,7 +214,7 @@ const priceRaw = showHotel ? (bundlePriceRaw || flightPriceRaw) : flightPriceRaw
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {/* Price */}
           <div style={{ fontWeight: 900, color: "#0b3b52", background: "#e7f5ff", border: "1px solid #cfe3ff", borderRadius: 10, padding: "6px 10px" }}>
-            💵 {priceFmt}{priceLabel ? ` · ${priceLabel}` : ""}
+            💵 {priceFmt}
           </div>
           {/* Booking actions — internal TrioTrip opens SAME TAB */}
           <a className="book-link" href={trioTrip} rel="noreferrer">TrioTrip</a>
