@@ -404,9 +404,17 @@ function swapOriginDest() { setOriginCode(oc => { const dc = destCode; setDestCo
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
-      
+      <style jsx global>{`
+        header a { text-decoration: none !important; border-bottom: 0 !important; }
+        header img.tt-logo, header .tt-logo { border: 0 !important; box-shadow: none !important; }
+        .place-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+        .place-title { font-weight: 800; margin-bottom: 8px; color: #0f172a; }
+        .place-links { display: flex; flex-wrap: wrap; gap: 8px; }
+        .place-link { display: inline-block; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 10px; text-decoration: none; background: #fff; font-weight: 700; }
+      `}</style>
 
-      <h1 style={{ margin: "0 0 6px", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em" }}>Find your perfect trip</h1>
+      <section>
+        <h1 style={{ margin: "0 0 6px", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em" }}>Find your perfect trip</h1>
         <p style={{ margin: 0, display: "flex", gap: 10, alignItems: "center", color: "#334155", fontWeight: 500, flexWrap: "wrap", fontSize: 15 }}>
           <span style={{ padding: "6px 12px", borderRadius: 999, background: "linear-gradient(180deg,#ffffff,#eef6ff)", border: "1px solid #cfe0ff", color: "#0b1220", fontWeight: 600 }}>Top-3 picks</span>
           <span style={{ opacity: 0.6 }}>•</span><span>Explore, Savor & Misc guides</span>
@@ -691,7 +699,3 @@ function swapOriginDest() { setOriginCode(oc => { const dc = destCode; setDestCo
     </div>
   );
 }
-
-
-
-
