@@ -20,7 +20,6 @@ interface SearchPayload {
 }
 
 const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-const num = (v: any) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 
 function extractIATA(display: string): string {
   const s = String(display || "").toUpperCase().trim();
@@ -199,7 +198,8 @@ export default function Page() {
   function ContentExplore() {
     const city = destDisplay ? extractCityOnly(destDisplay) : "";
     const cc = robustCountryFrom(destDisplay);
-    const places = exploreSet(cc);
+    const ccCode = typeof cc === "string" ? cc : (cc?.code ?? "");
+    const places = exploreSet(ccCode);
     return (
       <div className="place-grid">
         {places.map((p) => (
@@ -217,8 +217,9 @@ export default function Page() {
 
   function ContentSavor() {
     const city = destDisplay ? extractCityOnly(destDisplay) : "";
-       const cc = robustCountryFrom(destDisplay);
-    const places = savorSet(cc);
+    const cc = robustCountryFrom(destDisplay);
+    const ccCode = typeof cc === "string" ? cc : (cc?.code ?? "");
+    const places = savorSet(ccCode);
     return (
       <div className="place-grid">
         {places.map((p) => (
@@ -237,7 +238,8 @@ export default function Page() {
   function ContentMisc() {
     const city = destDisplay ? extractCityOnly(destDisplay) : "";
     const cc = robustCountryFrom(destDisplay);
-    const places = miscSet(cc);
+    const ccCode = typeof cc === "string" ? cc : (cc?.code ?? "");
+    const places = miscSet(ccCode);
     return (
       <div className="place-grid">
         {places.map((p) => (
