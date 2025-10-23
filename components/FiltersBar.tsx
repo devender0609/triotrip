@@ -8,21 +8,12 @@ export type Filters = {
   minBagsIncluded: number;
 };
 
-type ExtraSortProps = {
-  // Optional extras; if provided we show them
-  includeHotel?: boolean;
-  sortKey?: "best" | "cheapest" | "fastest" | "flexible";
-  sortBasis?: "flightOnly" | "bundle";
-  onSortKeyChange?: (k: "best" | "cheapest" | "fastest" | "flexible") => void;
-  onSortBasisChange?: (b: "flightOnly" | "bundle") => void;
-};
-
 export default function FiltersBar({
-  value, onChange, includeHotel, sortKey, sortBasis, onSortKeyChange, onSortBasisChange
+  value, onChange,
 }: {
   value: Filters;
   onChange: (v: Filters) => void;
-} & ExtraSortProps) {
+}) {
   function set<K extends keyof Filters>(k: K, v: Filters[K]) {
     onChange({ ...value, [k]: v });
   }
@@ -37,37 +28,12 @@ export default function FiltersBar({
           <option value={0}>0</option><option value={1}>1</option><option value={2}>2</option>
         </select>
       </div>
-
-      {/* Optional sort controls */}
-      {onSortKeyChange && (
-        <div className="sort">
-          <label>Sort</label>
-          <select value={sortKey} onChange={(e)=>onSortKeyChange(e.target.value as any)}>
-            <option value="best">Best</option>
-            <option value="cheapest">Cheapest</option>
-            <option value="fastest">Fastest</option>
-            <option value="flexible">Flexible</option>
-          </select>
-        </div>
-      )}
-      {includeHotel && onSortBasisChange && (
-        <div className="sort">
-          <label>Basis</label>
-          <select value={sortBasis} onChange={(e)=>onSortBasisChange(e.target.value as any)}>
-            <option value="flightOnly">Flight only</option>
-            <option value="bundle">Flight + Hotel (bundle)</option>
-          </select>
-        </div>
-      )}
-
       <style jsx>{`
         .filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 4px}
         .chip{padding:8px 12px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;font-weight:700;cursor:pointer}
         .chip.on{background:linear-gradient(90deg,#06b6d4,#0ea5e9);color:#fff;border:none}
         .bags{display:flex;gap:6px;align-items:center}
         select{height:34px;border-radius:10px;border:1px solid #e2e8f0;padding:0 8px}
-        .sort{display:flex;gap:6px;align-items:center; margin-left: 6px;}
-        .sort label{font-weight:800; color:#334155}
       `}</style>
     </div>
   );
