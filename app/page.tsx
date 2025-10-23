@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import ComparePanel from "../components/ComparePanel";
+import ExploreSavorTabs from "../components/ExploreSavorTabs"; // ← use your link panels
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
@@ -31,6 +32,13 @@ function plusDays(iso: string, days: number) {
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }
+// very light city extraction from the destination display text
+function cityFromDisplay(txt: string) {
+  if (!txt) return "";
+  const parts = txt.split("—").map(s => s.trim()).filter(Boolean);
+  if (parts.length >= 2) return parts[1]; // e.g. "BOS — Boston — Logan …"
+  return txt.split(",")[0].trim();
+}
 
 export default function Page() {
   // places & dates
@@ -48,7 +56,7 @@ export default function Page() {
   const [infants, setInfants] = useState(0);
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
-  // currency (from Header)
+  // currency (from header)
   const [currency, setCurrency] = useState("USD");
   useEffect(() => {
     try {
@@ -160,7 +168,7 @@ export default function Page() {
 
   // tabs
   const top3 = useMemo(() => (sortedResults ? sortedResults.slice(0, 3) : null), [sortedResults]);
-  const shown = activeTab === "all" ? sortedResults : top3;
+  const shown = (activeTab === "all" ? sortedResults : top3) || [];
 
   // unlimited compare
   function toggleCompare(id: string) {
@@ -173,6 +181,8 @@ export default function Page() {
   const inputStyle: React.CSSProperties = {
     height: 44, padding: "0 12px", border: "1px solid #e2e8f0", borderRadius: 12, width: "100%", background: "#fff", fontSize: 15
   };
+
+  const destCity = cityFromDisplay(destDisplay);
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
@@ -304,39 +314,30 @@ export default function Page() {
             <button className={`subtab ${activeSubTab==="compare"?"on":""}`} onClick={()=>setActiveSubTab("compare")}>Compare</button>
 
             <style jsx>{`
-              .subtab {
-                padding: 8px 12px; border-radius: 999px; background: #fff;
-                border: 1px solid #e2e8f0; cursor: pointer;
-              }
-              .subtab.on {
-                background: linear-gradient(90deg,#06b6d4,#0ea5e9); color: #fff; border: none;
-              }
+              .subtab { padding: 8px 12px; border-radius: 999px; background: #fff;
+                        border: 1px solid #e2e8f0; cursor: pointer; }
+              .subtab.on { background: linear-gradient(90deg,#06b6d4,#0ea5e9); color: #fff; border: none; }
             `}</style>
           </div>
 
-          {/* Sub-tab content panes */}
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff", padding: 12 }}>
-            {activeSubTab === "explore" && (
-              <div style={{ color:"#334155" }}>
-                <strong>Explore:</strong> browse all flights {includeHotel ? "and hotels " : ""} with no limits. Use the sort chips below to refine.
-              </div>
-            )}
-            {activeSubTab === "savor" && (
-              <div style={{ color:"#334155" }}>
-                <strong>Savor:</strong> curated picks and favorites. Use the ☆ Save button on any result to collect them here.
-              </div>
-            )}
-            {activeSubTab === "misc" && (
-              <div style={{ color:"#334155" }}>
-                <strong>Miscellaneous:</strong> helpful tips, flexible fares, baggage notes, visa reminders, and more (based on your results).
-              </div>
-            )}
-            {activeSubTab === "compare" && (
-              <div style={{ color:"#334155" }}>
-                <strong>Compare:</strong> add any number of results via “＋ Compare”; the tray appears when 2+ are selected.
-              </div>
-            )}
-          </div>
+          {/* Sub-tab content panes – uses your SavorExploreLinks via ExploreSavorTabs */}
+          {activeSubTab !== "compare" ? (
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff", padding: 12 }}>
+              <ExploreSavorTabs
+                city={destCity || "Destination"}
+                // countryName/countryCode optional; component will infer providers by region too
+                show={
+                  activeSubTab === "explore" ? ["explore"] :
+                  activeSubTab === "savor"   ? ["savor"]   :
+                                               ["misc"]
+                }
+              />
+            </div>
+          ) : (
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff", padding: 12, color:"#334155" }}>
+              <strong>Compare:</strong> add any number of results via “＋ Compare”; the tray appears when 2+ are selected.
+            </div>
+          )}
         </>
       )}
 
@@ -347,11 +348,9 @@ export default function Page() {
           <button className={`chip ${sort === "cheapest" ? "on" : ""}`} onClick={() => setSort("cheapest")}>Cheapest</button>
           <button className={`chip ${sort === "fastest" ? "on" : ""}`} onClick={() => setSort("fastest")}>Fastest</button>
           <button className={`chip ${sort === "flexible" ? "on" : ""}`} onClick={() => setSort("flexible")}>Flexible</button>
-
           <span style={{ marginLeft: 8 }} />
           <button className={`chip ${activeTab==="top3" ? "on":""}`} onClick={()=>setActiveTab("top3")}>Top-3</button>
           <button className={`chip ${activeTab==="all" ? "on":""}`} onClick={()=>setActiveTab("all")}>All</button>
-
           <button className="chip" onClick={() => window.print()}>Print</button>
 
           <style jsx>{`
@@ -364,7 +363,7 @@ export default function Page() {
       {error && <div style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#7f1d1d", padding:10, borderRadius:10 }}>⚠ {error}</div>}
 
       {/* Results */}
-      {shown && shown.length>0 && (
+      {shown.length>0 && (
         <div style={{ display:"grid", gap: 10 }}>
           {shown.map((pkg, i) => (
             <ResultCard
@@ -385,7 +384,7 @@ export default function Page() {
       {/* Unlimited compare tray/modal */}
       {comparedIds.length >= 2 && (
         <ComparePanel
-          items={(shown || []).filter((r: any) => comparedIds.includes(String(r.id || "")))}
+          items={shown.filter((r: any) => comparedIds.includes(String(r.id || "")))}
           currency={currency}
           onClose={() => setComparedIds([])}
           onRemove={(id) => setComparedIds(prev => prev.filter(x => x !== id))}
