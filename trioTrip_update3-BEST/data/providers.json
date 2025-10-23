@@ -1,0 +1,299 @@
+[
+  {
+    "id": "google_maps_explore",
+    "name": "Google Maps — Explore",
+    "categories": [
+      "explore"
+    ],
+    "global": true,
+    "supported_countries": "GLOBAL",
+    "link_template": "https://www.google.com/maps/search/?api=1&query=things%20to%20do%20in%20{PLACE}",
+    "notes": "High coverage worldwide; good default for 'Explore'."
+  },
+  {
+    "id": "tripadvisor_things",
+    "name": "Tripadvisor — Things to Do",
+    "categories": [
+      "explore"
+    ],
+    "global": true,
+    "supported_countries": "GLOBAL",
+    "link_template": "https://www.tripadvisor.com/Search?q=things%20to%20do%20in%20{PLACE}",
+    "notes": "Global directory; direct country URLs vary; use search as robust fallback."
+  },
+  {
+    "id": "lonely_planet",
+    "name": "Lonely Planet",
+    "categories": [
+      "explore"
+    ],
+    "global": true,
+    "supported_countries": "GLOBAL",
+    "link_template": "https://www.google.com/search?q=site%3Alonelyplanet.com+{PLACE}+travel+guide",
+    "notes": "Country/city URLs vary; use site-restricted search for reliability."
+  },
+  {
+    "id": "atlas_obscura",
+    "name": "Atlas Obscura",
+    "categories": [
+      "explore"
+    ],
+    "global": true,
+    "supported_countries": "GLOBAL",
+    "link_template": "https://www.atlasobscura.com/search?q={PLACE}",
+    "notes": "Great for unusual/hidden places."
+  },
+  {
+    "id": "wikivoyage",
+    "name": "Wikivoyage",
+    "categories": [
+      "explore"
+    ],
+    "global": true,
+    "supported_countries": "GLOBAL",
+    "link_template": "https://en.wikivoyage.org/w/index.php?search={PLACE}",
+    "notes": "Open-content travel guide; coverage varies but broad."
+  },
+  {
+    "id": "google_maps_food",
+    "name": "Google Maps — Restaurants",
+    "categories": [
+      "savor"
+    ],
+    "global": true,
+    "supported_countries": "GLOBAL",
+    "link_template": "https://www.google.com/maps/search/?api=1&query=best%20restaurants%20in%20{PLACE}",
+    "notes": "Global coverage; strong default for food."
+  },
+  {
+    "id": "opentable",
+    "name": "OpenTable",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "US",
+      "CA",
+      "UK",
+      "IE",
+      "AU",
+      "MX",
+      "DE",
+      "JP",
+      "HK",
+      "SG"
+    ],
+    "link_template": "https://www.opentable.com/s?covers=2&currentview=list&datetime={DATE_TIME}&metroId=0&size=100&term={PLACE}",
+    "notes": "Reservations; coverage varies; many metros in supported countries."
+  },
+  {
+    "id": "thefork",
+    "name": "TheFork",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "FR",
+      "ES",
+      "IT",
+      "PT",
+      "NL",
+      "BE",
+      "SE",
+      "DK",
+      "AU"
+    ],
+    "link_template": "https://www.thefork.com/search?q={PLACE}",
+    "notes": "Strong in Europe (La Fourchette)."
+  },
+  {
+    "id": "zomato",
+    "name": "Zomato",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "IN",
+      "AE",
+      "QA",
+      "SG",
+      "PH",
+      "ID",
+      "ZA",
+      "TR",
+      "BR",
+      "CL"
+    ],
+    "link_template": "https://www.zomato.com/search?entity_type=city&q={PLACE}",
+    "notes": "Menu/reviews; coverage varies by country/city."
+  },
+  {
+    "id": "michelin_guide",
+    "name": "Michelin Guide",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "FR",
+      "JP",
+      "US",
+      "UK",
+      "SG",
+      "TH",
+      "ES",
+      "IT",
+      "KR",
+      "CN",
+      "TW"
+    ],
+    "link_template": "https://guide.michelin.com/en/search?q={PLACE}",
+    "notes": "Fine dining; limited but prestigious coverage."
+  },
+  {
+    "id": "yelp",
+    "name": "Yelp",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "US",
+      "CA",
+      "UK",
+      "IE",
+      "FR",
+      "DE",
+      "NL",
+      "BE",
+      "CH",
+      "AT",
+      "IT",
+      "ES",
+      "PT",
+      "SE",
+      "NO",
+      "DK",
+      "FI",
+      "AU",
+      "NZ",
+      "SG",
+      "HK",
+      "JP",
+      "TW"
+    ],
+    "link_template": "https://www.yelp.com/search?find_desc=Restaurants&find_loc={PLACE}",
+    "notes": "Coverage strongest in US/CA; present in parts of EU/APAC."
+  },
+  {
+    "id": "happycow",
+    "name": "HappyCow (Veg-Friendly)",
+    "categories": [
+      "savor"
+    ],
+    "global": true,
+    "supported_countries": "GLOBAL",
+    "link_template": "https://www.happycow.net/searchmap?address={PLACE}&vegan=true",
+    "notes": "Vegetarian/vegan focused; global community."
+  },
+  {
+    "id": "tabelog_jp",
+    "name": "Tabelog (Japan)",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "JP"
+    ],
+    "link_template": "https://tabelog.com/en/rstLst/?vs=1&sa={PLACE}",
+    "notes": "Major JP dining review site."
+  },
+  {
+    "id": "gurunavi_jp",
+    "name": "Gurunavi (Japan)",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "JP"
+    ],
+    "link_template": "https://www.gnavi.co.jp/en/search/?word={PLACE}",
+    "notes": "Restaurant listings/reservations in Japan."
+  },
+  {
+    "id": "chope_sea",
+    "name": "Chope (SEA)",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "SG",
+      "ID",
+      "TH",
+      "CN"
+    ],
+    "link_template": "https://www.chope.co/search?query={PLACE}",
+    "notes": "Reservations in SE Asia and parts of China."
+  },
+  {
+    "id": "quandoo_eu",
+    "name": "Quandoo (EU)",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "DE",
+      "AT",
+      "IT",
+      "FI",
+      "SE",
+      "NO",
+      "CH",
+      "UK",
+      "IE",
+      "SG",
+      "AU"
+    ],
+    "link_template": "https://www.quandoo.com/search?q={PLACE}",
+    "notes": "Reservations across parts of Europe, plus SG/AU."
+  },
+  {
+    "id": "openrice_hk",
+    "name": "OpenRice (Hong Kong)",
+    "categories": [
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "HK"
+    ],
+    "link_template": "https://www.openrice.com/en/hongkong/restaurants?what={PLACE}",
+    "notes": "Hong Kong dining directory."
+  },
+  {
+    "id": "time_out",
+    "name": "Time Out (selected cities)",
+    "categories": [
+      "explore",
+      "savor"
+    ],
+    "global": false,
+    "supported_regions": [
+      "US",
+      "UK",
+      "ES",
+      "FR",
+      "AE",
+      "JP"
+    ],
+    "link_template": "https://www.timeout.com/search?q={PLACE}",
+    "notes": "City guides in selected countries; use as a supplemental link."
+  }
+]
