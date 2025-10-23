@@ -2,9 +2,9 @@
 export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useState } from "react";
-import AirportField from "@/components/AirportField";
-import ResultCard from "@/components/ResultCard";
-import ComparePanel from "@/components/ComparePanel";
+import AirportField from "../components/AirportField";
+import ResultCard from "../components/ResultCard";
+import ComparePanel from "../components/ComparePanel";
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
@@ -397,9 +397,25 @@ export default function Page() {
                 color: "#fff",
                 fontWeight: 800,
                 marginTop: 8,
+                marginRight: 8,
               }}
             >
               {loading ? "Searching..." : "Search"}
+            </button>
+            <button
+              type="button"
+              onClick={() => location.reload()}
+              title="Reset all fields and results"
+              style={{
+                padding: "10px 16px",
+                borderRadius: 12,
+                border: "1px solid #CBD5E1",
+                background: "#fff",
+                fontWeight: 800,
+                marginTop: 8,
+              }}
+            >
+              Reset
             </button>
           </div>
         </div>
@@ -447,6 +463,32 @@ export default function Page() {
           </div>
         )}
       </form>
+
+      {/* Explore / Savor / Misc / Compare helper bar (under the form) */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          flexWrap: "wrap",
+          color: "#475569",
+          fontWeight: 700,
+        }}
+      >
+        <span className="tab">Explore</span>
+        <span className="tab">Savor</span>
+        <span className="tab">Miscellaneous</span>
+        <span className="tab">Compare</span>
+
+        <style jsx>{`
+          .tab {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+          }
+        `}</style>
+      </div>
 
       {/* Controls appear only after first search */}
       {showControls && (
