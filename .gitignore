@@ -1,10 +1,7 @@
-# dependencies & build
 node_modules/
 .next/
 out/
 dist/
-
-# env & local
 .env*
 *.log
 .vercel/
