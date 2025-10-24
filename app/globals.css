@@ -1,292 +1,261 @@
-/* ================================
-   app/globals.css  (full file)
-   ================================ */
+/* =========================================================
+   TrioTrip • Global Styles (app/globals.css)
+   - Subtle app background + readable typography
+   - Gradient, colourful tabs & chips
+   - Flight & hotel result polish (ResultCard.tsx)
+   - Header links (brand / Saved / Login) with no underline
+   - Safe, framework-agnostic CSS (no Tailwind required)
+   ========================================================= */
 
-/* --- Basic reset (minimal, safe) --- */
+/* ---------- CSS Reset (lightweight) ---------- */
 *,
 *::before,
 *::after { box-sizing: border-box; }
-html, body { padding: 0; margin: 0; height: 100%; }
-img, video { max-width: 100%; height: auto; display: block; }
-
-/* ================================
-   Design tokens (popular defaults)
-   ================================ */
-:root{
-  /* Brand */
-  --c-primary: #0ea5e9; /* Sky-500 */
-  --c-accent:  #06b6d4; /* Cyan-500 */
-
-  /* Neutrals */
-  --c-ink-strong: #0f172a; /* Slate-900 */
-  --c-ink-subtle: #475569; /* Slate-600 */
-  --c-line: #e2e8f0;       /* Slate-200 */
-  --c-card: #ffffff;
-  --c-page: #f8fafc;
-
-  /* Semantic */
-  --c-success: #10b981; /* Emerald-500 */
-  --c-warn:    #f59e0b; /* Amber-500 */
-  --c-danger:  #ef4444; /* Red-500 */
-  --c-info:    #6366f1; /* Indigo-500 */
-
-  /* Effects */
-  --shadow-soft: 0 10px 30px rgba(2, 8, 23, 0.06);
-  --ring: rgba(14,165,233,.35);
-
-  /* Components */
-  --chip-on: linear-gradient(90deg, var(--c-accent), var(--c-primary));
-  --chip-off: #ffffff;
-
-  /* Radii / sizes */
-  --r-lg: 16px;
-  --r-md: 12px;
-  --r-sm: 10px;
-
-  --h-input: 44px;
-  --fs-body: 16px;
-
-  /* New: gradient palettes per tab */
-  --grad-explore: linear-gradient(90deg, #22c55e, #0ea5e9);  /* green -> sky */
-  --grad-savor:   linear-gradient(90deg, #f97316, #ef4444);  /* orange -> red */
-  --grad-misc:    linear-gradient(90deg, #a855f7, #6366f1);  /* purple -> indigo */
-  --grad-compare: linear-gradient(90deg, #f59e0b, #f97316);  /* amber -> orange */
-}
-
-body{
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(14,165,233,.10) 0%, rgba(224,242,254,0) 60%),
-    radial-gradient(1000px 500px at 120% 10%, rgba(6,182,212,.08) 0%, rgba(207,250,254,0) 60%),
-    var(--c-page);
-  color: var(--c-ink-strong);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  line-height: 1.45;
-  font-size: var(--fs-body);
-}
-
-/* ================================
-   Links & focus
-   ================================ */
+html, body { height: 100%; }
+body, h1, h2, h3, h4, p, figure, blockquote, dl, dd { margin: 0; }
+ul[role='list'], ol[role='list'] { list-style: none; }
+img { max-width: 100%; display: block; }
 a { color: inherit; text-decoration: none; }
-a:hover { opacity: .9; }
-:focus-visible {
-  outline: 3px solid var(--ring);
-  outline-offset: 2px;
+button { cursor: pointer; }
+
+/* ---------- Base ---------- */
+:root{
+  --bg: #f6f9fc;
+  --panel: #ffffff;
+  --ink: #0b1526;
+  --muted: #637391;
+  --line: #e6eaf0;
+
+  /* Accent palette used across gradient tabs & chips */
+  --g-blue-1: #90cdf4;
+  --g-blue-2: #63b3ed;
+  --g-green:  #9ae6b4;
+  --g-amber:  #f6ad55;
+  --g-pink:   #fbb6ce;
+  --g-violet: #9f7aea;
 }
 
-/* ================================
-   Inputs / buttons
-   ================================ */
-input, select, button, textarea{ font: inherit; color: var(--c-ink-strong); }
-
-input[type="text"], input[type="date"], input[type="search"], input[type="number"],
-select, textarea {
-  background: #fff; border: 1px solid var(--c-line); color: var(--c-ink-strong);
-  border-radius: var(--r-md); padding: 12px 14px; outline: none; height: var(--h-input);
+html, body {
+  background:
+    radial-gradient(1600px 600px at 80% -300px, rgba(99,179,237,.15), transparent),
+    radial-gradient(900px 500px at -200px -200px, rgba(154,230,180,.16), transparent),
+    var(--bg);
+  color: var(--ink);
+  font: 16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
-input[type="text"]:focus, input[type="date"]:focus, input[type="search"]:focus,
-input[type="number"]:focus, select:focus, textarea:focus {
-  border-color: #7dd3fc; box-shadow: 0 0 0 3px var(--ring);
+/* Links: never underline brand / top-right links unless focused */
+a { text-decoration: none; }
+a:hover { text-decoration: none; }
+a:focus-visible { outline: 2px solid rgba(99,179,237,.6); outline-offset: 2px; }
+
+/* ---------- Layout helpers ---------- */
+.container { width: min(1080px, 96%); margin-inline: auto; }
+
+/* ---------- Header (brand / Saved / Login / Currency) ---------- */
+.tt-header {
+  position: sticky; top: 0; z-index: 40;
+  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.88));
+  -webkit-backdrop-filter: saturate(1.5) blur(6px);
+  backdrop-filter: saturate(1.5) blur(6px);
+  border-bottom: 1px solid var(--line);
 }
-
-button {
-  border: 1px solid var(--c-line); background: #fff; color: var(--c-ink-strong);
-  border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; font-weight: 700;
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+.tt-header .shell {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 10px 14px;
 }
-button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
-button:disabled { opacity: .6; cursor: not-allowed; }
-
-/* Hide number spinners */
-.no-spin::-webkit-outer-spin-button,
-.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.no-spin { -moz-appearance: textfield; }
-
-/* Stepper (Adults/Children/Infants) */
-.stepper{ display: inline-flex; align-items: center; gap: 6px; }
-.stepper input{
-  width: 70px; text-align: center; font-weight: 600; height: 46px;
-  border-radius: var(--r-md); border: 1px solid var(--c-line); background: #fff; padding: 0 14px;
-}
-.stepper button{ height: 46px; width: 42px; border-radius: var(--r-sm); }
-.stepper button:hover{ transform: translateY(-1px); background: #f8fafc; border-color: #dce7f5; }
-
-/* ================================
-   Layout containers
-   ================================ */
-.container, .main-wrap { max-width: 1240px; margin: 0 auto; width: 100%; }
-
-/* ================================
-   Header: logo + actions (Saved, Login, Currency)
-   ================================ */
-.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; }
-.logo-link { display: inline-flex; align-items: center; gap: 8px; font-weight: 900; }
-.logo-link:hover { opacity: .9; }
-.nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.nav-pill, .currency-pill {
+.tt-header .brand {
   display: inline-flex; align-items: center; gap: 8px;
-  background: #fff; border: 1px solid var(--c-line); color: var(--c-ink-strong);
-  padding: 8px 12px; border-radius: 999px; font-weight: 700;
+  font-weight: 800; font-size: 20px; color: var(--ink);
 }
-.nav-pill:hover, .currency-pill:hover { background: #f8fafc; }
-.nav-pill--active, .currency-pill--active { background: var(--chip-on); color: #fff; border: none; }
-
-/* flag (emoji or small img) next to code */
-.currency-flag { font-size: 16px; line-height: 1; }
-
-/* ================================
-   Cards / panels
-   ================================ */
-.card{
-  background: var(--c-card);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-lg);
-  padding: 16px; margin: 14px 0;
-  box-shadow: var(--shadow-soft);
+.tt-header .brand:hover { opacity: .92; }
+.tt-header .top-actions {
+  display: inline-flex; align-items: center; gap: 8px;
 }
-
-/* Results card (list items) */
-.result-card{
-  background: linear-gradient(180deg, #ffffff, #f6fbff);
-  border: 1px solid var(--c-line);
-  border-radius: 14px;
-  padding: 12px;
-  box-shadow: 0 8px 20px rgba(2,6,23,.06);
+.tt-header .pill {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .35rem .65rem; border-radius: 999px;
+  background: #fff; border: 1px solid #dce3ef;
+  box-shadow: 0 1px 0 rgba(0,0,0,.05);
+  font-weight: 600; color: var(--ink);
 }
-.result-card--compared{ border-width: 2px; border-color: var(--c-primary); }
-
-/* Booking/Action pills inside cards */
-.book-link {
-  display: inline-block; padding: 8px 12px; border: 1px solid var(--c-line); border-radius: 10px;
-  background: #fff; text-decoration: none; font-weight: 700; color: var(--c-ink-strong);
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
-}
-.book-link:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
-.book-link--booking { border-color: #2563eb22; }
-.book-link--expedia { border-color: #0ea5e922; }
-.book-link--hotels  { border-color: #22c55e22; }
-.book-link--maps    { border-color: #f59e0b22; }
-
-/* Layover badge (elegant) */
-.layover-badge{
-  display: inline-flex; align-items: center; gap: 6px;
-  border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
-  background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
+.tt-header .pill:hover { filter: saturate(1.06); }
+.tt-header .currency {
+  background: linear-gradient(135deg, #f7fafc, #eef5ff);
+  border-color: #d6deee;
 }
 
-/* ================================
-   Toolbar & Tabs (Explore | Savor | Misc)
-   ================================ */
-.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
-.tabs { display: flex; gap: 10px; flex-wrap: wrap; }
-
-/* Base tab */
-.tab {
-  border: 1px solid var(--c-line);
+/* ---------- Buttons ---------- */
+.btn {
+  border-radius: 10px;
+  border: 1px solid #d5dbea;
   background: #fff;
-  padding: 10px 14px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 800;
-  color: var(--c-ink-strong);
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  padding: .38rem .68rem;
+  font-weight: 600;
+  color: var(--ink);
 }
-.tab:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
-
-/* Active state uses per-tab gradients
-   (works automatically by position: Explore, Savor, Misc, Compare) */
-.tab--active { color: #fff; border: none; }
-.tabs .tab:nth-child(1).tab--active { background: var(--grad-explore); }
-.tabs .tab:nth-child(2).tab--active { background: var(--grad-savor); }
-.tabs .tab:nth-child(3).tab--active { background: var(--grad-misc); }
-.tabs .tab:nth-child(4).tab--active { background: var(--grad-compare); }
-
-/* Optional: if components set data-kind, this also works */
-.tab[data-kind="explore"].tab--active { background: var(--grad-explore); }
-.tab[data-kind="savor"].tab--active   { background: var(--grad-savor); }
-.tab[data-kind="misc"].tab--active    { background: var(--grad-misc); }
-.tab[data-kind="compare"].tab--active { background: var(--grad-compare); }
-
-/* Sort / View chips (Best, Cheapest, Top-3, All, Print) */
-.chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.chip{
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--chip-off);
-  border: 1px solid var(--c-line);
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+.btn.ghost { background: #f7fbff; }
+.btn.primary {
+  background: linear-gradient(135deg, var(--g-blue-2), var(--g-green));
+  color:#0b1526; border-color: transparent;
 }
-.chip:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
-.chip--on {
-  background: var(--chip-on);
-  color: #fff;
-  border: none;
+.btn:disabled { opacity:.55; pointer-events:none; }
+
+/* ---------- Gradient Tabs (Explore / Savor / Misc / Compare + filters) ---------- */
+.tt-tabs { display:flex; gap:.5rem; flex-wrap:wrap; }
+.tt-tab {
+  --c1: var(--g-green);
+  --c2: var(--g-blue-2);
+  display:inline-flex; align-items:center; gap:.45rem;
+  padding:.45rem .8rem; border-radius:999px;
+  background: linear-gradient(135deg, var(--c1), var(--c2));
+  color:#0b1526; font-weight:700; letter-spacing:.1px;
+  border:1px solid rgba(0,0,0,.06);
+  box-shadow: 0 1px 0 rgba(0,0,0,.06), inset 0 0 0 2px rgba(255,255,255,.35);
+  user-select:none;
+}
+.tt-tab.is-savor   { --c1:#fbd38d; --c2: var(--g-amber); }
+.tt-tab.is-misc    { --c1: var(--g-pink); --c2: var(--g-violet); }
+.tt-tab.is-compare { --c1:#c3dafe; --c2:#90cdf4; }
+
+.tt-tab:hover { filter: saturate(1.1) brightness(1.02); }
+.tt-tab[aria-pressed="true"], .tt-tab.active {
+  outline: 2px solid rgba(0,0,0,.08);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.55) inset, 0 2px 10px rgba(0,0,0,.08);
 }
 
-/* ================================
-   Explore / Savor / Misc content panel
-   ================================ */
-.places-panel {
-  background: #fff; border: 1px solid var(--c-line); border-radius: var(--r-lg);
-  padding: 18px; margin-top: 12px; box-shadow: var(--shadow-soft);
+/* Secondary chips like Best / Cheapest / Top-3 / All */
+.tt-chip {
+  display:inline-flex; align-items:center; gap:.4rem;
+  padding:.38rem .7rem; border-radius:999px;
+  background:#fff; border:1px solid #dfe6f2;
+  box-shadow: 0 1px 0 rgba(0,0,0,.04);
+  font-weight:600; color:var(--ink);
 }
-.subtle-h { font-weight: 900; color: #0b3b52; margin-bottom: 12px; }
-
-/* Roomier grid + cards to avoid cramped look */
-.places-grid {
-  display: grid; gap: 16px;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-}
-.place-card {
-  border: 1px solid var(--c-line); border-radius: 14px; padding: 14px; background: #fff;
-  box-shadow: 0 10px 24px rgba(2,132,199,.06);
-}
-.place-title { font-weight: 900; color: var(--c-ink-strong); margin-bottom: 8px; }
-.place-links {
-  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;
-}
-.place-link {
-  display: inline-block; padding: 8px 12px; border: 1px solid var(--c-line); border-radius: 12px;
-  background: #fff; text-decoration: none; font-weight: 800; color: var(--c-ink-strong);
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
-  white-space: nowrap;
-}
-.place-link:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
-
-/* ================================
-   Messages (errors / warnings)
-   ================================ */
-.msg {
-  margin-top: 12px; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--c-line); background: #fff;
-}
-.msg--error { border-color: #fecaca; background: #fff1f2; color: #7f1d1d; }
-.msg--warn  { border-color: #fde68a; background: #fffbeb; color: #7c2d12; }
-
-/* ================================
-   Compare tray (sticky, scrollable)
-   ================================ */
-.compare-tray {
-  position: sticky; bottom: 10px; z-index: 40;
-  border: 1px solid var(--c-line); background: #ffffff;
-  border-radius: 14px; padding: 10px; box-shadow: var(--shadow-soft);
-}
-.compare-row {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(260px, 1fr);
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 6px;
+.tt-chip.active {
+  background: linear-gradient(135deg,#f7fafc,#eef5ff);
+  border-color:#cdd7ea;
 }
 
-/* ================================
-   Print helpers
-   ================================ */
+/* ---------- Explore/Savor/Misc link panels ---------- */
+.link-panels {
+  display:grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 14px;
+}
+@media (min-width: 980px){
+  .link-panels { grid-template-columns: repeat(4, 1fr); }
+}
+.link-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+.link-card h4 {
+  font-weight: 800; letter-spacing:.2px; margin-bottom: 8px;
+}
+.link-row {
+  display:flex; gap: 8px; flex-wrap: wrap;
+}
+.link-pill {
+  display:inline-flex; align-items:center; gap:.4rem;
+  padding:.4rem .6rem; border-radius: 999px;
+  background:#f7fbff; border:1px solid #dbe5f5;
+  font-weight: 600;
+}
+.link-pill:hover { filter: saturate(1.1); }
+
+/* ---------- Result Card (flights + hotels) ---------- */
+.result-card {
+  background: radial-gradient(1800px 400px at 50% -100%, rgba(99,179,237,.12), transparent) #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 14px 0;
+}
+.result-header {
+  display:flex; align-items:center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.route-title { font-weight: 800; color: var(--ink); }
+.date-pill {
+  background:#f3f6fb; border:1px solid #e2e8f0; padding:.15rem .45rem; border-radius:8px;
+}
+.arrow { opacity:.6; margin:0 .35rem; }
+.actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+.price-pill {
+  background: linear-gradient(135deg,#fff,#f7fafc);
+  border:1px solid #cbd5e0; border-radius:10px; padding:.35rem .6rem; font-weight:700;
+}
+
+/* Flights */
+.flight-block { margin-top: 10px; }
+.flight-section {
+  background: #f9fbfd;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px; margin-top: 10px;
+}
+.section-title { font-weight: 800; margin-bottom: 6px; color: var(--ink); }
+.leg-row {
+  display:flex; flex-direction: column; gap: 6px;
+  border-top:1px dashed #e1e8f5; padding:10px 0;
+}
+.leg-row:first-child { border-top: none; padding-top: 0; }
+.leg-main { display:flex; justify-content: space-between; }
+.leg-route { font-weight: 700; }
+.leg-time { opacity:.8; }
+.leg-meta { display:flex; gap:12px; align-items:center; font-size:.95rem; }
+.airline { font-weight:600; }
+.duration { opacity:.7; }
+
+/* Layover chip */
+.layover-wrap { padding: 8px 0; }
+.layover-chip {
+  display:inline-flex; align-items:center; gap:.5rem;
+  background: #fff;
+  border: 1px dashed #ced7ea;
+  border-radius: 12px;
+  padding: .35rem .6rem;
+  box-shadow: inset 0 0 0 1px #f3f6fb;
+}
+.layover-chip .dot {
+  width: 8px; height: 8px; border-radius: 999px; background: var(--g-blue-2);
+  box-shadow: 0 0 0 3px rgba(99,179,237,.15);
+}
+.layover-chip .label { font-size: .92rem; }
+
+/* Hotels */
+.hotel-block { margin-top: 12px; }
+.hotel-title { font-weight:800; margin-bottom: 6px; }
+.hotel-row {
+  display:flex; align-items:center; justify-content: space-between; gap: 10px;
+  border-top: 1px solid #edf2f7; padding: 10px 0;
+}
+.hotel-row:first-child { border-top: none; }
+.hotel-left { display:flex; align-items:center; gap: 10px; }
+.hotel-img { width: 120px; height: 80px; object-fit: cover; border-radius: 10px; border:1px solid var(--line); background:#f5f7fb; }
+.hotel-info .hotel-name { font-weight:700; }
+.hotel-info .hotel-city { opacity:.7; font-size:.92rem; }
+.hotel-right { display:flex; align-items:center; gap: 10px; }
+.hotel-price { text-align:right; margin-right: 8px; }
+.hotel-price .per-night { font-weight:700; }
+.hotel-price .per-night span { font-weight:600; opacity:.7; }
+.hotel-price .total { opacity:.8; font-size:.92rem; }
+.hotel-ctas { display:flex; gap:.5rem; flex-wrap:wrap; }
+
+/* ---------- Utilities ---------- */
+.mt-1{ margin-top:.25rem } .mt-2{ margin-top:.5rem } .mt-3{ margin-top:.75rem }
+.mb-1{ margin-bottom:.25rem } .mb-2{ margin-bottom:.5rem } .mb-3{ margin-bottom:.75rem }
+.p-1{ padding:.25rem } .p-2{ padding:.5rem } .p-3{ padding:.75rem }
+.round { border-radius:999px } .shadow-sm{ box-shadow:0 1px 2px rgba(0,0,0,.04) }
+.border { border:1px solid var(--line) } .muted{ color:var(--muted) }
+
+/* ---------- Print (optional) ---------- */
 @media print {
-  .toolbar, .tabs, .chips, .chip, .book-link, .compare-tray { display: none !important; }
-  body { background: #fff; }
-  .result-card { box-shadow: none; border-color: #cbd5e1; }
+  .tt-header, .tt-tabs, .tt-chip, .btn { display:none !important; }
+  .result-card { box-shadow:none; border-color:#999; }
 }
