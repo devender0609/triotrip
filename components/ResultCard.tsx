@@ -40,6 +40,21 @@ const hash = (s: string) => {
   return Math.abs(h);
 };
 
+/* --------- Small time helpers --------- */
+const fmtTime = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+const fmtDate = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toISOString().slice(0, 10);
+};
+const mins = (a?: string, b?: string) =>
+  a && b ? Math.max(0, Math.round((+new Date(b) - +new Date(a)) / 60000)) : 0;
+const fmtDur = (m: number) => (m <= 0 ? "" : `${Math.floor(m / 60)}h ${m % 60}m`);
+
 type Props = {
   pkg: any;
   index?: number;
@@ -74,6 +89,7 @@ export default function ResultCard({
   const id = pkg.id || `pkg-${index}`;
   const compared = !!comparedIds?.includes(id);
 
+  // Try both shapes you’ve used
   const outSegs: any[] = pkg?.flight?.segments_out || pkg?.flight?.segments || [];
   const inSegs: any[] = pkg?.flight?.segments_in || pkg?.flight?.segments_return || [];
 
@@ -92,8 +108,8 @@ export default function ResultCard({
   const in0 = inSegs?.[0];
   const from = (out0?.from || pkg.origin || "").toUpperCase();
   const to = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase();
-  const dateOut = (out0?.depart_time || pkg.departDate || "").slice(0, 10);
-  const dateRet = (in0?.depart_time || pkg.returnDate || "").slice(0, 10);
+  const dateOut = fmtDate(out0?.depart_time || pkg.departDate);
+  const dateRet = fmtDate(in0?.depart_time || pkg.returnDate);
 
   const price =
     pkg.total_cost_converted ??
@@ -219,6 +235,51 @@ export default function ResultCard({
     return { nightly, total };
   };
 
+  /* ------- Flight leg renderer (row + layovers) ------- */
+  const LegRows: React.FC<{ segs: any[] }> = ({ segs }) => {
+    if (!segs?.length) return null;
+    const rows: React.ReactNode[] = [];
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      const carrier = s?.carrier_name || s?.carrier || airline || "—";
+      const dep = s?.depart_time;
+      const arr = s?.arrive_time;
+      const dur = fmtDur(mins(dep, arr));
+      rows.push(
+        <div key={`seg-${i}`} className="leg-row">
+          <div className="leg-left">
+            <div className="leg-route">
+              <div className="leg-airline">{carrier}</div>
+              <div className="leg-cities">
+                {s?.from?.toUpperCase()} <span className="arrow">→</span> {s?.to?.toUpperCase()}
+              </div>
+            </div>
+            <div className="leg-times">
+              {fmtTime(dep)} — {fmtTime(arr)}
+            </div>
+          </div>
+          <div className="leg-right">{dur}</div>
+        </div>
+      );
+      // layover (between this arrival and next departure)
+      const next = segs[i + 1];
+      if (next) {
+        const lay = mins(arr, next?.depart_time);
+        rows.push(
+          <div key={`lay-${i}`} className="layover">
+            <span className="dot">⏱</span>
+            <span>Layover in</span>
+            <strong>{` ${next?.from?.toUpperCase()} `}</strong>
+            <span>• Next departs at</span>
+            <strong>{` ${fmtTime(next?.depart_time)} `}</strong>
+            <span className="lo-dur">({fmtDur(lay)})</span>
+          </div>
+        );
+      }
+    }
+    return <>{rows}</>;
+  };
+
   return (
     <section onClick={() => onToggleCompare?.(id)} className={`card ${compared ? "card--on" : ""}`}>
       <header className="hdr">
@@ -243,12 +304,27 @@ export default function ResultCard({
         </div>
       </header>
 
-      {/* Your existing flight segments UI remains as-is */}
+      {/* Outbound */}
+      {outSegs?.length > 0 && (
+        <div className="leg">
+          <div className="leg-title">Outbound</div>
+          <LegRows segs={outSegs} />
+        </div>
+      )}
 
+      {/* Return */}
+      {inSegs?.length > 0 && (
+        <div className="leg">
+          <div className="leg-title">Return</div>
+          <LegRows segs={inSegs} />
+        </div>
+      )}
+
+      {/* Hotels */}
       {showHotel && hotels.length > 0 && (
         <div className="hotels">
-          <div className="hotels__title">Hotels</div>
-          {hotels.map((h, i) => {
+          <div className="hotels__title">Hotels (top options)</div>
+          {(showAllHotels ? hotels : hotels.slice(0, 12)).map((h, i) => {
             const { booking, exp, hcx, maps } = hotelLinks(h);
             const { nightly, total } = computePrices(h);
 
@@ -308,7 +384,30 @@ export default function ResultCard({
         .btn--ghost { background: #f8fafc; }
         .btn--on { border: 2px solid #0ea5e9; background: #e0f2fe; }
 
-        .hotels { display: grid; gap: 12px; margin-top: 10px; }
+        .leg { margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+        .leg-title { font-weight: 900; color: #0b3b52; margin-bottom: 6px; }
+        .leg-row {
+          display: grid; grid-template-columns: 1fr auto; align-items: center;
+          padding: 8px 10px; border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0; margin-bottom: 8px;
+        }
+        .leg-left { display: grid; gap: 4px; }
+        .leg-route { display: flex; gap: 10px; align-items: baseline; }
+        .leg-airline { font-weight: 900; color: #0f172a; }
+        .leg-cities { font-weight: 800; color: #0f172a; }
+        .arrow { opacity: .65; margin: 0 4px; }
+        .leg-times { color: #334155; font-weight: 700; }
+        .leg-right { font-weight: 900; color: #0f172a; }
+
+        .layover {
+          display: inline-flex; align-items: center; gap: 6px;
+          border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
+          background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
+          margin: 6px 0 10px 0;
+        }
+        .dot { opacity: .8; }
+        .lo-dur { opacity: .8; margin-left: 4px; }
+
+        .hotels { display: grid; gap: 12px; margin-top: 12px; }
         .hotels__title { font-weight: 800; color: #0f172a; }
         .hotel {
           display: grid; grid-template-columns: 160px 1fr; gap: 12px;

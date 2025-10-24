@@ -194,15 +194,14 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 .tab:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
 
-/* Active state uses per-tab gradients
-   (works automatically by position: Explore, Savor, Misc, Compare) */
+/* Active state uses per-tab gradients */
 .tab--active { color: #fff; border: none; }
 .tabs .tab:nth-child(1).tab--active { background: var(--grad-explore); }
 .tabs .tab:nth-child(2).tab--active { background: var(--grad-savor); }
 .tabs .tab:nth-child(3).tab--active { background: var(--grad-misc); }
 .tabs .tab:nth-child(4).tab--active { background: var(--grad-compare); }
 
-/* Optional: if components set data-kind, this also works */
+/* Optional: via data-kind attr if you use it */
 .tab[data-kind="explore"].tab--active { background: var(--grad-explore); }
 .tab[data-kind="savor"].tab--active   { background: var(--grad-savor); }
 .tab[data-kind="misc"].tab--active    { background: var(--grad-misc); }
