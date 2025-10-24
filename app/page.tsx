@@ -392,7 +392,7 @@ export default function Page() {
           style={{
             display: "grid",
             gap: 12,
-            gridTemplateColumns: "160px 1fr 1fr 1fr 1fr 1fr",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
             alignItems: "end",
           }}
         >
@@ -711,7 +711,6 @@ export default function Page() {
               <ExploreSavorTabs
                 city={destCity || "Destination"}
                 active={subTab}
-                // isInternational can be provided by ExploreSavorTabs’ own detection or left undefined here
               />
             </div>
           )}
@@ -795,7 +794,7 @@ export default function Page() {
               comparedIds={comparedIds}
               onToggleCompare={(id) => toggleCompare(id)}
               onSavedChangeGlobal={() => {}}
-              /* Removed googleFlightsUrl prop (ResultCard computes links itself) */
+              /* ResultCard computes its own deep links */
             />
           ))}
         </div>
