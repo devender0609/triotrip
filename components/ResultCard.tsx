@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 
-// -------- Types (loose to match your API) ----------
+/* ================== Types (loose to match your API) ================== */
 type Segment = {
   carrier?: string;            // "AA"
   carrierName?: string;        // "American Airlines"
@@ -28,7 +28,7 @@ type Hotel = {
   name?: string;
   city?: string;
   stars?: number;
-  price_per_night?: number;      // NEW: used if present
+  price_per_night?: number;      // preferred field if present
   total_price?: number;          // fallback
   image?: string;
   links?: {
@@ -46,8 +46,13 @@ type Pkg = {
   flight_total?: number;
   hotel_total?: number;
   flight?: Flight;
-  hotels?: Hotel[];               // existing array
-  // search context (we attach these in page.tsx when saving results)
+  hotels?: Hotel[];
+
+  /* ✅ TS fix: these are added so expedia link can use them */
+  hotelCheckIn?: string;
+  hotelCheckOut?: string;
+
+  // search context (attached by page.tsx when saving results)
   origin?: string;
   destination?: string;
   departDate?: string;
@@ -69,10 +74,10 @@ type Props = {
   showAllHotels: boolean;    // true => unlimited per star, false => 3 per star
   comparedIds: string[];
   onToggleCompare: (id: string) => void;
-  onSavedChangeGlobal?: () => void; // header counter bump
+  onSavedChangeGlobal?: () => void; // header counter bump if you listen for it
 };
 
-// -------- helpers ----------
+/* ================== Helpers ================== */
 function money(n?: number, cur = "USD") {
   if (n == null) return "—";
   try {
@@ -102,7 +107,7 @@ function sumMinutes(segs: Segment[] | undefined) {
   return segs.reduce((t, s) => t + (s.duration_minutes || 0), 0);
 }
 
-// Google Flights deep link, prefilled
+/* -------- Prefilled deep links -------- */
 function gfUrl(pkg: Pkg) {
   const o = pkg.origin;
   const d = pkg.destination;
@@ -126,7 +131,6 @@ function gfUrl(pkg: Pkg) {
   )}&tt=${encodeURIComponent(legs)}&tp=${c}&ap=${pax}`;
 }
 
-// OTA helpers (Skyscanner and Expedia generic searches)
 function skyscannerUrl(pkg: Pkg) {
   const o = pkg.origin;
   const d = pkg.destination;
@@ -145,15 +149,13 @@ function skyscannerUrl(pkg: Pkg) {
   };
   const c = cabinMap[(pkg.cabin || "ECONOMY").toUpperCase()] || "economy";
 
-  // roundtrip vs one-way
-  if (ret) {
-    return `https://www.skyscanner.com/transport/flights/${o}/${d}/${dep}/${ret}/?adults=${pax}&cabinclass=${c}`;
-  }
-  return `https://www.skyscanner.com/transport/flights/${o}/${d}/${dep}/?adults=${pax}&cabinclass=${c}`;
+  return ret
+    ? `https://www.skyscanner.com/transport/flights/${o}/${d}/${dep}/${ret}/?adults=${pax}&cabinclass=${c}`
+    : `https://www.skyscanner.com/transport/flights/${o}/${d}/${dep}/?adults=${pax}&cabinclass=${c}`;
 }
 
 function expediaHotelUrl(h: Hotel, nights: number, checkIn?: string, checkOut?: string) {
-  // Fall back to a simple city search if we only have city
+  // If we have city + dates, build a prefilled search; otherwise fall back to provided link.
   if (checkIn && checkOut && h.city) {
     return `https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(
       h.city
@@ -162,7 +164,7 @@ function expediaHotelUrl(h: Hotel, nights: number, checkIn?: string, checkOut?: 
   return h.links?.expedia || "#";
 }
 
-// localStorage “saved” helpers
+/* -------- localStorage “saved” helpers -------- */
 const SAVE_KEY = "triptrio:saved";
 function getSavedIds(): string[] {
   try {
@@ -178,7 +180,7 @@ function setSavedIds(ids: string[]) {
   } catch {}
 }
 
-// -------- Component ----------
+/* ================== Component ================== */
 export default function ResultCard({
   pkg,
   index,
@@ -193,17 +195,14 @@ export default function ResultCard({
 }: Props) {
   const cardId = String(pkg.id ?? `pkg-${index}`);
 
-  // Save state
+  /* ---- Save state ---- */
   const [isSaved, setIsSaved] = useState(false);
   useEffect(() => {
     const arr = getSavedIds();
     setIsSaved(arr.includes(cardId));
   }, [cardId]);
   useEffect(() => {
-    const h = () => {
-      // no-op; you could also update a counter in header via event
-      onSavedChangeGlobal?.();
-    };
+    const h = () => onSavedChangeGlobal?.();
     window.addEventListener("triptrio:saved-count", h);
     return () => window.removeEventListener("triptrio:saved-count", h);
   }, [onSavedChangeGlobal]);
@@ -222,7 +221,7 @@ export default function ResultCard({
     onSavedChangeGlobal?.();
   }
 
-  // ----- Flights summary -----
+  /* ---- Flights summary ---- */
   const outSegs = pkg.flight?.segments_out || [];
   const retSegs = pkg.flight?.segments_return || [];
   const outDur = sumMinutes(outSegs);
@@ -234,7 +233,7 @@ export default function ResultCard({
   const returnAirline =
     retSegs[0]?.carrierName || retSegs[0]?.carrier || undefined;
 
-  // ----- Hotels display logic -----
+  /* ---- Hotels display logic ---- */
   // Group by star rating then limit per star depending on Top-3 vs All
   const hotelsByStar = useMemo(() => {
     if (!showHotel || !pkg.hotels?.length) return [];
@@ -254,7 +253,7 @@ export default function ResultCard({
     return rows;
   }, [pkg.hotels, showHotel, showAllHotels]);
 
-  // ----- Styles (kept in-file to avoid layout changes) -----
+  /* ---- Styles (kept inline to avoid global/layout changes) ---- */
   const wrap: React.CSSProperties = {
     border: "1px solid #e5e7eb",
     borderRadius: 14,
@@ -280,7 +279,7 @@ export default function ResultCard({
       "linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02))",
   };
 
-  // ----- Render -----
+  /* ---- Render ---- */
   return (
     <div style={wrap}>
       {/* header row: price & actions */}
@@ -487,7 +486,12 @@ export default function ResultCard({
                           {h.links?.booking && (
                             <a className="btn" href={h.links.booking} target="_blank" rel="noreferrer">Booking.com</a>
                           )}
-                          <a className="btn" href={expediaHotelUrl(h, hotelNights, pkg.hotelCheckIn as any, pkg.hotelCheckOut as any)} target="_blank" rel="noreferrer">
+                          <a
+                            className="btn"
+                            href={expediaHotelUrl(h, hotelNights, pkg.hotelCheckIn, pkg.hotelCheckOut)}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
                             Expedia
                           </a>
                           {h.links?.hotels && (
