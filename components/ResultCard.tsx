@@ -1,515 +1,376 @@
 "use client";
+import React, { useMemo } from "react";
 
-import React, { useMemo, useState, useEffect } from "react";
-
-/* ================== Types (loose to match your API) ================== */
-type Segment = {
-  carrier?: string;            // "AA"
-  carrierName?: string;        // "American Airlines"
-  flightNumber?: string;       // "123"
-  depart?: string;             // ISO "2025-10-30T06:00:00"
-  arrive?: string;             // ISO
-  origin?: string;             // "AUS"
-  destination?: string;        // "CLT"
-  duration_minutes?: number;
-  layover_minutes?: number;
+/* Airline sites */
+const AIRLINE_SITE: Record<string, string> = {
+  American: "https://www.aa.com", "American Airlines": "https://www.aa.com",
+  Delta: "https://www.delta.com", "Delta Air Lines": "https://www.delta.com",
+  United: "https://www.united.com", "United Airlines": "https://www.united.com",
+  Alaska: "https://www.alaskaair.com", "Alaska Airlines": "https://www.alaskaair.com",
+  Southwest: "https://www.southwest.com", JetBlue: "https://www.jetblue.com",
+  Lufthansa: "https://www.lufthansa.com", Qatar: "https://www.qatarairways.com",
+  Emirates: "https://www.emirates.com", "Air France": "https://wwws.airfrance.us",
+  KLM: "https://www.klm.com", ANA: "https://www.ana.co.jp", JAL: "https://www.jal.co.jp",
+  "British Airways":"https://www.britishairways.com",
 };
 
-type Flight = {
-  segments_out?: Segment[];
-  segments_return?: Segment[];
-  price_usd?: number;
-  price_usd_converted?: number;
-  refundable?: boolean;
-};
+const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "";
+const TRIOTRIP_BOOK_PATH = process.env.NEXT_PUBLIC_TRIOTRIP_BOOK_PATH || "/checkout";
 
-type Hotel = {
-  id?: string;
-  name?: string;
-  city?: string;
-  stars?: number;
-  price_per_night?: number;      // preferred field if present
-  total_price?: number;          // fallback
-  image?: string;
-  links?: {
-    booking?: string;
-    expedia?: string;
-    hotels?: string;
-    map?: string;
-  };
-};
-
-type Pkg = {
-  id?: string;
-  title?: string;
-  total_cost?: number;
-  flight_total?: number;
-  hotel_total?: number;
-  flight?: Flight;
-  hotels?: Hotel[];
-
-  /* ✅ TS fix: these are added so expedia link can use them */
-  hotelCheckIn?: string;
-  hotelCheckOut?: string;
-
-  // search context (attached by page.tsx when saving results)
-  origin?: string;
-  destination?: string;
-  departDate?: string;
-  returnDate?: string | undefined;
-  roundTrip?: boolean;
-  passengersAdults?: number;
-  passengersChildren?: number;
-  passengersInfants?: number;
-  cabin?: string;
+/* utils */
+function ensureHttps(u?: string | null) {
+  if (!u) return "";
+  let s = String(u).trim();
+  if (!s) return "";
+  if (s.startsWith("//")) s = "https:" + s;
+  if (s.startsWith("http://")) s = s.replace(/^http:\/\//i, "https://");
+  return s;
+}
+const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; } return Math.abs(h); };
+const uniq = (a: any[]) => Array.from(new Set(a.filter(Boolean)));
+const fmtTime = (t?: string) => t ? new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+const fmtDur = (min?: number) => min==null ? "" : `${Math.floor(min/60)}h ${Math.max(0,min%60)}m`;
+const money = (n: number, ccy: string) => {
+  try { return new Intl.NumberFormat(undefined, { style: "currency", currency: ccy || "USD" }).format(Math.round(n)); }
+  catch { return `$${Math.round(n).toLocaleString()}`; }
 };
 
 type Props = {
-  pkg: Pkg;
-  index: number;
-  currency: string;
-  pax: number;
-  showHotel: boolean;
-  hotelNights: number;
-  showAllHotels: boolean;    // true => unlimited per star, false => 3 per star
-  comparedIds: string[];
-  onToggleCompare: (id: string) => void;
-  onSavedChangeGlobal?: () => void; // header counter bump if you listen for it
+  pkg: any; index?: number; currency?: string; pax?: number;
+  comparedIds?: string[]; onToggleCompare?: (id: string) => void;
+  onSavedChangeGlobal?: (count: number) => void; large?: boolean; showHotel?: boolean;
+  showAllHotels?: boolean; hotelNights?: number;
 };
 
-/* ================== Helpers ================== */
-function money(n?: number, cur = "USD") {
-  if (n == null) return "—";
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: cur,
-      maximumFractionDigits: 0,
-    }).format(n);
-  } catch {
-    return `${cur} ${Math.round(n)}`;
-  }
-}
-function fmtTime(iso?: string) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-function minutesToHhMm(m?: number) {
-  if (!m && m !== 0) return "";
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return `${h}h ${mm}m`;
-}
-function sumMinutes(segs: Segment[] | undefined) {
-  if (!segs?.length) return 0;
-  return segs.reduce((t, s) => t + (s.duration_minutes || 0), 0);
-}
-
-/* -------- Prefilled deep links -------- */
-function gfUrl(pkg: Pkg) {
-  const o = pkg.origin;
-  const d = pkg.destination;
-  const dep = pkg.departDate;
-  const ret = pkg.roundTrip ? pkg.returnDate : undefined;
-  const pax =
-    (pkg.passengersAdults ?? 1) +
-    (pkg.passengersChildren ?? 0) +
-    (pkg.passengersInfants ?? 0);
-  const cabinMap: Record<string, string> = {
-    ECONOMY: "e",
-    PREMIUM_ECONOMY: "p",
-    BUSINESS: "b",
-    FIRST: "f",
-  };
-  const c = cabinMap[(pkg.cabin || "ECONOMY").toUpperCase()] || "e";
-  const base = `https://www.google.com/travel/flights`;
-  const legs = ret ? `${o}.${d}.${dep}*${d}.${o}.${ret}` : `${o}.${d}.${dep}`;
-  return `${base}?q=${encodeURIComponent(
-    `${o}-${d}`
-  )}&tt=${encodeURIComponent(legs)}&tp=${c}&ap=${pax}`;
-}
-
-function skyscannerUrl(pkg: Pkg) {
-  const o = pkg.origin;
-  const d = pkg.destination;
-  const dep = pkg.departDate?.replaceAll("-", "");
-  const ret = pkg.roundTrip && pkg.returnDate ? pkg.returnDate.replaceAll("-", "") : "";
-  const pax =
-    (pkg.passengersAdults ?? 1) +
-    (pkg.passengersChildren ?? 0) +
-    (pkg.passengersInfants ?? 0);
-
-  const cabinMap: Record<string, string> = {
-    ECONOMY: "economy",
-    PREMIUM_ECONOMY: "premiumeconomy",
-    BUSINESS: "business",
-    FIRST: "first",
-  };
-  const c = cabinMap[(pkg.cabin || "ECONOMY").toUpperCase()] || "economy";
-
-  return ret
-    ? `https://www.skyscanner.com/transport/flights/${o}/${d}/${dep}/${ret}/?adults=${pax}&cabinclass=${c}`
-    : `https://www.skyscanner.com/transport/flights/${o}/${d}/${dep}/?adults=${pax}&cabinclass=${c}`;
-}
-
-function expediaHotelUrl(h: Hotel, nights: number, checkIn?: string, checkOut?: string) {
-  // If we have city + dates, build a prefilled search; otherwise fall back to provided link.
-  if (checkIn && checkOut && h.city) {
-    return `https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(
-      h.city
-    )}&startDate=${checkIn}&endDate=${checkOut}&adults=2`;
-  }
-  return h.links?.expedia || "#";
-}
-
-/* -------- localStorage “saved” helpers -------- */
-const SAVE_KEY = "triptrio:saved";
-function getSavedIds(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(SAVE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-function setSavedIds(ids: string[]) {
-  try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(ids));
-    window.dispatchEvent(new CustomEvent("triptrio:saved-count"));
-  } catch {}
-}
-
-/* ================== Component ================== */
 export default function ResultCard({
-  pkg,
-  index,
-  currency,
-  pax,
-  showHotel,
-  hotelNights,
-  showAllHotels,
-  comparedIds,
-  onToggleCompare,
-  onSavedChangeGlobal,
+  pkg, index = 0, currency = "USD", pax = 1,
+  comparedIds, onToggleCompare, onSavedChangeGlobal,
+  large = true, showHotel, showAllHotels = false, hotelNights = 0,
 }: Props) {
-  const cardId = String(pkg.id ?? `pkg-${index}`);
+  const id = pkg.id || `pkg-${index}`;
+  const compared = !!comparedIds?.includes(id);
 
-  /* ---- Save state ---- */
-  const [isSaved, setIsSaved] = useState(false);
-  useEffect(() => {
-    const arr = getSavedIds();
-    setIsSaved(arr.includes(cardId));
-  }, [cardId]);
-  useEffect(() => {
-    const h = () => onSavedChangeGlobal?.();
-    window.addEventListener("triptrio:saved-count", h);
-    return () => window.removeEventListener("triptrio:saved-count", h);
-  }, [onSavedChangeGlobal]);
+  const adults = Number(pkg.passengersAdults ?? pkg.adults ?? 1) || 1;
+  const children = Number(pkg.passengersChildren ?? pkg.children ?? 0) || 0;
+  const infants  = Number(pkg.passengersInfants  ?? pkg.infants  ?? 0) || 0;
+  const totalPax = Math.max(1, adults + children + infants);
 
+  /* flights */
+  const outSegs: any[] = Array.isArray(pkg?.flight?.segments)
+    ? pkg.flight.segments
+    : (pkg.flight?.segments_out || []);
+  const inSegs: any[] = Array.isArray(pkg?.returnFlight?.segments)
+    ? pkg.returnFlight.segments
+    : (pkg.flight?.segments_in || pkg.flight?.segments_return || []);
+
+  const carriers = uniq([
+    ...(outSegs || []).map((s: any) => s?.carrier_name || s?.carrier || s?.airline),
+    ...(inSegs || []).map((s: any) => s?.carrier_name || s?.carrier || s?.airline),
+    pkg.flight?.carrier_name || pkg.flight?.carrier || pkg.airline,
+  ]);
+
+  const out0 = outSegs?.[0];
+  const in0  = inSegs?.[0];
+
+  const from    = (out0?.from || pkg.origin || "").toUpperCase();
+  const to      = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase();
+  const dateOut = (out0?.depart_time || pkg.departDate || "").slice(0, 10);
+  const dateRet = (in0?.depart_time  || pkg.returnDate || "").slice(0, 10);
+  const route   = `${from}-${to}`;
+  const airlineMain = carriers[0] || "";
+
+  const priceRaw =
+    (typeof pkg?.total_cost_converted === "number" && pkg.total_cost_converted) ||
+    (typeof pkg?.total_cost === "number" && pkg.total_cost) ||
+    (typeof pkg?.flight?.price_usd_converted === "number" && pkg.flight.price_usd_converted) ||
+    (typeof pkg?.flight?.price_usd === "number" && pkg.flight.price_usd) ||
+    (typeof pkg?.flight_total === "number" && pkg.flight_total) || 0;
+
+  const trioTrip = `${TRIOTRIP_BASE}${TRIOTRIP_BOOK_PATH}` +
+    `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` +
+    (dateOut ? `&depart=${encodeURIComponent(dateOut)}` : "") +
+    (dateRet ? `&return=${encodeURIComponent(dateRet)}` : "") +
+    `&adults=${adults}&children=${children}&infants=${infants}`;
+
+  const airlineSite = AIRLINE_SITE[airlineMain] ||
+    (airlineMain ? `https://www.google.com/search?q=${encodeURIComponent(airlineMain + " booking")}` : "");
+
+  // Pre-filled Google Flights
+  const googleFlights =
+    `https://www.google.com/travel/flights?q=${encodeURIComponent(`${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${totalPax} travelers`)}`;
+
+  // Helpful pre-filled “site:” query for the airline itself
+  const airlinePrefilled = airlineMain
+    ? `https://www.google.com/search?q=${encodeURIComponent(`site:${new URL(airlineSite).hostname.replace(/^www\./,"")} ${from} to ${to} ${dateOut}${dateRet?` ${dateRet}`:""} book flight`)}`
+    : "";
+
+  const ssOut = (dateOut || "").replace(/-/g, "");
+  const ssRet = (dateRet || "").replace(/-/g, "");
+  const skyScanner = (from && to && ssOut)
+    ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${dateRet ? `${ssRet}/` : ""}?adults=${adults}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
+    : "https://www.skyscanner.com/";
+
+  /* SAVE */
   function toggleSave() {
-    const arr = getSavedIds();
-    if (arr.includes(cardId)) {
-      const next = arr.filter((x) => x !== cardId);
-      setSavedIds(next);
-      setIsSaved(false);
-    } else {
-      const next = [...arr, cardId];
-      setSavedIds(next);
-      setIsSaved(true);
-    }
-    onSavedChangeGlobal?.();
+    try {
+      const key = "triptrio:saved";
+      const arr = JSON.parse(localStorage.getItem(key) || "[]") as string[];
+      const exists = arr.includes(id);
+      const next = exists ? arr.filter(x => x !== id) : [...arr, id];
+      localStorage.setItem(key, JSON.stringify(next));
+      // notify global header & any listeners
+      try { window.dispatchEvent(new CustomEvent("triptrio:saved-count", { detail: next.length })); } catch {}
+      onSavedChangeGlobal?.(next.length);
+    } catch {}
+  }
+  const isSaved = useMemo(() => {
+    try { return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).includes(id); } catch { return false; }
+  }, [id]);
+
+  /* hotels */
+  const hotelsRaw: any[] =
+    (Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels :
+     (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : [])) as any[];
+
+  function pickStar(h: any) {
+    const s = Number(h?.stars ?? h?.starRating ?? h?.rating ?? h?.class);
+    if (Number.isFinite(s)) return Math.max(1, Math.min(5, Math.round(s)));
+    const m = /(\d)\s*[- ]?\s*star/i.exec(String(h?.name||""));
+    return m ? Math.max(1, Math.min(5, Number(m[1]))) : 0;
+  }
+  function nightlyPrice(h: any, nights: number) {
+    const pn = Number(h?.price_per_night ?? h?.nightly ?? h?.nightly_price);
+    if (Number.isFinite(pn)) return pn;
+    const tot = Number(h?.price_total ?? h?.total ?? h?.total_price);
+    if (Number.isFinite(tot) && nights > 0) return tot / nights;
+    return undefined;
+  }
+  function totalPrice(h: any) {
+    const tot = Number(h?.price_total ?? h?.total ?? h?.total_price);
+    const pn = Number(h?.price_per_night ?? h?.nightly ?? h?.nightly_price);
+    if (Number.isFinite(tot)) return tot;
+    if (Number.isFinite(pn) && hotelNights > 0) return pn * hotelNights;
+    return undefined;
   }
 
-  /* ---- Flights summary ---- */
-  const outSegs = pkg.flight?.segments_out || [];
-  const retSegs = pkg.flight?.segments_return || [];
-  const outDur = sumMinutes(outSegs);
-  const retDur = sumMinutes(retSegs);
-
-  // Airline names (first segment carrier names shown)
-  const outboundAirline =
-    outSegs[0]?.carrierName || outSegs[0]?.carrier || "Flight";
-  const returnAirline =
-    retSegs[0]?.carrierName || retSegs[0]?.carrier || undefined;
-
-  /* ---- Hotels display logic ---- */
-  // Group by star rating then limit per star depending on Top-3 vs All
-  const hotelsByStar = useMemo(() => {
-    if (!showHotel || !pkg.hotels?.length) return [];
-    const groups = new Map<number, Hotel[]>();
-    pkg.hotels.forEach((h) => {
-      const s = h.stars ?? 0;
-      groups.set(s, [...(groups.get(s) || []), h]);
+  // group hotels by star
+  const grouped = useMemo(() => {
+    const buckets: Record<string, any[]> = { "5★": [], "4★": [], "3★": [], "2★": [], "1★": [], "Unrated": [] };
+    hotelsRaw.forEach(h => {
+      const st = pickStar(h);
+      const key = st === 5 ? "5★" : st === 4 ? "4★" : st === 3 ? "3★" : st === 2 ? "2★" : st === 1 ? "1★" : "Unrated";
+      buckets[key].push(h);
     });
-    const limitPerStar = showAllHotels ? Number.POSITIVE_INFINITY : 3;
-    const sortedStars = [...groups.keys()].sort((a, b) => b - a);
+    return buckets;
+  }, [hotelsRaw]);
 
-    const rows: { stars: number; items: Hotel[] }[] = [];
-    for (const s of sortedStars) {
-      const items = (groups.get(s) || []).slice(0, limitPerStar);
-      if (items.length) rows.push({ stars: s, items });
-    }
-    return rows;
-  }, [pkg.hotels, showHotel, showAllHotels]);
-
-  /* ---- Styles (kept inline to avoid global/layout changes) ---- */
-  const wrap: React.CSSProperties = {
-    border: "1px solid #e5e7eb",
-    borderRadius: 14,
-    background: "#fff",
-    padding: 12,
+  const hotelImg = (h: any, i?: number) => {
+    const candidate =
+      ensureHttps(h?.image) || ensureHttps(h?.photo) || ensureHttps(h?.photoUrl) ||
+      ensureHttps(h?.image_url) || ensureHttps(h?.imageUrl) || ensureHttps(h?.thumbnail) ||
+      ensureHttps(h?.thumbnailUrl) || ensureHttps(h?.img) ||
+      ensureHttps(h?.leadPhoto?.image?.url) ||
+      ensureHttps(h?.media?.images?.[0]?.url) ||
+      ensureHttps(h?.gallery?.[0]) ||
+      (h?.images && Array.isArray(h.images) ? ensureHttps(h.images[0]?.url || h.images[0]) : "") ||
+      (h?.optimizedThumbUrls && ensureHttps(h.optimizedThumbUrls.srpDesktop || h.optimizedThumbUrls.srpMobile)) || "";
+    if (candidate) return candidate;
+    const city = h?.city || h?.address?.city || pkg?.destination || "";
+    const seed = hash(`${h?.id || ""}|${h?.name || ""}|${city}|${i ?? ""}`) % 1_000_000;
+    return `https://picsum.photos/seed/${seed}/400/250`;
   };
 
-  const chip: React.CSSProperties = {
-    border: "1px solid #e5e7eb",
-    borderRadius: 999,
-    padding: "4px 10px",
-    fontWeight: 700,
-    fontSize: 12,
-    background: "#fff",
+  function hotelPrimaryLink(h: any, cityFallback: string) {
+    const official = ensureHttps(h?.website || h?.officialUrl || h?.url); if (official) return official;
+    const city = h?.city || cityFallback || pkg?.destination || "";
+    const q = h?.name ? `${h.name}, ${city}` : city;
+    const b = new URL("https://www.booking.com/searchresults.html");
+    if (q) b.searchParams.set("ss", q);
+    if (pkg?.hotelCheckIn)  b.searchParams.set("checkin",  pkg.hotelCheckIn);
+    if (pkg?.hotelCheckOut) b.searchParams.set("checkout", pkg.hotelCheckOut);
+    b.searchParams.set("group_adults", String(adults || 1));
+    if (children > 0) b.searchParams.set("group_children", String(children));
+    b.searchParams.set("no_rooms", "1");
+    b.searchParams.set("selected_currency", pkg.currency || currency || "USD");
+    return b.toString();
+  }
+  function hotelAltLinks(h: any, cityFallback: string) {
+    const city = h?.city || cityFallback || pkg?.destination || "";
+    const destName = h?.name ? `${h.name}, ${city}` : city;
+    const exp = new URL("https://www.expedia.com/Hotel-Search");
+    if (destName) exp.searchParams.set("destination", destName);
+    if (pkg?.hotelCheckIn)  exp.searchParams.set("startDate", pkg.hotelCheckIn);
+    if (pkg?.hotelCheckOut) exp.searchParams.set("endDate",   pkg.hotelCheckOut);
+    exp.searchParams.set("adults", String(adults || 1));
+    if (children > 0) exp.searchParams.set("children", String(children));
+    const hcx = new URL("https://www.hotels.com/Hotel-Search");
+    if (destName) hcx.searchParams.set("destination", destName);
+    if (pkg?.hotelCheckIn)  hcx.searchParams.set("checkIn",  pkg.hotelCheckIn);
+    if (pkg?.hotelCheckOut) hcx.searchParams.set("checkOut", pkg.hotelCheckOut);
+    hcx.searchParams.set("adults", String(adults || 1));
+    if (children > 0) hcx.searchParams.set("children", String(children));
+    const maps = new URL("https://www.google.com/maps/search/"); maps.searchParams.set("api","1"); maps.searchParams.set("query", destName || "hotels");
+    return { expedia: exp.toString(), hotels: hcx.toString(), maps: maps.toString() };
+  }
+
+  const wrapStyle: React.CSSProperties = {
+    display: "grid", gap: 12, border: compared ? "2px solid #0ea5e9" : "1px solid #e2e8f0",
+    borderRadius: 14, padding: 12, background: "linear-gradient(180deg,#ffffff,#f6fbff)",
+    boxShadow: "0 8px 20px rgba(2,6,23,.06)", cursor: onToggleCompare ? "pointer" : "default",
   };
 
-  const layoverBadge: React.CSSProperties = {
-    border: "1px dashed #cbd5e1",
-    borderRadius: 12,
-    padding: "6px 10px",
-    fontSize: 12,
-    background:
-      "linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02))",
-  };
-
-  /* ---- Render ---- */
+  /* render */
   return (
-    <div style={wrap}>
-      {/* header row: price & actions */}
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <span style={{ fontWeight: 800 }}>
-            {money(pkg.total_cost || pkg.flight_total || pkg.hotel_total, currency)}
-          </span>
-          <span style={{ ...chip }}>Pax {pax}</span>
-          {pkg.flight?.refundable ? (
-            <span style={{ ...chip, borderColor: "#22c55e" }}>Refundable</span>
-          ) : (
-            <span style={{ ...chip }}>Non-refundable</span>
+    <section
+      className={`result-card ${compared ? "result-card--compared" : ""}`}
+      style={wrapStyle}
+      onClick={() => onToggleCompare?.(id)}
+    >
+      <header style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+        <div style={{ fontWeight: 800, color:"#0f172a" }}>
+          Option {index + 1} • {route} {dateOut ? `• ${dateOut}` : ""} {pkg.roundTrip && dateRet ? `↩ ${dateRet}` : ""}
+          {carriers.length ? <div style={{ fontWeight:700, color:"#0b3b52" }}>{carriers.join(", ")}</div> : null}
+        </div>
+        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+          <div style={{ fontWeight:900, color:"#0b3b52", background:"#e7f5ff", border:"1px solid #cfe3ff", borderRadius:10, padding:"6px 10px" }}>
+            💵 {money(Number(priceRaw)||0, currency)}
+          </div>
+          <a className="book-link" href={trioTrip} rel="noreferrer">TrioTrip</a>
+          <a className="book-link" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
+          <a className="book-link" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
+          {airlineMain && <a className="book-link" href={airlineSite} target="_blank" rel="noreferrer">{airlineMain}</a>}
+          {airlinePrefilled && <a className="book-link" href={airlinePrefilled} target="_blank" rel="noreferrer">{airlineMain} (prefilled)</a>}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleSave(); }}
+            style={{ border:"1px solid #94a3b8", background: isSaved ? "#e0f2fe" : "#fff",
+                     color:"#0f172a", padding:"6px 10px", borderRadius:10, cursor:"pointer", fontWeight:700 }}>
+            {isSaved ? "💾 Saved" : "＋ Save"}
+          </button>
+          {onToggleCompare && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggleCompare(id); }}
+              aria-pressed={compared}
+              title={compared ? "Remove from Compare" : "Add to Compare"}
+              style={{ border: compared ? "2px solid #0ea5e9" : "1px solid #94a3b8", background: compared ? "#e0f2fe" : "#fff",
+                       color:"#0f172a", padding:"6px 10px", borderRadius:10, cursor:"pointer", fontWeight:700 }}
+            >
+              {compared ? "🆚 In Compare" : "➕ Compare"}
+            </button>
           )}
         </div>
+      </header>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={toggleSave}
-            title={isSaved ? "Remove from Saved" : "Save this option"}
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 10,
-              background: isSaved ? "#fef3c7" : "#fff",
-              padding: "8px 10px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            {isSaved ? "Saved ✓" : "Save"}
-          </button>
-
-          <button
-            onClick={() => onToggleCompare(cardId)}
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 10,
-              background: comparedIds.includes(cardId) ? "#dbeafe" : "#fff",
-              padding: "8px 10px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-            title="Add to compare"
-          >
-            {comparedIds.includes(cardId) ? "✓ Compared" : "+ Compare"}
-          </button>
-        </div>
-      </div>
-
-      {/* flights */}
-      <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-        {/* outbound */}
-        {!!outSegs.length && (
-          <div>
-            <div style={{ fontWeight: 800, marginBottom: 4 }}>
-              Outbound — {outSegs[0]?.origin} →{" "}
-              {outSegs[outSegs.length - 1]?.destination} ({minutesToHhMm(outDur)}
-              ) · {outboundAirline}
-            </div>
-            <div style={{ display: "grid", gap: 6 }}>
-              {outSegs.map((s, i) => {
-                const next = outSegs[i + 1];
-                const lay = next?.layover_minutes ?? 0;
-                return (
-                  <div key={`out-${i}`} style={{ display: "grid", gap: 8 }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <strong>
-                        {s.origin} {fmtTime(s.depart)} →
-                        {s.destination} {fmtTime(s.arrive)}
-                      </strong>
-                      <span style={{ fontSize: 12, color: "#64748b" }}>
-                        {s.carrierName || s.carrier} {s.flightNumber}
-                      </span>
-                      <span style={{ ...chip }}>{minutesToHhMm(s.duration_minutes)}</span>
-                    </div>
-
-                    {/* fancy layover badge */}
-                    {lay > 0 && (
-                      <div style={{ ...layoverBadge, display: "inline-flex", gap: 6 }}>
-                        <span>⏱ Layover in {s.destination}</span>
-                        <strong>{minutesToHhMm(lay)}</strong>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* return */}
-        {!!retSegs.length && (
-          <div>
-            <div style={{ fontWeight: 800, marginBottom: 4 }}>
-              Return — {retSegs[0]?.origin} →{" "}
-              {retSegs[retSegs.length - 1]?.destination} ({minutesToHhMm(retDur)}
-              ){returnAirline ? ` · ${returnAirline}` : ""}
-            </div>
-            <div style={{ display: "grid", gap: 6 }}>
-              {retSegs.map((s, i) => {
-                const next = retSegs[i + 1];
-                const lay = next?.layover_minutes ?? 0;
-                return (
-                  <div key={`ret-${i}`} style={{ display: "grid", gap: 8 }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <strong>
-                        {s.origin} {fmtTime(s.depart)} →
-                        {s.destination} {fmtTime(s.arrive)}
-                      </strong>
-                      <span style={{ fontSize: 12, color: "#64748b" }}>
-                        {s.carrierName || s.carrier} {s.flightNumber}
-                      </span>
-                      <span style={{ ...chip }}>{minutesToHhMm(s.duration_minutes)}</span>
-                    </div>
-                    {lay > 0 && (
-                      <div style={{ ...layoverBadge, display: "inline-flex", gap: 6 }}>
-                        <span>⏱ Layover in {s.destination}</span>
-                        <strong>{minutesToHhMm(lay)}</strong>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* booking links — prefilled */}
-      <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-        <a className="btn" href={gfUrl(pkg)} target="_blank" rel="noreferrer">
-          Google Flights
-        </a>
-        <a className="btn" href={skyscannerUrl(pkg)} target="_blank" rel="noreferrer">
-          Skyscanner
-        </a>
-        <style jsx>{`
-          .btn {
-            display: inline-block;
-            padding: 8px 12px;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            font-weight: 700;
-            background: #fff;
-          }
-          .btn:hover {
-            background: #f8fafc;
-          }
-        `}</style>
-      </div>
-
-      {/* hotels */}
-      {showHotel && hotelsByStar.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>
-            Hotels {hotelNights ? `(${hotelNights} night${hotelNights > 1 ? "s" : ""})` : ""}
-          </div>
-
-          <div style={{ display: "grid", gap: 10 }}>
-            {hotelsByStar.map(({ stars, items }) => (
-              <div key={`star-${stars}`} style={{ display: "grid", gap: 8 }}>
-                <div style={{ fontWeight: 700 }}>{stars}★ options</div>
-                <div
-                  style={{
-                    display: "grid",
-                    gap: 10,
-                    gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))",
-                  }}
-                >
-                  {items.map((h, i) => {
-                    const perNight =
-                      h.price_per_night ??
-                      (h.total_price && hotelNights > 0
-                        ? Math.round((h.total_price || 0) / hotelNights)
-                        : undefined);
-
-                    return (
-                      <div
-                        key={h.id || `${stars}-${i}`}
-                        style={{
-                          border: "1px solid #e5e7eb",
-                          borderRadius: 12,
-                          padding: 10,
-                          background: "#fff",
-                        }}
-                      >
-                        <div style={{ fontWeight: 700 }}>{h.name}</div>
-                        <div style={{ color: "#64748b", fontSize: 12 }}>
-                          {h.city || ""} • {stars}★
-                        </div>
-                        <div style={{ marginTop: 6, fontWeight: 700 }}>
-                          {perNight != null ? `${money(perNight, currency)}/night` : "—"}
-                        </div>
-
-                        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                          {h.links?.booking && (
-                            <a className="btn" href={h.links.booking} target="_blank" rel="noreferrer">Booking.com</a>
-                          )}
-                          <a
-                            className="btn"
-                            href={expediaHotelUrl(h, hotelNights, pkg.hotelCheckIn, pkg.hotelCheckOut)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Expedia
-                          </a>
-                          {h.links?.hotels && (
-                            <a className="btn" href={h.links.hotels} target="_blank" rel="noreferrer">Hotels</a>
-                          )}
-                          {h.links?.map && (
-                            <a className="btn" href={h.links.map} target="_blank" rel="noreferrer">Map</a>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+      {/* Outbound */}
+      {outSegs.length > 0 && (
+        <div style={{ border:"1px solid #cfe3ff", borderRadius:12, padding:10, display:"grid", gap:8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
+          <div style={{ fontWeight:600, color:"#0b3b52" }}>Outbound</div>
+          {outSegs.map((s: any, i: number) => (
+            <React.Fragment key={`o${i}`}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr auto", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontWeight:600 }}>{s.from} → {s.to}</div>
+                  <div style={{ fontSize:12, color:"#475569" }}>{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)} {s.carrier_name ? `• ${s.carrier_name}` : ""}</div>
                 </div>
+                <div style={{ fontWeight:600 }}>{fmtDur(s.duration_minutes)}</div>
               </div>
-            ))}
-          </div>
+              {i < outSegs.length - 1 && (
+                <div style={{ display:"grid", placeItems:"center" }}>
+                  <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 10px",
+                                border:"1px dashed #94a3b8", background:"#fff", color:"#334155",
+                                borderRadius:999, fontSize:12 }}>
+                    ⏱️ Layover in <strong style={{ marginLeft:4 }}>{s.to}</strong>
+                    <span style={{ opacity:.7 }}>•</span>
+                    Next departs at <strong>{fmtTime(outSegs[i + 1].depart_time)}</strong>
+                  </div>
+                </div>
+              )}
+            </React.Fragment>
+          ))}
         </div>
       )}
-    </div>
+
+      {/* Return */}
+      {inSegs.length > 0 && (
+        <div style={{ border:"1px solid #cfe3ff", borderRadius:12, padding:10, display:"grid", gap:8, background:"linear-gradient(180deg,#ffffff,#eef6ff)" }}>
+          <div style={{ fontWeight:600, color:"#0b3b52" }}>Return</div>
+          {inSegs.map((s: any, i: number) => (
+            <React.Fragment key={`i${i}`}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr auto", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontWeight:600 }}>{s.from} → {s.to}</div>
+                  <div style={{ fontSize:12, color:"#475569" }}>{fmtTime(s.depart_time)} – {fmtTime(s.arrive_time)} {s.carrier_name ? `• ${s.carrier_name}` : ""}</div>
+                </div>
+                <div style={{ fontWeight:600 }}>{fmtDur(s.duration_minutes)}</div>
+              </div>
+              {i < inSegs.length - 1 && (
+                <div style={{ display:"grid", placeItems:"center" }}>
+                  <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 10px",
+                                border:"1px dashed #94a3b8", background:"#fff", color:"#334155",
+                                borderRadius:999, fontSize:12 }}>
+                    ⏱️ Layover in <strong style={{ marginLeft:4 }}>{s.to}</strong>
+                    <span style={{ opacity:.7 }}>•</span>
+                    Next departs at <strong>{fmtTime(inSegs[i + 1].depart_time)}</strong>
+                  </div>
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
+      {/* Hotels grouped by star */}
+      {showHotel && (
+        <div style={{ display:"grid", gap:14 }}>
+          <div style={{ fontWeight:600, color:"#0f172a" }}>Hotels</div>
+          {Object.entries(grouped).map(([star, list]) => {
+            if (!list.length) return null;
+            const show = showAllHotels ? list : list.slice(0, 3);
+            return (
+              <div key={star} style={{ display:"grid", gap:8 }}>
+                <div style={{ fontWeight:700, color:"#0b3b52" }}>{star}</div>
+                {show.map((h: any, i: number) => {
+                  const city = h?.city || pkg?.destination || "";
+                  const img = hotelImg(h, i);
+                  const primary = hotelPrimaryLink(h, city);
+                  const alt = hotelAltLinks(h, city);
+                  const pn = nightlyPrice(h, hotelNights);
+                  const tot = totalPrice(h);
+                  return (
+                    <div key={`${star}-${i}`} style={{ display:"grid", gridTemplateColumns:"160px 1fr", gap:12, border:"1px solid #e2e8f0", borderRadius:12, padding:10, background:"#fff" }}>
+                      <a href={primary} target="_blank" rel="noreferrer" style={{ borderRadius:10, overflow:"hidden", background:"#f1f5f9" }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={img} alt={h?.name || "Hotel"} loading="lazy"
+                             onError={(e) => { const t = e.currentTarget as HTMLImageElement; t.onerror = null; const seed = hash(`${h?.name || ""}|${city}|${i}`) % 1_000_000; t.src = `https://picsum.photos/seed/${seed}/400/250`; }}
+                             style={{ width:160, height:100, objectFit:"cover", display:"block" }} />
+                      </a>
+                      <div style={{ display:"grid", gap:6 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+                          <a href={primary} target="_blank" rel="noreferrer" style={{ fontWeight:700, color:"#0f172a", textDecoration:"none" }}>
+                            {h?.name || "Hotel"}
+                          </a>
+                          <div style={{ fontWeight:800, color:"#0369a1" }}>
+                            {pn!=null ? <span>{money(pn, currency)} <span style={{ opacity:.7 }}>/ night</span></span> : null}
+                            {tot!=null ? <span style={{ marginLeft:8 }}>({money(tot, currency)} total)</span> : null}
+                          </div>
+                        </div>
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                          <a className="book-link" href={primary} target="_blank" rel="noreferrer">{primary.includes("booking.com") ? "Booking.com" : "Hotel site"}</a>
+                          <a className="book-link" href={alt.expedia} target="_blank" rel="noreferrer">Expedia</a>
+                          <a className="book-link" href={alt.hotels} target="_blank" rel="noreferrer">Hotels</a>
+                          <a className="book-link" href={alt.maps} target="_blank" rel="noreferrer">Map</a>
+                        </div>
+                        <div style={{ color:"#475569", fontSize:13 }}>{h?.address || h?.city || city}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
