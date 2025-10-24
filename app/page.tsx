@@ -98,7 +98,11 @@ export default function Page() {
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
   const [listTab, setListTab] = useState<ListTab>("all");
+
+  // sub tabs + NEW toggle behaviour
   const [subTab, setSubTab] = useState<SubTab>("explore");
+  const [subPanelOpen, setSubPanelOpen] = useState(false);
+
   const [showControls, setShowControls] = useState(false);
 
   /** Results & compare */
@@ -176,6 +180,7 @@ export default function Page() {
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
+      setSubPanelOpen(true);
       setComparedIds([]);
     } catch (e: any) {
       setError(e?.message || "Search failed");
@@ -248,6 +253,16 @@ export default function Page() {
   };
 
   const destCity = cityFromDisplay(destDisplay);
+
+  // handle sub-tab clicks as TOGGLES
+  function clickSubTab(tab: SubTab) {
+    if (tab === subTab) {
+      setSubPanelOpen((v) => !v); // toggle visibility
+    } else {
+      setSubTab(tab);
+      setSubPanelOpen(true);
+    }
+  }
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
@@ -509,7 +524,7 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Hotel-only inputs */}
+        {/* Hotel-only inputs (shown only when hotel is checked) */}
         {includeHotel && (
           <div
             style={{
@@ -616,13 +631,13 @@ export default function Page() {
               fontWeight: 700,
             }}
           >
-            <button className={`subtab ${subTab === "explore" ? "on" : ""}`} onClick={() => setSubTab("explore")}>
+            <button className={`subtab ${subTab === "explore" && subPanelOpen ? "on" : ""}`} onClick={() => clickSubTab("explore")}>
               Explore
             </button>
-            <button className={`subtab ${subTab === "savor" ? "on" : ""}`} onClick={() => setSubTab("savor")}>
+            <button className={`subtab ${subTab === "savor" && subPanelOpen ? "on" : ""}`} onClick={() => clickSubTab("savor")}>
               Savor
             </button>
-            <button className={`subtab ${subTab === "misc" ? "on" : ""}`} onClick={() => setSubTab("misc")}>
+            <button className={`subtab ${subTab === "misc" && subPanelOpen ? "on" : ""}`} onClick={() => clickSubTab("misc")}>
               Miscellaneous
             </button>
             <style jsx>{`
@@ -641,20 +656,21 @@ export default function Page() {
             `}</style>
           </div>
 
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              background: "#fff",
-              padding: 12,
-            }}
-          >
-            <ExploreSavorTabs
-              city={destCity || "Destination"}
-              // originCountry / destCountry can be wired here if you have ISO codes from inputs
-              mode={subTab}
-            />
-          </div>
+          {subPanelOpen && (
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                background: "#fff",
+                padding: 12,
+              }}
+            >
+              <ExploreSavorTabs
+                city={destCity || "Destination"}
+                mode={subTab}
+              />
+            </div>
+          )}
         </>
       )}
 

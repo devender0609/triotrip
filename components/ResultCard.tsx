@@ -99,11 +99,6 @@ export default function ResultCard({
   const googleFlights =
     `https://www.google.com/travel/flights?q=${encodeURIComponent(`${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${totalPax} travelers`)}`;
 
-  // Helpful pre-filled “site:” query for the airline itself
-  const airlinePrefilled = airlineMain
-    ? `https://www.google.com/search?q=${encodeURIComponent(`site:${new URL(airlineSite).hostname.replace(/^www\./,"")} ${from} to ${to} ${dateOut}${dateRet?` ${dateRet}`:""} book flight`)}`
-    : "";
-
   const ssOut = (dateOut || "").replace(/-/g, "");
   const ssRet = (dateRet || "").replace(/-/g, "");
   const skyScanner = (from && to && ssOut)
@@ -239,7 +234,6 @@ export default function ResultCard({
           <a className="book-link" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="book-link" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
           {airlineMain && <a className="book-link" href={airlineSite} target="_blank" rel="noreferrer">{airlineMain}</a>}
-          {airlinePrefilled && <a className="book-link" href={airlinePrefilled} target="_blank" rel="noreferrer">{airlineMain} (prefilled)</a>}
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); toggleSave(); }}
