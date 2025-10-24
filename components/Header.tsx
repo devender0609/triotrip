@@ -5,11 +5,16 @@ import Image from "next/image";
 import AuthBar from "./AuthBar";
 import React from "react";
 
-/** Top header: TrioTrip brand (no underline), Saved/Login (elegant pills), Currency with flag */
+/** Top header: TrioTrip brand (no underline), Saved/Login (elegant pills), Currency with flag + live saved count */
 export default function Header() {
   const [currency, setCurrency] = React.useState<string>(() => {
     if (typeof window === "undefined") return "USD";
     return window.localStorage.getItem("triptrio:currency") || "USD";
+  });
+
+  const [savedCount, setSavedCount] = React.useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    try { return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).length; } catch { return 0; }
   });
 
   React.useEffect(() => {
@@ -17,6 +22,13 @@ export default function Header() {
     window.localStorage.setItem("triptrio:currency", currency);
     window.dispatchEvent(new CustomEvent("triptrio:currency", { detail: currency }));
   }, [currency]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e: any) => setSavedCount(typeof e?.detail === "number" ? e.detail : savedCount);
+    window.addEventListener("triptrio:saved-count", handler);
+    return () => window.removeEventListener("triptrio:saved-count", handler);
+  }, [savedCount]);
 
   const currencies = ["USD","EUR","GBP","INR","CAD","AUD","JPY","SGD","AED"] as const;
   const flag = (c: string) => {
@@ -37,7 +49,7 @@ export default function Header() {
       <nav className="nav" aria-label="Main">
         {/* Saved */}
         <Link href="/saved" className="pill" style={{ textDecoration: "none" }}>
-          Saved
+          Saved{savedCount ? ` (${savedCount})` : ""}
         </Link>
 
         {/* Auth (Login/Logout) styled as elegant pill(s) */}
