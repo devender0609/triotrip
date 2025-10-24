@@ -1,277 +1,817 @@
-'use client';
+"use client";
+export const dynamic = "force-dynamic";
 
-import React, { useMemo, useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
+import React, { useEffect, useMemo, useState } from "react";
+import AirportField from "../components/AirportField";
+import ResultCard from "../components/ResultCard";
+import ComparePanel from "../components/ComparePanel";
+import ExploreSavorTabs from "../components/ExploreSavorTabs";
 
-import ExploreSavorTabs, { SubTab } from '@/components/ExploreSavorTabs';
-import FiltersBar from '@/components/FiltersBar';
-import ResultCard from '@/components/ResultCard';
-import { searchTrips, type Pkg } from '@/lib/api';
-import { buildGoogleFlightsUrl } from '@/lib/deeplinks';
+/** ===== Types ===== */
+type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
+type SortKey = "best" | "cheapest" | "fastest" | "flexible";
+type ListTab = "top3" | "all";
+type SubTab = "explore" | "savor" | "misc";
 
-type Cabin = 'economy'|'premium'|'business'|'first';
+/** ===== Small helpers (inlined) ===== */
+const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+  .toISOString()
+  .slice(0, 10);
 
-function isInternational(originCountry: string|undefined, destCountry: string|undefined) {
-  if (!originCountry || !destCountry) return false;
-  return originCountry.toLowerCase() !== destCountry.toLowerCase();
+function extractIATA(display: string): string {
+  const s = String(display || "").toUpperCase().trim();
+  let m = /\(([A-Z]{3})\)/.exec(s);
+  if (m) return m[1];
+  m = /^([A-Z]{3})\b/.exec(s);
+  if (m) return m[1];
+  return "";
+}
+function plusDays(iso: string, days: number) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+function cityFromDisplay(txt: string) {
+  if (!txt) return "";
+  const parts = txt
+    .split("—")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length >= 2) return parts[1];
+  return txt.split(",")[0].trim();
+}
+function nightsBetween(a?: string, b?: string) {
+  if (!a || !b) return 0;
+  const A = new Date(a).getTime(),
+    B = new Date(b).getTime();
+  if (!Number.isFinite(A) || !Number.isFinite(B)) return 0;
+  return Math.max(0, Math.round((B - A) / 86400000));
+}
+const num = (v: any) =>
+  typeof v === "number" && Number.isFinite(v) ? v : undefined;
+
+/** Build a prefilled Google Flights URL for a package-like object */
+function buildGoogleFlightsUrl(pkg: any): string | undefined {
+  const from = (pkg.origin || "").toUpperCase();
+  const to = (pkg.destination || "").toUpperCase();
+  const depart = (pkg.departDate || pkg.depart || "").slice(0, 10);
+  const ret = (pkg.returnDate || pkg.return || "").slice(0, 10);
+  const adults =
+    Number(pkg.passengersAdults ?? pkg.adults ?? 1) > 0
+      ? Number(pkg.passengersAdults ?? pkg.adults ?? 1)
+      : 1;
+  if (!from || !to || !depart) return undefined;
+  const q = `${from} to ${to} on ${depart}${
+    ret ? ` return ${ret}` : ""
+  } for ${adults} travelers`;
+  return `https://www.google.com/travel/flights?q=${encodeURIComponent(q)}`;
 }
 
+/** ===== Page ===== */
 export default function Page() {
-  // --- form state (existing fields preserved) ---
-  const [origin, setOrigin] = useState('');
-  const [dest, setDest] = useState('');
-  const [originCountry, setOriginCountry] = useState<string>();
-  const [destCountry, setDestCountry] = useState<string>();
-  const [depart, setDepart] = useState<string>('');     // yyyy-mm-dd
-  const [ret, setRet]       = useState<string>('');     // yyyy-mm-dd
+  /** Places & dates */
+  const [originCode, setOriginCode] = useState("");
+  const [originDisplay, setOriginDisplay] = useState("");
+  const [destCode, setDestCode] = useState("");
+  const [destDisplay, setDestDisplay] = useState("");
+  const [roundTrip, setRoundTrip] = useState(true);
+  const [departDate, setDepartDate] = useState("");
+  const [returnDate, setReturnDate] = useState("");
+
+  /** Pax & cabin */
   const [adults, setAdults] = useState(1);
-  const [cabin, setCabin]   = useState<Cabin>('economy');
-  const [stops, setStops]   = useState<'0'|'1'|'2+'|'any'>('any');
+  const [children, setChildren] = useState(0);
+  const [infants, setInfants] = useState(0);
+  const [cabin, setCabin] = useState<Cabin>("ECONOMY");
+  const totalPax = adults + children + infants;
 
-  // Hotel-only fields appear only when includeHotel = true
-  const [includeHotel, setIncludeHotel] = useState<boolean>(false);
-  const [checkIn, setCheckIn]   = useState<string>('');  // yyyy-mm-dd
-  const [checkOut, setCheckOut] = useState<string>('');  // yyyy-mm-dd
-  const [minBudget, setMinBudget] = useState<string>('');
-  const [maxBudget, setMaxBudget] = useState<string>('');
-  const [minStars, setMinStars]   = useState<number|undefined>(undefined);
+  /** Currency (from header picker) */
+  const [currency, setCurrency] = useState("USD");
+  useEffect(() => {
+    try {
+      const cur = localStorage.getItem("triptrio:currency");
+      if (cur) setCurrency(cur);
+    } catch {}
+    const handler = (e: any) =>
+      setCurrency(e?.detail || localStorage.getItem("triptrio:currency") || "USD");
+    window.addEventListener("triptrio:currency", handler);
+    return () => window.removeEventListener("triptrio:currency", handler);
+  }, []);
 
-  // Results / UI state
+  /** Flight filters */
+  const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
+
+  /** Hotel controls */
+  const [includeHotel, setIncludeHotel] = useState(false);
+  const [hotelCheckIn, setHotelCheckIn] = useState("");
+  const [hotelCheckOut, setHotelCheckOut] = useState("");
+  const [minHotelStar, setMinHotelStar] = useState(0);
+  const [minBudget, setMinBudget] = useState<string>("");
+  const [maxBudget, setMaxBudget] = useState<string>("");
+
+  /** Sorting & tabs */
+  const [sort, setSort] = useState<SortKey>("best");
+  const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
+  const [listTab, setListTab] = useState<ListTab>("all");
+
+  // sub tabs + TOGGLE behaviour
+  const [subTab, setSubTab] = useState<SubTab>("explore");
+  const [subPanelOpen, setSubPanelOpen] = useState(false);
+
+  const [showControls, setShowControls] = useState(false);
+
+  /** Results & compare */
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<Pkg[]|null>(null);
+  const [results, setResults] = useState<any[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [comparedIds, setComparedIds] = useState<string[]>([]);
 
-  // Discovery tabs: only show after Search; clicking active tab toggles off
-  const [activeSubTab, setActiveSubTab] = useState<SubTab|null>(null);
+  /** keep basis in sync with includeHotel */
+  useEffect(() => {
+    if (!includeHotel) setSortBasis("flightOnly");
+  }, [includeHotel]);
+  useEffect(() => {
+    if (!roundTrip) setReturnDate("");
+  }, [roundTrip]);
 
-  // View toggles
-  const [top3, setTop3] = useState<boolean>(true);   // “Top-3” default
-  const [showAll, setShowAll] = useState<boolean>(false);
-
-  // ----- derived -----
-  const international = isInternational(originCountry, destCountry);
-
-  // ---- hotel date sanity: hotel dates must be on/after flight dates ----
+  /** hotel sanity: dates aligned w/ flights */
   useEffect(() => {
     if (!includeHotel) return;
-
-    // check-in cannot be before depart
-    if (depart && checkIn && checkIn < depart) {
-      setCheckIn(depart);
+    if (departDate && hotelCheckIn && hotelCheckIn < departDate) {
+      setHotelCheckIn(departDate);
     }
-    // check-out cannot be before next day of check-in (and ≤ return if provided)
-    if (checkIn && checkOut && checkOut <= checkIn) {
-      // bump to +1 day
-      const d = new Date(checkIn);
+    if (hotelCheckIn && hotelCheckOut && hotelCheckOut <= hotelCheckIn) {
+      const d = new Date(hotelCheckIn);
       d.setDate(d.getDate() + 1);
-      setCheckOut(d.toISOString().slice(0,10));
+      setHotelCheckOut(d.toISOString().slice(0, 10));
     }
-    if (ret && checkOut && checkOut > ret) {
-      // clamp to return date (hotel must end on/before flight return)
-      setCheckOut(ret);
+    if (roundTrip && returnDate && hotelCheckOut && hotelCheckOut > returnDate) {
+      setHotelCheckOut(returnDate);
     }
-  }, [includeHotel, depart, ret, checkIn, checkOut]);
+  }, [includeHotel, departDate, returnDate, hotelCheckIn, hotelCheckOut, roundTrip]);
 
-  // ---- search handler (unchanged deep links) ----
-  async function doSearch() {
+  function swapOriginDest() {
+    setOriginCode((oc) => {
+      const dc = destCode;
+      setDestCode(oc);
+      return dc;
+    });
+    setOriginDisplay((od) => {
+      const dd = destDisplay;
+      setDestDisplay(od);
+      return dd;
+    });
+  }
+
+  /** Inlined search (no external lib/api import) */
+  async function runSearch() {
     setLoading(true);
-    setActiveSubTab(null);           // tabs appear AFTER results
+    setError(null);
+    setResults(null);
     try {
-      const data = await searchTrips({
-        origin, dest, depart, ret, adults, cabin, stops,
-        hotel: includeHotel
-          ? { checkIn, checkOut, minBudget, maxBudget, minStars }
-          : undefined,
+      const origin = originCode || extractIATA(originDisplay);
+      const destination = destCode || extractIATA(destDisplay);
+      if (!origin || !destination) throw new Error("Please select origin and destination.");
+      if (!departDate) throw new Error("Please pick a departure date.");
+      if (roundTrip && !returnDate) throw new Error("Please pick a return date.");
+
+      const payload = {
+        id: undefined as any,
+        origin,
+        destination,
+        departDate,
+        returnDate: roundTrip ? returnDate : undefined,
+        roundTrip,
+        passengersAdults: adults,
+        passengersChildren: children,
+        passengersInfants: infants,
+        cabin,
+        includeHotel,
+        hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
+        hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
+        minHotelStar: includeHotel ? minHotelStar : undefined,
+        minBudget: includeHotel && minBudget ? Number(minBudget) : undefined,
+        maxBudget: includeHotel && maxBudget ? Number(maxBudget) : undefined,
+        currency,
+        maxStops,
+      };
+
+      const r = await fetch(`/api/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        cache: "no-store",
       });
-      setResults(data || []);
-      // after successful search, show discovery tabs collapsed
-      setActiveSubTab(null);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || "Search failed");
+
+      const arr = Array.isArray(j.results) ? j.results : [];
+      // attach payload to each result so deep links have context
+      setResults(arr.map((res: any, i: number) => ({ id: res.id ?? `r-${i}`, ...payload, ...res })));
+
+      // show controls/tabs after first search
+      setShowControls(true);
+      setListTab("all");
+      setSubTab("explore");
+      setSubPanelOpen(true);
+      setComparedIds([]);
+    } catch (e: any) {
+      setError(e?.message || "Search failed");
     } finally {
       setLoading(false);
     }
   }
 
-  // ---- helper to toggle discovery tabs ----
-  function toggleSubTab(tab: SubTab) {
-    setActiveSubTab(cur => (cur === tab ? null : tab));
+  /** Sort the combined list (flight-only price vs bundle total) */
+  const sortedResults = useMemo(() => {
+    if (!results) return null;
+    const items = [...results];
+
+    const flightPrice = (p: any) =>
+      num(p.flight_total) ??
+      num(p.total_cost_flight) ??
+      num(p.flight?.price_usd_converted) ??
+      num(p.flight?.price_usd) ??
+      num(p.total_cost) ??
+      9e15;
+
+    const bundleTotal = (p: any) =>
+      num(p.total_cost) ?? (num(p.flight_total) ?? flightPrice(p)) + (num(p.hotel_total) ?? 0);
+
+    const outDur = (p: any) => {
+      const segs = p.flight?.segments_out || p.flight?.segments || [];
+      const sum = segs.reduce((t: number, s: any) => t + (Number(s?.duration_minutes) || 0), 0);
+      return Number.isFinite(sum) ? sum : 9e9;
+    };
+
+    const basis = (p: any) => (sortBasis === "bundle" ? bundleTotal(p) : flightPrice(p));
+
+    if (sort === "cheapest") items.sort((a, b) => basis(a)! - basis(b)!);
+    else if (sort === "fastest") items.sort((a, b) => outDur(a)! - outDur(b)!);
+    else if (sort === "flexible")
+      items.sort(
+        (a, b) =>
+          (a.flight?.refundable ? 0 : 1) - (b.flight?.refundable ? 0 : 1) || basis(a)! - basis(b)!
+      );
+    else items.sort((a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!);
+
+    return items;
+  }, [results, sort, sortBasis]);
+
+  /** List slice: Top-3 vs All (All is unlimited) */
+  const top3 = useMemo(() => (sortedResults ? sortedResults.slice(0, 3) : null), [sortedResults]);
+  const shown = (listTab === "all" ? sortedResults : top3) || [];
+
+  /** Compare selections */
+  function toggleCompare(id: string) {
+    setComparedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
-  // ---- displayed items respecting Top-3 vs All for hotels ----
-  const hotelNights = useMemo(() => {
-    if (!includeHotel || !checkIn || !checkOut) return undefined;
-    const a = new Date(checkIn); const b = new Date(checkOut);
-    return Math.max(1, Math.round((+b - +a) / 86400000));
-  }, [includeHotel, checkIn, checkOut]);
+  /** Styles */
+  const sLabel: React.CSSProperties = {
+    fontWeight: 600,
+    color: "#334155",
+    display: "block",
+    marginBottom: 6,
+    fontSize: 14,
+  };
+  const sInput: React.CSSProperties = {
+    height: 44,
+    padding: "0 12px",
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    width: "100%",
+    background: "#fff",
+    fontSize: 15,
+  };
 
-  const shownResults = useMemo(() => {
-    if (!results) return [];
-    // For flight results: show all unless “Top-3” is toggled
-    // For hotel results: when “Top-3”, cap to 3 *per star band*; when “All”, allow many.
-    if (showAll) return results;
+  const destCity = cityFromDisplay(destDisplay);
 
-    if (top3) {
-      // group by hotel star (if exists); keep first 3 in each group
-      const out: Pkg[] = [];
-      const starCounts = new Map<number, number>();
-      for (const r of results) {
-        if (r.hotel?.stars) {
-          const s = r.hotel.stars;
-          const c = starCounts.get(s) || 0;
-          if (c < 3) {
-            out.push(r);
-            starCounts.set(s, c + 1);
-          }
-        } else {
-          // flight or package without star -> allow up to 3 generic
-          if (out.filter(x => !x.hotel?.stars).length < 3) out.push(r);
-        }
-      }
-      return out;
+  // handle sub-tab clicks as TOGGLES
+  function clickSubTab(tab: SubTab) {
+    if (tab === subTab) {
+      setSubPanelOpen((v) => !v); // toggle visibility
+    } else {
+      setSubTab(tab);
+      setSubPanelOpen(true);
     }
+  }
 
-    return results;
-  }, [results, top3, showAll]);
+  const hotelNights = useMemo(
+    () => (includeHotel ? nightsBetween(hotelCheckIn, hotelCheckOut) : 0),
+    [includeHotel, hotelCheckIn, hotelCheckOut]
+  );
 
-  // ---- render ----
   return (
-    <main className="container mx-auto px-3 py-4">
-      {/* Top brand row unchanged */}
-      <header className="flex items-center justify-between mb-4">
-        <Link href="/" className="inline-flex items-center gap-2 no-underline">
-          <Image src="/logo.png" alt="TrioTrip" width={28} height={28} />
-          <span className="text-2xl font-semibold">TrioTrip</span>
-        </Link>
-
-        <div className="flex items-center gap-2">
-          {/* Currency picker stays here */}
-          <div className="hidden sm:block"><FiltersBar.Currency /></div>
-          <FiltersBar.SavedChip />
-          <FiltersBar.AuthBar />
-        </div>
-      </header>
-
-      {/* Search form */}
-      <section className="rounded-xl bg-white/80 shadow-sm ring-1 ring-slate-200 p-3 md:p-4 mb-3">
-        <FiltersBar.Origin value={origin} onChange={(v,country)=>{ setOrigin(v); setOriginCountry(country);} } />
-        <FiltersBar.Destination value={dest} onChange={(v,country)=>{ setDest(v); setDestCountry(country);} } />
-
-        <FiltersBar.TripDates
-          depart={depart}
-          ret={ret}
-          onChangeDepart={setDepart}
-          onChangeReturn={setRet}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
-          <FiltersBar.Cabin value={cabin} onChange={setCabin}/>
-          <FiltersBar.Stops value={stops} onChange={setStops}/>
-          <FiltersBar.Adults value={adults} onChange={setAdults}/>
-        </div>
-
-        {/* Hotel toggle + conditional fields */}
-        <div className="mt-4 space-y-2">
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={includeHotel}
-              onChange={(e)=> setIncludeHotel(e.target.checked)}
+    <div style={{ padding: 12, display: "grid", gap: 14 }}>
+      {/* ===== SEARCH PANEL ===== */}
+      <form
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 16,
+          padding: 16,
+          display: "grid",
+          gap: 14,
+        }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          runSearch();
+        }}
+      >
+        {/* Origin / Swap / Destination */}
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            gridTemplateColumns: "1fr 54px 1fr",
+            alignItems: "end",
+          }}
+        >
+          <div>
+            <label style={sLabel}>Origin</label>
+            <AirportField
+              id="origin"
+              label=""
+              code={originCode}
+              initialDisplay={originDisplay}
+              onTextChange={setOriginDisplay}
+              onChangeCode={(code, display) => {
+                setOriginCode(code);
+                setOriginDisplay(display);
+              }}
             />
-            <span>Include hotel</span>
-          </label>
-
-          {includeHotel && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <FiltersBar.CheckIn
-                  value={checkIn}
-                  onChange={setCheckIn}
-                  min={depart || undefined}
-                />
-                <FiltersBar.CheckOut
-                  value={checkOut}
-                  onChange={setCheckOut}
-                  // min is at least next day of checkIn; also clamp to return if present (handled in effect)
-                  min={checkIn || depart || undefined}
-                  max={ret || undefined}
-                />
-                <FiltersBar.MinStars value={minStars} onChange={setMinStars}/>
-              </div>
-
-              {/* budget appears ONLY when hotel is selected */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FiltersBar.MinBudget value={minBudget} onChange={setMinBudget}/>
-                <FiltersBar.MaxBudget value={maxBudget} onChange={setMaxBudget}/>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="mt-4 flex items-center gap-2">
-          <button onClick={doSearch} className="btn btn-primary" disabled={loading}>
-            {loading ? 'Searching…' : 'Search'}
-          </button>
-          <button
-            className="btn"
-            onClick={()=>{
-              // light reset — keep origin/dest but clear results & toggles
-              setResults(null);
-              setActiveSubTab(null);
-              setShowAll(false);
-              setTop3(true);
-            }}
-          >
-            Reset
-          </button>
-        </div>
-      </section>
-
-      {/* Mode chips (only after search) */}
-      {results && (
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <button className={`chip ${top3 ? 'chip-active' : ''}`} onClick={()=>{ setTop3(true); setShowAll(false); }}>Top-3</button>
-          <button className={`chip ${showAll ? 'chip-active' : ''}`} onClick={()=>{ setShowAll(true); setTop3(false); }}>All</button>
-          <FiltersBar.PrintBtn />
-          <FiltersBar.SavedCount />
-        </div>
-      )}
-
-      {/* Discovery tabs (appear after Search; each is toggle-able) */}
-      {results && (
-        <div className="mb-4">
-          <div className="flex flex-wrap gap-2 mb-3">
-            <button className={`tab ${activeSubTab==='explore'?'tab-active':''}`} onClick={()=>toggleSubTab('explore')}>Explore</button>
-            <button className={`tab ${activeSubTab==='savor'?'tab-active':''}`} onClick={()=>toggleSubTab('savor')}>Savor</button>
-            <button className={`tab ${activeSubTab==='misc'?'tab-active':''}`} onClick={()=>toggleSubTab('misc')}>Miscellaneous</button>
-            <button className="tab" onClick={()=>toggleSubTab('compare')}>Compare</button>
           </div>
 
-          {activeSubTab && activeSubTab !== 'compare' && (
-            <div className="rounded-xl bg-white/80 ring-1 ring-slate-200 p-3 md:p-4">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+            }}
+            aria-hidden
+          >
+            <button
+              type="button"
+              onClick={swapOriginDest}
+              title="Swap origin & destination"
+              style={{
+                height: 42,
+                width: 42,
+                borderRadius: 12,
+                border: "1px solid #e2e8f0",
+                background: "#fff",
+                cursor: "pointer",
+                fontSize: 18,
+              }}
+            >
+              ⇄
+            </button>
+          </div>
+
+          <div>
+            <label style={sLabel}>Destination</label>
+            <AirportField
+              id="destination"
+              label=""
+              code={destCode}
+              initialDisplay={destDisplay}
+              onTextChange={setDestDisplay}
+              onChangeCode={(code, display) => {
+                setDestCode(code);
+                setDestDisplay(display);
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Trip / Dates / Pax */}
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            gridTemplateColumns: "160px 1fr 1fr 1fr 1fr 1fr",
+            alignItems: "end",
+          }}
+        >
+          <div style={{ minWidth: 160 }}>
+            <label style={sLabel}>Trip</label>
+            <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setRoundTrip(false)}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: `1px solid ${roundTrip ? "#e2e8f0" : "#60a5fa"}`,
+                }}
+              >
+                One-way
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoundTrip(true)}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: `1px solid ${roundTrip ? "#60a5fa" : "#e2e8f0"}`,
+                }}
+              >
+                Round-trip
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label style={sLabel}>Depart</label>
+            <input
+              type="date"
+              style={sInput}
+              value={departDate}
+              onChange={(e) => setDepartDate(e.target.value)}
+              min={todayLocal}
+              max={roundTrip && returnDate ? returnDate : undefined}
+            />
+          </div>
+
+          <div>
+            <label style={sLabel}>Return</label>
+            <input
+              type="date"
+              style={sInput}
+              value={returnDate}
+              onChange={(e) => setReturnDate(e.target.value)}
+              disabled={!roundTrip}
+              min={departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1)}
+            />
+          </div>
+
+          <div>
+            <label style={sLabel}>Adults</label>
+            <input
+              type="number"
+              min={1}
+              max={9}
+              value={adults}
+              onChange={(e) => setAdults(parseInt(e.target.value || "1"))}
+              style={sInput}
+            />
+          </div>
+          <div>
+            <label style={sLabel}>Children</label>
+            <input
+              type="number"
+              min={0}
+              max={8}
+              value={children}
+              onChange={(e) => setChildren(parseInt(e.target.value || "0"))}
+              style={sInput}
+            />
+          </div>
+          <div>
+            <label style={sLabel}>Infants</label>
+            <input
+              type="number"
+              min={0}
+              max={8}
+              value={infants}
+              onChange={(e) => setInfants(parseInt(e.target.value || "0"))}
+              style={sInput}
+            />
+          </div>
+        </div>
+
+        {/* Cabin / Stops / Hotel toggle / Actions */}
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+          }}
+        >
+          <div>
+            <label style={sLabel}>Cabin</label>
+            <select
+              style={sInput}
+              value={cabin}
+              onChange={(e) => setCabin(e.target.value as Cabin)}
+            >
+              <option value="ECONOMY">Economy</option>
+              <option value="PREMIUM_ECONOMY">Premium Economy</option>
+              <option value="BUSINESS">Business</option>
+              <option value="FIRST">First</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={sLabel}>Stops</label>
+            <select
+              style={sInput}
+              value={maxStops}
+              onChange={(e) => setMaxStops(Number(e.target.value) as 0 | 1 | 2)}
+            >
+              <option value={0}>Nonstop</option>
+              <option value={1}>1 stop</option>
+              <option value={2}>More than 1 stop</option>
+            </select>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 22 }}>
+            <input
+              id="include-hotel"
+              type="checkbox"
+              checked={includeHotel}
+              onChange={(e) => setIncludeHotel(e.target.checked)}
+            />
+            <label htmlFor="include-hotel" style={{ fontWeight: 700 }}>
+              Include hotel
+            </label>
+          </div>
+
+          <div style={{ textAlign: "right" }}>
+            <button
+              type="submit"
+              style={{
+                padding: "10px 16px",
+                borderRadius: 12,
+                border: "1px solid #CBD5E1",
+                background: "#0ea5e9",
+                color: "#fff",
+                fontWeight: 800,
+                marginTop: 8,
+                marginRight: 8,
+              }}
+            >
+              {loading ? "Searching..." : "Search"}
+            </button>
+            <button
+              type="button"
+              onClick={() => location.reload()}
+              title="Reset all fields and results"
+              style={{
+                padding: "10px 16px",
+                borderRadius: 12,
+                border: "1px solid #CBD5E1",
+                background: "#fff",
+                fontWeight: 800,
+                marginTop: 8,
+              }}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        {/* Hotel-only inputs (shown only when hotel is checked) */}
+        {includeHotel && (
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              gridTemplateColumns: "repeat(6, 1fr)",
+            }}
+          >
+            <div>
+              <label style={sLabel}>Check-in</label>
+              <input
+                type="date"
+                style={sInput}
+                value={hotelCheckIn}
+                onChange={(e) => setHotelCheckIn(e.target.value)}
+                min={departDate || undefined}
+              />
+            </div>
+            <div>
+              <label style={sLabel}>Check-out</label>
+              <input
+                type="date"
+                style={sInput}
+                value={hotelCheckOut}
+                onChange={(e) => setHotelCheckOut(e.target.value)}
+                min={hotelCheckIn || departDate || undefined}
+                max={roundTrip ? returnDate || undefined : undefined}
+              />
+            </div>
+            <div>
+              <label style={sLabel}>Min stars</label>
+              <select
+                style={sInput}
+                value={minHotelStar}
+                onChange={(e) => setMinHotelStar(Number(e.target.value))}
+              >
+                <option value={0}>Any</option>
+                <option value={2}>2+</option>
+                <option value={3}>3+</option>
+                <option value={4}>4+</option>
+                <option value={5}>5</option>
+              </select>
+            </div>
+            <div>
+              <label style={sLabel}>Min budget</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="min"
+                style={sInput}
+                value={minBudget}
+                onChange={(e) => setMinBudget(e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={sLabel}>Max budget</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="max"
+                style={sInput}
+                value={maxBudget}
+                onChange={(e) => setMaxBudget(e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={sLabel}>Sort by (basis)</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setSortBasis("flightOnly")}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: `1px solid ${sortBasis === "flightOnly" ? "#60a5fa" : "#e2e8f0"}`,
+                  }}
+                >
+                  Flight only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBasis("bundle")}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: `1px solid ${sortBasis === "bundle" ? "#60a5fa" : "#e2e8f0"}`,
+                  }}
+                >
+                  Bundle total
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </form>
+
+      {/* ===== SUB-TABS (only after search) ===== */}
+      {showControls && (
+        <>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              flexWrap: "wrap",
+              color: "#475569",
+              fontWeight: 700,
+            }}
+          >
+            <button className={`subtab ${subTab === "explore" && subPanelOpen ? "on" : ""}`} onClick={() => clickSubTab("explore")}>
+              Explore
+            </button>
+            <button className={`subtab ${subTab === "savor" && subPanelOpen ? "on" : ""}`} onClick={() => clickSubTab("savor")}>
+              Savor
+            </button>
+            <button className={`subtab ${subTab === "misc" && subPanelOpen ? "on" : ""}`} onClick={() => clickSubTab("misc")}>
+              Miscellaneous
+            </button>
+            <style jsx>{`
+              .subtab {
+                padding: 8px 12px;
+                border-radius: 999px;
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                cursor: pointer;
+              }
+              .subtab.on {
+                background: linear-gradient(90deg, #06b6d4, #0ea5e9);
+                color: #fff;
+                border: none;
+              }
+            `}</style>
+          </div>
+
+          {subPanelOpen && (
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                background: "#fff",
+                padding: 12,
+              }}
+            >
               <ExploreSavorTabs
-                city={dest}
-                originCountry={originCountry}
-                destCountry={destCountry}
-                active={activeSubTab}
+                city={destCity || "Destination"}
+                // for intl detection in ExploreSavorTabs (set these if you have them)
+                originCountry={undefined}
+                destCountry={undefined}
+                active={subTab}
               />
             </div>
           )}
+        </>
+      )}
+
+      {/* ===== SORT & VIEW CHIPS (only after search) ===== */}
+      {showControls && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <button className={`chip ${sort === "best" ? "on" : ""}`} onClick={() => setSort("best")}>
+            Best
+          </button>
+          <button className={`chip ${sort === "cheapest" ? "on" : ""}`} onClick={() => setSort("cheapest")}>
+            Cheapest
+          </button>
+          <button className={`chip ${sort === "fastest" ? "on" : ""}`} onClick={() => setSort("fastest")}>
+            Fastest
+          </button>
+          <button className={`chip ${sort === "flexible" ? "on" : ""}`} onClick={() => setSort("flexible")}>
+            Flexible
+          </button>
+
+          <span style={{ marginLeft: 8 }} />
+
+          <button className={`chip ${listTab === "top3" ? "on" : ""}`} onClick={() => setListTab("top3")}>
+            Top-3
+          </button>
+          <button className={`chip ${listTab === "all" ? "on" : ""}`} onClick={() => setListTab("all")}>
+            All
+          </button>
+
+          <button className="chip" onClick={() => window.print()}>
+            Print
+          </button>
+
+          <style jsx>{`
+            .chip {
+              padding: 8px 12px;
+              border-radius: 999px;
+              background: #fff;
+              border: 1px solid #e2e8f0;
+              font-weight: 700;
+              cursor: pointer;
+            }
+            .chip.on {
+              background: linear-gradient(90deg, #06b6d4, #0ea5e9);
+              color: #fff;
+              border: none;
+            }
+          `}</style>
         </div>
       )}
 
-      {/* Results list */}
-      <section className="space-y-3">
-        {shownResults?.map((pkg, idx) => (
-          <ResultCard
-            key={pkg.id || `pkg-${idx}`}
-            pkg={pkg}
-            googleFlightsUrl={buildGoogleFlightsUrl(pkg)}
-            hotelNights={hotelNights}
-          />
-        ))}
-        {results && !shownResults?.length && (
-          <p className="text-slate-500 text-sm">No results match your filters.</p>
-        )}
-      </section>
-    </main>
+      {error && (
+        <div
+          style={{
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#7f1d1d",
+            padding: 10,
+            borderRadius: 10,
+          }}
+        >
+          ⚠ {error}
+        </div>
+      )}
+
+      {/* ===== RESULTS ===== */}
+      {(shown?.length ?? 0) > 0 && (
+        <div style={{ display: "grid", gap: 10 }}>
+          {shown.map((pkg, i) => (
+            <ResultCard
+              key={pkg.id || i}
+              pkg={pkg}
+              index={i}
+              currency={currency}
+              pax={totalPax}
+              showHotel={includeHotel}
+              hotelNights={hotelNights}
+              showAllHotels={listTab === "all"} // All = unlimited per star
+              comparedIds={comparedIds}
+              onToggleCompare={(id) => toggleCompare(id)}
+              onSavedChangeGlobal={() => {}}
+              googleFlightsUrl={buildGoogleFlightsUrl(pkg)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ===== COMPARE (supports unlimited) ===== */}
+      {comparedIds.length >= 2 && (
+        <ComparePanel
+          items={(shown || []).filter((r: any) => comparedIds.includes(String(r.id || "")))}
+          currency={currency}
+          onClose={() => setComparedIds([])}
+          onRemove={(id) => setComparedIds((prev) => prev.filter((x) => x !== id))}
+        />
+      )}
+    </div>
   );
 }
