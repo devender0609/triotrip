@@ -14,7 +14,11 @@ export default function Header() {
 
   const [savedCount, setSavedCount] = React.useState<number>(() => {
     if (typeof window === "undefined") return 0;
-    try { return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).length; } catch { return 0; }
+    try {
+      return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).length;
+    } catch {
+      return 0;
+    }
   });
 
   React.useEffect(() => {
@@ -25,16 +29,24 @@ export default function Header() {
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const handler = (e: any) => setSavedCount(typeof e?.detail === "number" ? e.detail : savedCount);
-    window.addEventListener("triptrio:saved-count", handler);
-    return () => window.removeEventListener("triptrio:saved-count", handler);
-  }, [savedCount]);
+    const onSaved = (e: Event) => {
+      const ce = e as CustomEvent<number>;
+      if (typeof ce.detail === "number") setSavedCount(ce.detail);
+      else {
+        try {
+          setSavedCount((JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).length);
+        } catch {}
+      }
+    };
+    window.addEventListener("triptrio:saved-count", onSaved as EventListener);
+    return () => window.removeEventListener("triptrio:saved-count", onSaved as EventListener);
+  }, []);
 
-  const currencies = ["USD","EUR","GBP","INR","CAD","AUD","JPY","SGD","AED"] as const;
+  const currencies = ["USD", "EUR", "GBP", "INR", "CAD", "AUD", "JPY", "SGD", "AED"] as const;
   const flag = (c: string) => {
-    const map: Record<string,string> = {
+    const map: Record<string, string> = {
       USD: "🇺🇸", EUR: "🇪🇺", GBP: "🇬🇧", INR: "🇮🇳", CAD: "🇨🇦",
-      AUD: "🇦🇺", JPY: "🇯🇵", SGD: "🇸🇬", AED: "🇦🇪"
+      AUD: "🇦🇺", JPY: "🇯🇵", SGD: "🇸🇬", AED: "🇦🇪",
     };
     return map[c] || "🏳️";
   };
@@ -63,23 +75,50 @@ export default function Header() {
           <select
             aria-label="Currency"
             value={currency}
-            onChange={(e)=>setCurrency(e.target.value)}
+            onChange={(e) => setCurrency(e.target.value)}
             className="currency-select"
           >
-            {currencies.map(c => <option key={c} value={c}>{c}</option>)}
+            {currencies.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
         </div>
       </nav>
 
       <style jsx>{`
         .tt-header {
-          position: sticky; top: 0; z-index: 40;
-          display: flex; align-items: center; justify-content: space-between;
-          gap: 16px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e5e7eb;
+          position: sticky;
+          top: 0;
+          z-index: 40;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 10px 16px;
+          background: #fff;
+          border-bottom: 1px solid #e5e7eb;
         }
-        .brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none !important; border-bottom: none !important; }
-        .title { font-weight: 900; letter-spacing: -0.02em; font-size: 18px; color: #0f172a; }
-        .nav { display: flex; gap: 10px; align-items: center; font-weight: 600; }
+        .brand {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          text-decoration: none !important;
+          border-bottom: none !important;
+        }
+        .title {
+          font-weight: 900;
+          letter-spacing: -0.02em;
+          font-size: 18px;
+          color: #0f172a;
+        }
+        .nav {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          font-weight: 600;
+        }
 
         /* Kill underlines globally for header links */
         .nav :global(a) {
@@ -87,36 +126,65 @@ export default function Header() {
           border-bottom: none !important;
           color: inherit;
         }
-        .nav :global(a:hover), .nav :global(a:focus) {
+        .nav :global(a:hover),
+        .nav :global(a:focus) {
           text-decoration: none !important;
           border-bottom: none !important;
         }
 
         .pill {
-          display: inline-flex; align-items: center; gap: 6px;
-          padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 999px;
-          background: #fff; color: #0f172a; text-decoration: none !important;
-          box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          border: 1px solid #e2e8f0;
+          border-radius: 999px;
+          background: #fff;
+          color: #0f172a;
+          text-decoration: none !important;
+          box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
         }
-        .pill:hover { background: #f8fafc; }
+        .pill:hover {
+          background: #f8fafc;
+        }
 
         /* Ensure AuthBar’s links/buttons look like pills and have no underline */
-        .auth-wrap :global(a), .auth-wrap :global(button) {
+        .auth-wrap :global(a),
+        .auth-wrap :global(button) {
           text-decoration: none !important;
-          border: 1px solid #e2e8f0; border-radius: 999px; padding: 6px 12px;
-          background: #fff; color: #0f172a; font-weight: 700; cursor: pointer;
-          box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+          border: 1px solid #e2e8f0;
+          border-radius: 999px;
+          padding: 6px 12px;
+          background: #fff;
+          color: #0f172a;
+          font-weight: 700;
+          cursor: pointer;
+          box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
         }
-        .auth-wrap :global(a:hover), .auth-wrap :global(button:hover) { background: #f8fafc; }
+        .auth-wrap :global(a:hover),
+        .auth-wrap :global(button:hover) {
+          background: #f8fafc;
+        }
 
-        .currency { padding-right: 8px; }
-        .flag { font-size: 16px; }
-        .currency-select {
-          appearance: none; background: transparent; border: none; font-weight: 800; color: #0f172a;
-          padding-right: 6px; cursor: pointer;
+        .currency {
+          padding-right: 8px;
         }
-        .currency-select:focus { outline: none; }
-      </style>
+        .flag {
+          font-size: 16px;
+        }
+        .currency-select {
+          appearance: none;
+          background: transparent;
+          border: none;
+          font-weight: 800;
+          color: #0f172a;
+          padding-right: 6px;
+          cursor: pointer;
+        }
+        .currency-select:focus {
+          outline: none;
+        }
+      `}</style>
     </header>
   );
 }
