@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React from "react";
 
 /* Airline sites */
 const AIRLINE_SITE: Record<string, string> = {
@@ -17,7 +17,7 @@ const AIRLINE_SITE: Record<string, string> = {
 const TRIOTRIP_BASE = process.env.NEXT_PUBLIC_TRIOTRIP_BASE || "";
 const TRIOTRIP_BOOK_PATH = process.env.NEXT_PUBLIC_TRIOTRIP_BOOK_PATH || "/checkout";
 
-/* utils */
+/* helpers */
 function ensureHttps(u?: string | null) {
   if (!u) return "";
   let s = String(u).trim();
@@ -28,12 +28,9 @@ function ensureHttps(u?: string | null) {
 }
 const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; } return Math.abs(h); };
 const uniq = (a: any[]) => Array.from(new Set(a.filter(Boolean)));
-const fmtTime = (t?: string) => t ? new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
-const fmtDur = (min?: number) => min==null ? "" : `${Math.floor(min/60)}h ${Math.max(0,min%60)}m`;
-const money = (n: number, ccy: string) => {
-  try { return new Intl.NumberFormat(undefined, { style: "currency", currency: ccy || "USD" }).format(Math.round(n)); }
-  catch { return `$${Math.round(n).toLocaleString()}`; }
-};
+
+function fmtTime(t?: string) { if (!t) return ""; return new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+function fmtDur(min?: number) { if (min == null) return ""; const h = Math.floor(min / 60), m = Math.max(0, min % 60); return h ? `${h}h ${m}m` : `${m}m`; }
 
 type Props = {
   pkg: any; index?: number; currency?: string; pax?: number;
@@ -43,6 +40,19 @@ type Props = {
 };
 
 export default function ResultCard({
+  const [saved, setSaved] = React.useState<boolean>(() => {
+    try { const arr = JSON.parse(localStorage.getItem("savedResults") || "[]"); return arr.includes(id); } catch { return false; }
+  });
+  function toggleSaved() {
+    try {
+      const arr = JSON.parse(localStorage.getItem("savedResults") || "[]");
+      const next = saved ? arr.filter((x: string) => x !== id) : [...new Set([...arr, id])];
+      localStorage.setItem("savedResults", JSON.stringify(next));
+      setSaved(!saved);
+      onSavedChangeGlobal?.(next.length);
+    } catch {}
+  }
+
   pkg, index = 0, currency = "USD", pax = 1,
   comparedIds, onToggleCompare, onSavedChangeGlobal,
   large = true, showHotel, showAllHotels = false, hotelNights = 0,
@@ -50,6 +60,7 @@ export default function ResultCard({
   const id = pkg.id || `pkg-${index}`;
   const compared = !!comparedIds?.includes(id);
 
+  /* pax */
   const adults = Number(pkg.passengersAdults ?? pkg.adults ?? 1) || 1;
   const children = Number(pkg.passengersChildren ?? pkg.children ?? 0) || 0;
   const infants  = Number(pkg.passengersInfants  ?? pkg.infants  ?? 0) || 0;
@@ -77,6 +88,7 @@ export default function ResultCard({
   const dateOut = (out0?.depart_time || pkg.departDate || "").slice(0, 10);
   const dateRet = (in0?.depart_time  || pkg.returnDate || "").slice(0, 10);
   const route   = `${from}-${to}`;
+
   const airlineMain = carriers[0] || "";
 
   const priceRaw =
@@ -86,12 +98,18 @@ export default function ResultCard({
     (typeof pkg?.flight?.price_usd === "number" && pkg.flight.price_usd) ||
     (typeof pkg?.flight_total === "number" && pkg.flight_total) || 0;
 
+  let priceFmt = "";
+  try { priceFmt = new Intl.NumberFormat(undefined, { style: "currency", currency: (currency || "USD").toUpperCase() }).format(Math.round(Number(priceRaw) || 0)); }
+  catch { priceFmt = `$${Math.round(Number(priceRaw) || 0).toLocaleString()}`; }
+
+  /* Internal checkout (same tab) */
   const trioTrip = `${TRIOTRIP_BASE}${TRIOTRIP_BOOK_PATH}` +
     `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` +
     (dateOut ? `&depart=${encodeURIComponent(dateOut)}` : "") +
     (dateRet ? `&return=${encodeURIComponent(dateRet)}` : "") +
     `&adults=${adults}&children=${children}&infants=${infants}`;
 
+  /* Flight links */
   const airlineSite = AIRLINE_SITE[airlineMain] ||
     (airlineMain ? `https://www.google.com/search?q=${encodeURIComponent(airlineMain + " booking")}` : "");
 
@@ -104,76 +122,23 @@ export default function ResultCard({
     ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${dateRet ? `${ssRet}/` : ""}?adults=${adults}${children ? `&children=${children}` : ""}${infants ? `&infants=${infants}` : ""}`
     : "https://www.skyscanner.com/";
 
-  /* SAVE */
-  function toggleSave() {
-    try {
-      const key = "triptrio:saved";
-      const arr = JSON.parse(localStorage.getItem(key) || "[]") as string[];
-      const exists = arr.includes(id);
-      const next = exists ? arr.filter(x => x !== id) : [...arr, id];
-      localStorage.setItem(key, JSON.stringify(next));
-      onSavedChangeGlobal?.(next.length);
-    } catch {}
-  }
-  const isSaved = useMemo(() => {
-    try { return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).includes(id); } catch { return false; }
-  }, [id]);
-
-  /* hotels */
-  const hotelsRaw: any[] =
-    (Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels :
-     (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : [])) as any[];
-
-  function pickStar(h: any) {
-    const s = Number(h?.stars ?? h?.starRating ?? h?.rating ?? h?.class);
-    if (Number.isFinite(s)) return Math.max(1, Math.min(5, Math.round(s)));
-    // try to infer from name like "5-star"
-    const m = /(\d)\s*[- ]?\s*star/i.exec(String(h?.name||""));
-    return m ? Math.max(1, Math.min(5, Number(m[1]))) : 0;
-  }
-  function nightlyPrice(h: any, nights: number) {
-    const pn = Number(h?.price_per_night ?? h?.nightly ?? h?.nightly_price);
-    if (Number.isFinite(pn)) return pn;
-    const tot = Number(h?.price_total ?? h?.total ?? h?.total_price);
-    if (Number.isFinite(tot) && nights > 0) return tot / nights;
-    return undefined;
-  }
-  function totalPrice(h: any) {
-    const tot = Number(h?.price_total ?? h?.total ?? h?.total_price);
-    const pn = Number(h?.price_per_night ?? h?.nightly ?? h?.nightly_price);
-    if (Number.isFinite(tot)) return tot;
-    if (Number.isFinite(pn) && hotelNights > 0) return pn * hotelNights;
-    return undefined;
-  }
-
-  // group hotels by star
-  const grouped = useMemo(() => {
-    const buckets: Record<string, any[]> = { "5★": [], "4★": [], "3★": [], "2★": [], "1★": [], "Unrated": [] };
-    hotelsRaw.forEach(h => {
-      const st = pickStar(h);
-      const key = st === 5 ? "5★" : st === 4 ? "4★" : st === 3 ? "3★" : st === 2 ? "2★" : st === 1 ? "1★" : "Unrated";
-      buckets[key].push(h);
-    });
-    return buckets;
-  }, [hotelsRaw]);
-
-  const hotelImg = (h: any, i?: number) => {
-    const candidate =
-      ensureHttps(h?.image) || ensureHttps(h?.photo) || ensureHttps(h?.photoUrl) ||
-      ensureHttps(h?.image_url) || ensureHttps(h?.imageUrl) || ensureHttps(h?.thumbnail) ||
-      ensureHttps(h?.thumbnailUrl) || ensureHttps(h?.img) ||
-      ensureHttps(h?.leadPhoto?.image?.url) ||
-      ensureHttps(h?.media?.images?.[0]?.url) ||
-      ensureHttps(h?.gallery?.[0]) ||
-      (h?.images && Array.isArray(h.images) ? ensureHttps(h.images[0]?.url || h.images[0]) : "") ||
-      (h?.optimizedThumbUrls && ensureHttps(h.optimizedThumbUrls.srpDesktop || h.optimizedThumbUrls.srpMobile)) || "";
-    if (candidate) return candidate;
-    const city = h?.city || h?.address?.city || pkg?.destination || "";
-    const seed = hash(`${h?.id || ""}|${h?.name || ""}|${city}|${i ?? ""}`) % 1_000_000;
-    return `https://picsum.photos/seed/${seed}/400/250`;
+  const wrapStyle: React.CSSProperties = {
+    display: "grid", gap: 12, border: compared ? "2px solid #0ea5e9" : "1px solid #e2e8f0",
+    borderRadius: 14, padding: 12, background: "linear-gradient(180deg,#ffffff,#f6fbff)",
+    boxShadow: "0 8px 20px rgba(2,6,23,.06)", cursor: onToggleCompare ? "pointer" : "default",
   };
 
-  function hotelPrimaryLink(h: any, cityFallback: string) {
+  /* hotel links */
+  
+function hotelPriceDisplay(h: any): number | undefined {
+  const candidates = [
+    h?.price_total, h?.total, h?.price, h?.rate, h?.amount,
+    h?.price_per_night, h?.nightly, h?.minRate
+  ];
+  const v = candidates.find((x: any) => typeof x === "number" && Number.isFinite(x));
+  return typeof v === "number" ? v : undefined;
+}
+function hotelPrimaryLink(h: any, cityFallback: string) {
     const official = ensureHttps(h?.website || h?.officialUrl || h?.url); if (official) return official;
     const city = h?.city || cityFallback || pkg?.destination || "";
     const q = h?.name ? `${h.name}, ${city}` : city;
@@ -206,11 +171,29 @@ export default function ResultCard({
     return { expedia: exp.toString(), hotels: hcx.toString(), maps: maps.toString() };
   }
 
-  const wrapStyle: React.CSSProperties = {
-    display: "grid", gap: 12, border: compared ? "2px solid #0ea5e9" : "1px solid #e2e8f0",
-    borderRadius: 14, padding: 12, background: "linear-gradient(180deg,#ffffff,#f6fbff)",
-    boxShadow: "0 8px 20px rgba(2,6,23,.06)", cursor: onToggleCompare ? "pointer" : "default",
+  const hotelImg = (h: any, i?: number) => {
+    const candidate =
+      ensureHttps(h?.image) || ensureHttps(h?.photo) || ensureHttps(h?.photoUrl) ||
+      ensureHttps(h?.image_url) || ensureHttps(h?.imageUrl) || ensureHttps(h?.thumbnail) ||
+      ensureHttps(h?.thumbnailUrl) || ensureHttps(h?.img) ||
+      ensureHttps(h?.leadPhoto?.image?.url) ||
+      ensureHttps(h?.media?.images?.[0]?.url) ||
+      ensureHttps(h?.gallery?.[0]) ||
+      (h?.images && Array.isArray(h.images) ? ensureHttps(h.images[0]?.url || h.images[0]) : "") ||
+      (h?.optimizedThumbUrls && ensureHttps(h.optimizedThumbUrls.srpDesktop || h.optimizedThumbUrls.srpMobile)) || "";
+    if (candidate) return candidate;
+    const city = h?.city || h?.address?.city || pkg?.destination || "";
+    const seed = hash(`${h?.id || ""}|${h?.name || ""}|${city}|${i ?? ""}`) % 1_000_000;
+    return `https://picsum.photos/seed/${seed}/400/250`;
   };
+
+  const hotelTotal: number | undefined =
+    typeof pkg.hotel_total === "number" ? pkg.hotel_total :
+    typeof pkg.hotel?.price_total === "number" ? pkg.hotel.price_total :
+    undefined;
+  const perNight = showHotel && hotelNights > 0 && typeof hotelTotal === "number"
+    ? hotelTotal / hotelNights
+    : undefined;
 
   /* render */
   return (
@@ -226,19 +209,12 @@ export default function ResultCard({
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
           <div style={{ fontWeight:900, color:"#0b3b52", background:"#e7f5ff", border:"1px solid #cfe3ff", borderRadius:10, padding:"6px 10px" }}>
-            💵 {money(Number(priceRaw)||0, currency)}
+            💵 {priceFmt}{perNight!=null ? <span style={{ marginLeft:8, fontWeight:700, color:"#0369a1" }}>(~{new Intl.NumberFormat(undefined,{style:"currency",currency}).format(perNight)} / night)</span> : null}
           </div>
           <a className="book-link" href={trioTrip} rel="noreferrer">TrioTrip</a>
           <a className="book-link" href={googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="book-link" href={skyScanner} target="_blank" rel="noreferrer">Skyscanner</a>
           {airlineMain && <a className="book-link" href={airlineSite} target="_blank" rel="noreferrer">{airlineMain}</a>}
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); toggleSave(); }}
-            style={{ border:"1px solid #94a3b8", background: isSaved ? "#e0f2fe" : "#fff",
-                     color:"#0f172a", padding:"6px 10px", borderRadius:10, cursor:"pointer", fontWeight:700 }}>
-            {isSaved ? "💾 Saved" : "＋ Save"}
-          </button>
           {onToggleCompare && (
             <button
               type="button"
@@ -312,55 +288,47 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* Hotels grouped by star */}
+      {/* Hotels */}
       {showHotel && (
-        <div style={{ display:"grid", gap:14 }}>
-          <div style={{ fontWeight:600, color:"#0f172a" }}>Hotels</div>
-          {Object.entries(grouped).map(([star, list]) => {
-            if (!list.length) return null;
-            const show = showAllHotels ? list : list.slice(0, 3);
-            return (
-              <div key={star} style={{ display:"grid", gap:8 }}>
-                <div style={{ fontWeight:700, color:"#0b3b52" }}>{star}</div>
-                {show.map((h: any, i: number) => {
-                  const city = h?.city || pkg?.destination || "";
-                  const img = hotelImg(h, i);
-                  const primary = hotelPrimaryLink(h, city);
-                  const alt = hotelAltLinks(h, city);
-                  const pn = nightlyPrice(h, hotelNights);
-                  const tot = totalPrice(h);
-                  return (
-                    <div key={`${star}-${i}`} style={{ display:"grid", gridTemplateColumns:"160px 1fr", gap:12, border:"1px solid #e2e8f0", borderRadius:12, padding:10, background:"#fff" }}>
-                      <a href={primary} target="_blank" rel="noreferrer" style={{ borderRadius:10, overflow:"hidden", background:"#f1f5f9" }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={img} alt={h?.name || "Hotel"} loading="lazy"
-                             onError={(e) => { const t = e.currentTarget as HTMLImageElement; t.onerror = null; const seed = hash(`${h?.name || ""}|${city}|${i}`) % 1_000_000; t.src = `https://picsum.photos/seed/${seed}/400/250`; }}
-                             style={{ width:160, height:100, objectFit:"cover", display:"block" }} />
+        <div style={{ display:"grid", gap:10 }}>
+          <div style={{ fontWeight:600, color:"#0f172a" }}>Hotels (top options)</div>
+          {(Array.isArray(pkg.hotels) && pkg.hotels.length
+              ? pkg.hotels
+              : (pkg.hotel && !pkg.hotel.filteredOutByStar ? [pkg.hotel] : []))
+            .slice(0, showAllHotels ? undefined : 6)
+            .map((h: any, i: number) => {
+              const city = h?.city || pkg?.destination || "";
+              const primary = hotelPrimaryLink(h, city);
+              const alt = hotelAltLinks(h, city);
+              const img = hotelImg(h, i);
+              return (
+                <div key={`h${i}`} style={{ display:"grid", gridTemplateColumns:"160px 1fr", gap:12, border:"1px solid #e2e8f0", borderRadius:12, padding:10, background:"#fff" }}>
+                  <a href={primary} target="_blank" rel="noreferrer" style={{ borderRadius:10, overflow:"hidden", background:"#f1f5f9" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img} alt={h?.name || "Hotel"} loading="lazy"
+                         onError={(e) => { const t = e.currentTarget as HTMLImageElement; t.onerror = null; const seed = hash(`${h?.name || ""}|${city}|${i}`) % 1_000_000; t.src = `https://picsum.photos/seed/${seed}/400/250`; }}
+                         style={{ width:160, height:100, objectFit:"cover", display:"block" }} />
+                  </a>
+                  <div style={{ display:"grid", gap:6 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+                      <a href={primary} target="_blank" rel="noreferrer" style={{ fontWeight:700, color:"#0f172a", textDecoration:"none" }}>
+                        {h?.name || "Hotel"}
                       </a>
-                      <div style={{ display:"grid", gap:6 }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"center", flexWrap:"wrap" }}>
-                          <a href={primary} target="_blank" rel="noreferrer" style={{ fontWeight:700, color:"#0f172a", textDecoration:"none" }}>
-                            {h?.name || "Hotel"}
-                          </a>
-                          <div style={{ fontWeight:800, color:"#0369a1" }}>
-                            {pn!=null ? <span>{money(pn, currency)} <span style={{ opacity:.7 }}>/ night</span></span> : null}
-                            {tot!=null ? <span style={{ marginLeft:8 }}>({money(tot, currency)} total)</span> : null}
-                          </div>
-                        </div>
-                        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                          <a className="book-link" href={primary} target="_blank" rel="noreferrer">{primary.includes("booking.com") ? "Booking.com" : "Hotel site"}</a>
-                          <a className="book-link" href={alt.expedia} target="_blank" rel="noreferrer">Expedia</a>
-                          <a className="book-link" href={alt.hotels} target="_blank" rel="noreferrer">Hotels</a>
-                          <a className="book-link" href={alt.maps} target="_blank" rel="noreferrer">Map</a>
-                        </div>
-                        <div style={{ color:"#475569", fontSize:13 }}>{h?.address || h?.city || city}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                        <a className="book-link" href={primary} target="_blank" rel="noreferrer">{primary.includes("booking.com") ? "Booking.com" : "Hotel site"}</a>
+                        <a className="book-link" href={alt.expedia} target="_blank" rel="noreferrer">Expedia</a>
+                        <a className="book-link" href={alt.hotels} target="_blank" rel="noreferrer">Hotels</a>
+                        <a className="book-link" href={alt.maps} target="_blank" rel="noreferrer">Map</a>
+            <button type="button" onClick={(e)=>{e.stopPropagation(); toggleSaved();}} className="book-link" title={saved ? "Saved" : "Save this option"}>
+              {saved ? "★ Saved" : "☆ Save"}
+            </button>
+          </div>
+        </div>
+        <div style={{ color:"#475569", fontSize:13 }}>{h?.address || h?.city || city}</div>
+                  </div>
+                </div>
+              );
+            })}
         </div>
       )}
     </section>
