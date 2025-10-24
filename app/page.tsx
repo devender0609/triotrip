@@ -5,7 +5,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import ComparePanel from "../components/ComparePanel";
-// use alias path to avoid relative import issues
 import ExploreSavorTabs from "@/components/ExploreSavorTabs";
 
 /** ===== Types ===== */
@@ -796,7 +795,7 @@ export default function Page() {
               comparedIds={comparedIds}
               onToggleCompare={(id) => toggleCompare(id)}
               onSavedChangeGlobal={() => {}}
-              googleFlightsUrl={buildGoogleFlightsUrl(pkg)}
+              /* Removed googleFlightsUrl prop (ResultCard computes links itself) */
             />
           ))}
         </div>
