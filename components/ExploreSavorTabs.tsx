@@ -3,36 +3,18 @@
 import React from "react";
 import SavorExploreLinks from "./SavorExploreLinks";
 
-/**
- * ExploreSavorTabs
- * A compact, reusable panel that renders Explore / Savor / Misc sections
- * using the country/continent-aware link sets from lib/savorExplore.
- *
- * Usage:
- *  <ExploreSavorTabs
- *    city="Tokyo"
- *    countryName="Japan"
- *    countryCode="JP"
- *    show={["explore","savor","misc"]}  // optional; defaults to all three
- *    limit={8}                          // optional; soft cap per section
- *  />
- */
-
 type Category = "explore" | "savor" | "misc";
 
 type Props = {
-  /** Display city name (e.g., "Tokyo" or "Paris, France"). Required. */
   city: string;
-  /** ISO-like country code (e.g., "JP"). Optional but recommended. */
   countryCode?: string;
-  /** Country name (e.g., "Japan"). Optional, used for advisories. */
   countryName?: string;
   /** Which sections to show. Defaults to all three. */
   show?: Category[];
-  /** Soft cap for links per section. Defaults to 6. */
   limit?: number;
-  /** Optional heading shown at top of the panel. */
   heading?: string;
+  /** NEW: force a single mode, e.g. "explore" only */
+  mode?: Category;
 };
 
 export default function ExploreSavorTabs({
@@ -42,16 +24,19 @@ export default function ExploreSavorTabs({
   show = ["explore", "savor", "misc"],
   limit = 6,
   heading,
+  mode,
 }: Props) {
-  // normalize/guard
   const _city = city?.trim() || "Destination";
+
+  // if mode is given, override show with that single category
+  const categories: Category[] = mode ? [mode] : show;
 
   return (
     <section className="estabs">
       {heading && <div className="estabs__heading">{heading}</div>}
 
       <div className="estabs__grid">
-        {show.includes("explore") && (
+        {categories.includes("explore") && (
           <SavorExploreLinks
             category="explore"
             city={_city}
@@ -62,7 +47,7 @@ export default function ExploreSavorTabs({
           />
         )}
 
-        {show.includes("savor") && (
+        {categories.includes("savor") && (
           <SavorExploreLinks
             category="savor"
             city={_city}
@@ -73,7 +58,7 @@ export default function ExploreSavorTabs({
           />
         )}
 
-        {show.includes("misc") && (
+        {categories.includes("misc") && (
           <SavorExploreLinks
             category="misc"
             city={_city}
@@ -100,7 +85,7 @@ export default function ExploreSavorTabs({
         }
         .estabs__grid {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(${categories.length}, minmax(0, 1fr));
           gap: 12px;
         }
 
