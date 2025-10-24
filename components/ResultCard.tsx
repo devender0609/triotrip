@@ -26,6 +26,7 @@ const money = (n: number, ccy: string) => {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: ccy || "USD",
+      maximumFractionDigits: 0,
     }).format(Math.round(n));
   } catch {
     return `$${Math.round(n).toLocaleString()}`;
@@ -47,9 +48,13 @@ type Props = {
   comparedIds?: string[];
   onToggleCompare?: (id: string) => void;
   onSavedChangeGlobal?: (count: number) => void;
+
+  /** Hotel display controls + date context (so we can prefill links) */
   showHotel?: boolean;
   showAllHotels?: boolean;
   hotelNights?: number;
+  hotelCheckIn?: string;
+  hotelCheckOut?: string;
 };
 
 export default function ResultCard({
@@ -63,13 +68,14 @@ export default function ResultCard({
   showHotel,
   showAllHotels = false,
   hotelNights = 0,
+  hotelCheckIn,
+  hotelCheckOut,
 }: Props) {
   const id = pkg.id || `pkg-${index}`;
   const compared = !!comparedIds?.includes(id);
 
   const outSegs: any[] = pkg?.flight?.segments_out || pkg?.flight?.segments || [];
-  const inSegs: any[] =
-    pkg?.flight?.segments_in || pkg?.flight?.segments_return || [];
+  const inSegs: any[] = pkg?.flight?.segments_in || pkg?.flight?.segments_return || [];
 
   const carriers = Array.from(
     new Set(
@@ -97,7 +103,7 @@ export default function ResultCard({
     pkg.flight_total ??
     0;
 
-  // --- Booking links (prefilled) ---
+  // --- Prefilled booking links for flights ---
   const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(
     `${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax || 1} travelers`
   )}`;
@@ -110,14 +116,10 @@ export default function ResultCard({
   const airlineUrl =
     AIRLINE_SITE[airline || ""] ||
     (airline
-      ? `https://www.google.com/search?q=${encodeURIComponent(
-          `${airline} ${from} ${to} ${dateOut}`
-        )}`
-      : `https://www.google.com/search?q=${encodeURIComponent(
-          `airline booking ${from} ${to} ${dateOut}`
-        )}`);
+      ? `https://www.google.com/search?q=${encodeURIComponent(`${airline} ${from} ${to} ${dateOut}`)}`
+      : `https://www.google.com/search?q=${encodeURIComponent(`airline booking ${from} ${to} ${dateOut}`)}`);
 
-  // Save
+  // --- Save button state ---
   const saved = useMemo(() => {
     try {
       return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).includes(id);
@@ -137,18 +139,37 @@ export default function ResultCard({
     } catch {}
   }
 
-  // ----- Hotels -----
-  const hotels: any[] =
-    (Array.isArray(pkg.hotels) && pkg.hotels.length
-      ? pkg.hotels
-      : pkg.hotel
-      ? [pkg.hotel]
-      : []) as any[];
+  // ----- Hotels (price detection & links) -----
+  const hotels: any[] = Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels : pkg.hotel ? [pkg.hotel] : [];
 
-  const nightly = (h: any) =>
-    Number(h?.price_per_night ?? h?.nightly ?? h?.rate ?? NaN);
-  const total = (h: any) =>
-    Number(h?.price_total ?? h?.total ?? NaN);
+  const readNightly = (h: any): number | undefined => {
+    const n =
+      h?.price_per_night ??
+      h?.nightly ??
+      h?.rate ??
+      h?.nightly_price ??
+      h?.night_price ??
+      h?.priceNight ??
+      h?.price_night ??
+      h?.pricePerNight ??
+      h?.amountNight ??
+      h?.amount_night;
+    const v = Number(n);
+    return Number.isFinite(v) ? v : undefined;
+  };
+
+  const readTotal = (h: any): number | undefined => {
+    const t =
+      h?.price_total ??
+      h?.priceTotal ??
+      h?.total ??
+      h?.total_price ??
+      h?.amount ??
+      h?.price ??
+      h?.cost;
+    const v = Number(t);
+    return Number.isFinite(v) ? v : undefined;
+  };
 
   const photo = (h: any, i: number) => {
     const src =
@@ -165,78 +186,72 @@ export default function ResultCard({
   const hotelLinks = (h: any) => {
     const city = h?.city || pkg?.destination || "";
     const q = h?.name ? `${h.name}, ${city}` : city;
+
     const booking = new URL("https://www.booking.com/searchresults.html");
     if (q) booking.searchParams.set("ss", q);
-    if (pkg?.hotelCheckIn) booking.searchParams.set("checkin", pkg.hotelCheckIn);
-    if (pkg?.hotelCheckOut) booking.searchParams.set("checkout", pkg.hotelCheckOut);
+    if (hotelCheckIn) booking.searchParams.set("checkin", hotelCheckIn);
+    if (hotelCheckOut) booking.searchParams.set("checkout", hotelCheckOut);
 
     const exp = new URL("https://www.expedia.com/Hotel-Search");
     if (q) exp.searchParams.set("destination", q);
-    if (pkg?.hotelCheckIn) exp.searchParams.set("startDate", pkg.hotelCheckIn);
-    if (pkg?.hotelCheckOut) exp.searchParams.set("endDate", pkg.hotelCheckOut);
+    if (hotelCheckIn) exp.searchParams.set("startDate", hotelCheckIn);
+    if (hotelCheckOut) exp.searchParams.set("endDate", hotelCheckOut);
 
     const hcx = new URL("https://www.hotels.com/Hotel-Search");
     if (q) hcx.searchParams.set("destination", q);
-    if (pkg?.hotelCheckIn) hcx.searchParams.set("checkIn", pkg.hotelCheckIn);
-    if (pkg?.hotelCheckOut) hcx.searchParams.set("checkOut", pkg.hotelCheckOut);
+    if (hotelCheckIn) hcx.searchParams.set("checkIn", hotelCheckIn);
+    if (hotelCheckOut) hcx.searchParams.set("checkOut", hotelCheckOut);
 
-    const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      q || "hotels"
-    )}`;
+    const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q || "hotels")}`;
     return { booking: booking.toString(), exp: exp.toString(), hcx: hcx.toString(), maps };
   };
 
+  const computePrices = (h: any) => {
+    const nightly = readNightly(h);
+    const total = readTotal(h);
+
+    if (nightly != null && total == null && hotelNights && hotelNights > 0) {
+      return { nightly, total: nightly * hotelNights };
+    }
+    if (total != null && nightly == null && hotelNights && hotelNights > 0) {
+      return { nightly: total / hotelNights, total };
+    }
+    return { nightly, total };
+  };
+
   return (
-    <section
-      onClick={() => onToggleCompare?.(id)}
-      className={`card ${compared ? "card--on" : ""}`}
-    >
+    <section onClick={() => onToggleCompare?.(id)} className={`card ${compared ? "card--on" : ""}`}>
       <header className="hdr">
         <div className="route">
-          <div className="title">
-            Option {index + 1} • {from} — {to}
-          </div>
+          <div className="title">Option {index + 1} • {from} — {to}</div>
           <div className="sub">
-            {dateOut && <>Outbound {dateOut}</>}{" "}
-            {dateRet && <>• Return {dateRet}</>}{" "}
-            {airline && <>• {airline}</>}
+            {dateOut && <>Outbound {dateOut}</>} {dateRet && <>• Return {dateRet}</>} {airline && <>• {airline}</>}
           </div>
         </div>
         <div className="actions">
           <div className="price">💵 {money(Number(price) || 0, currency)}</div>
-          <a className="btn" href={gf} target="_blank" rel="noreferrer">
-            Google Flights
-          </a>
-          <a className="btn" href={sky} target="_blank" rel="noreferrer">
-            Skyscanner
-          </a>
-          <a className="btn" href={airlineUrl} target="_blank" rel="noreferrer">
-            {airline ? "Airline" : "Airlines"}
-          </a>
-          <button className="btn btn--ghost" onClick={toggleSave}>
-            {saved ? "💾 Saved" : "＋ Save"}
-          </button>
+          <a className="btn" href={gf} target="_blank" rel="noreferrer">Google Flights</a>
+          <a className="btn" href={sky} target="_blank" rel="noreferrer">Skyscanner</a>
+          <a className="btn" href={airlineUrl} target="_blank" rel="noreferrer">{airline ? "Airline" : "Airlines"}</a>
+          <button className="btn btn--ghost" onClick={toggleSave}>{saved ? "💾 Saved" : "＋ Save"}</button>
           <button
             className={`btn ${compared ? "btn--on" : ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleCompare?.(id);
-            }}
+            onClick={(e) => { e.stopPropagation(); onToggleCompare?.(id); }}
           >
             {compared ? "🆚 In Compare" : "➕ Compare"}
           </button>
         </div>
       </header>
 
-      {/* (Your existing flight segment layout stays unchanged) */}
+      {/* Your existing flight segments UI remains as-is */}
 
       {showHotel && hotels.length > 0 && (
         <div className="hotels">
           <div className="hotels__title">Hotels</div>
           {hotels.map((h, i) => {
             const { booking, exp, hcx, maps } = hotelLinks(h);
-            const perN = Number.isFinite(nightly(h)) ? nightly(h) : undefined;
-            const tot = Number.isFinite(total(h)) ? total(h) : undefined;
+            const { nightly, total } = computePrices(h);
+
             return (
               <div key={i} className="hotel">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -249,27 +264,21 @@ export default function ResultCard({
                       {h?.name || "Hotel"}
                     </a>
                     <div className="hotel__price">
-                      {perN != null && (
+                      {nightly != null && (
                         <span>
-                          {money(perN, currency)} <span className="muted">/ night</span>
+                          {money(nightly, currency)} <span className="muted">/ night</span>
                         </span>
                       )}
-                      {tot != null && <span className="muted"> • {money(tot, currency)} total</span>}
+                      {total != null && (
+                        <span className="muted"> • {money(total, currency)} total</span>
+                      )}
                     </div>
                   </div>
                   <div className="hotel__links">
-                    <a className="btn" href={booking} target="_blank" rel="noreferrer">
-                      Booking.com
-                    </a>
-                    <a className="btn" href={exp} target="_blank" rel="noreferrer">
-                      Expedia
-                    </a>
-                    <a className="btn" href={hcx} target="_blank" rel="noreferrer">
-                      Hotels
-                    </a>
-                    <a className="btn" href={maps} target="_blank" rel="noreferrer">
-                      Map
-                    </a>
+                    <a className="btn" href={booking} target="_blank" rel="noreferrer">Booking.com</a>
+                    <a className="btn" href={exp} target="_blank" rel="noreferrer">Expedia</a>
+                    <a className="btn" href={hcx} target="_blank" rel="noreferrer">Hotels</a>
+                    <a className="btn" href={maps} target="_blank" rel="noreferrer">Map</a>
                   </div>
                 </div>
               </div>
@@ -286,115 +295,33 @@ export default function ResultCard({
           background: linear-gradient(180deg, #ffffff, #f6fbff);
           box-shadow: 0 8px 20px rgba(2, 6, 23, 0.06);
         }
-        .card--on {
-          border: 2px solid #0ea5e9;
-        }
-        .hdr {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-        .route .title {
-          font-weight: 900;
-          color: #0f172a;
-        }
-        .route .sub {
-          color: #334155;
-          font-weight: 600;
-        }
-        .actions {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          flex-wrap: wrap;
-        }
+        .card--on { border: 2px solid #0ea5e9; }
+        .hdr { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .route .title { font-weight: 900; color: #0f172a; }
+        .route .sub { color: #334155; font-weight: 600; }
+        .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .price {
-          font-weight: 900;
-          color: #0b3b52;
-          background: #e7f5ff;
-          border: 1px solid #cfe3ff;
-          border-radius: 10px;
-          padding: 6px 10px;
+          font-weight: 900; color: #0b3b52;
+          background: #e7f5ff; border: 1px solid #cfe3ff; border-radius: 10px; padding: 6px 10px;
         }
-        .btn {
-          padding: 6px 10px;
-          border-radius: 10px;
-          border: 1px solid #94a3b8;
-          background: #fff;
-          font-weight: 800;
-          color: #0f172a;
-          text-decoration: none;
-          cursor: pointer;
-        }
-        .btn--ghost {
-          background: #f8fafc;
-        }
-        .btn--on {
-          border: 2px solid #0ea5e9;
-          background: #e0f2fe;
-        }
+        .btn { padding: 6px 10px; border-radius: 10px; border: 1px solid #94a3b8; background: #fff; font-weight: 800; color: #0f172a; text-decoration: none; cursor: pointer; }
+        .btn--ghost { background: #f8fafc; }
+        .btn--on { border: 2px solid #0ea5e9; background: #e0f2fe; }
 
-        .hotels {
-          display: grid;
-          gap: 12px;
-          margin-top: 10px;
-        }
-        .hotels__title {
-          font-weight: 800;
-          color: #0f172a;
-        }
+        .hotels { display: grid; gap: 12px; margin-top: 10px; }
+        .hotels__title { font-weight: 800; color: #0f172a; }
         .hotel {
-          display: grid;
-          grid-template-columns: 160px 1fr;
-          gap: 12px;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 10px;
-          background: #fff;
+          display: grid; grid-template-columns: 160px 1fr; gap: 12px;
+          border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: #fff;
         }
-        .hotel__img {
-          border-radius: 10px;
-          overflow: hidden;
-          display: block;
-          background: #f1f5f9;
-        }
-        .hotel__img img {
-          width: 160px;
-          height: 100px;
-          object-fit: cover;
-          display: block;
-        }
-        .hotel__body {
-          display: grid;
-          gap: 6px;
-        }
-        .hotel__head {
-          display: flex;
-          justify-content: space-between;
-          gap: 10px;
-          align-items: center;
-          flex-wrap: wrap;
-        }
-        .hotel__name {
-          font-weight: 800;
-          color: #0f172a;
-          text-decoration: none;
-        }
-        .hotel__price {
-          font-weight: 800;
-          color: #0369a1;
-        }
-        .muted {
-          opacity: 0.7;
-          font-weight: 700;
-        }
-        .hotel__links {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
+        .hotel__img { border-radius: 10px; overflow: hidden; display: block; background: #f1f5f9; }
+        .hotel__img img { width: 160px; height: 100px; object-fit: cover; display: block; }
+        .hotel__body { display: grid; gap: 6px; }
+        .hotel__head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .hotel__name { font-weight: 800; color: #0f172a; text-decoration: none; }
+        .hotel__price { font-weight: 800; color: #0369a1; }
+        .muted { opacity: 0.7; font-weight: 700; }
+        .hotel__links { display: flex; gap: 8px; flex-wrap: wrap; }
       `}</style>
     </section>
   );
