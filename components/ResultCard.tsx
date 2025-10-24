@@ -89,7 +89,7 @@ export default function ResultCard({
   const id = pkg.id || `pkg-${index}`;
   const compared = !!comparedIds?.includes(id);
 
-  // Try both shapes you’ve used
+  // Accept either shape you’ve used
   const outSegs: any[] = pkg?.flight?.segments_out || pkg?.flight?.segments || [];
   const inSegs: any[] = pkg?.flight?.segments_in || pkg?.flight?.segments_return || [];
 
@@ -119,7 +119,7 @@ export default function ResultCard({
     pkg.flight_total ??
     0;
 
-  // --- Prefilled booking links for flights ---
+  // Prefilled booking links for flights (Google Flights / Skyscanner / Airline)
   const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(
     `${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax || 1} travelers`
   )}`;
@@ -135,7 +135,7 @@ export default function ResultCard({
       ? `https://www.google.com/search?q=${encodeURIComponent(`${airline} ${from} ${to} ${dateOut}`)}`
       : `https://www.google.com/search?q=${encodeURIComponent(`airline booking ${from} ${to} ${dateOut}`)}`);
 
-  // --- Save button state ---
+  // Saved state
   const saved = useMemo(() => {
     try {
       return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).includes(id);
@@ -235,7 +235,7 @@ export default function ResultCard({
     return { nightly, total };
   };
 
-  /* ------- Flight leg renderer (row + layovers) ------- */
+  /* ------- Flight leg renderer (rows + layovers between segments) ------- */
   const LegRows: React.FC<{ segs: any[] }> = ({ segs }) => {
     if (!segs?.length) return null;
     const rows: React.ReactNode[] = [];
@@ -261,7 +261,7 @@ export default function ResultCard({
           <div className="leg-right">{dur}</div>
         </div>
       );
-      // layover (between this arrival and next departure)
+      // layover chip (between this arrival and next departure)
       const next = segs[i + 1];
       if (next) {
         const lay = mins(arr, next?.depart_time);
@@ -304,7 +304,7 @@ export default function ResultCard({
         </div>
       </header>
 
-      {/* Outbound */}
+      {/* Outbound box */}
       {outSegs?.length > 0 && (
         <div className="leg">
           <div className="leg-title">Outbound</div>
@@ -312,7 +312,7 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* Return */}
+      {/* Return box */}
       {inSegs?.length > 0 && (
         <div className="leg">
           <div className="leg-title">Return</div>
@@ -320,7 +320,7 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* Hotels */}
+      {/* Hotels (unchanged except for price/nightly display) */}
       {showHotel && hotels.length > 0 && (
         <div className="hotels">
           <div className="hotels__title">Hotels (top options)</div>
@@ -384,6 +384,7 @@ export default function ResultCard({
         .btn--ghost { background: #f8fafc; }
         .btn--on { border: 2px solid #0ea5e9; background: #e0f2fe; }
 
+        /* Outbound / Return boxes */
         .leg { margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
         .leg-title { font-weight: 900; color: #0b3b52; margin-bottom: 6px; }
         .leg-row {
@@ -398,6 +399,7 @@ export default function ResultCard({
         .leg-times { color: #334155; font-weight: 700; }
         .leg-right { font-weight: 900; color: #0f172a; }
 
+        /* Elegant layover chip between segments */
         .layover {
           display: inline-flex; align-items: center; gap: 6px;
           border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
@@ -407,6 +409,7 @@ export default function ResultCard({
         .dot { opacity: .8; }
         .lo-dur { opacity: .8; margin-left: 4px; }
 
+        /* Hotels (unchanged) */
         .hotels { display: grid; gap: 12px; margin-top: 12px; }
         .hotels__title { font-weight: 800; color: #0f172a; }
         .hotel {
