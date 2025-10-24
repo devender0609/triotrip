@@ -78,9 +78,7 @@ export default function Page() {
       if (cur) setCurrency(cur);
     } catch {}
     const handler = (e: any) =>
-      setCurrency(
-        e?.detail || localStorage.getItem("triptrio:currency") || "USD"
-      );
+      setCurrency(e?.detail || localStorage.getItem("triptrio:currency") || "USD");
     window.addEventListener("triptrio:currency", handler);
     return () => window.removeEventListener("triptrio:currency", handler);
   }, []);
@@ -98,9 +96,7 @@ export default function Page() {
 
   /** Sorting & tabs */
   const [sort, setSort] = useState<SortKey>("best");
-  const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">(
-    "flightOnly"
-  );
+  const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">("flightOnly");
   const [listTab, setListTab] = useState<ListTab>("all");
   const [subTab, setSubTab] = useState<SubTab>("explore");
   const [showControls, setShowControls] = useState(false);
@@ -138,8 +134,7 @@ export default function Page() {
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
-      if (!origin || !destination)
-        throw new Error("Please select origin and destination.");
+      if (!origin || !destination) throw new Error("Please select origin and destination.");
       if (!departDate) throw new Error("Please pick a departure date.");
       if (roundTrip && !returnDate) throw new Error("Please pick a return date.");
 
@@ -158,10 +153,8 @@ export default function Page() {
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
-        minBudget:
-          includeHotel && minBudget ? Number(minBudget) : undefined,
-        maxBudget:
-          includeHotel && maxBudget ? Number(maxBudget) : undefined,
+        minBudget: includeHotel && minBudget ? Number(minBudget) : undefined,
+        maxBudget: includeHotel && maxBudget ? Number(maxBudget) : undefined,
         currency,
         maxStops,
       };
@@ -205,28 +198,22 @@ export default function Page() {
       9e15;
 
     const bundleTotal = (p: any) =>
-      num(p.total_cost) ??
-      (num(p.flight_total) ?? flightPrice(p)) + (num(p.hotel_total) ?? 0);
+      num(p.total_cost) ?? (num(p.flight_total) ?? flightPrice(p)) + (num(p.hotel_total) ?? 0);
 
     const outDur = (p: any) => {
       const segs = p.flight?.segments_out || p.flight?.segments || [];
-      const sum = segs.reduce(
-        (t: number, s: any) => t + (Number(s?.duration_minutes) || 0),
-        0
-      );
+      const sum = segs.reduce((t: number, s: any) => t + (Number(s?.duration_minutes) || 0), 0);
       return Number.isFinite(sum) ? sum : 9e9;
     };
 
-    const basis = (p: any) =>
-      sortBasis === "bundle" ? bundleTotal(p) : flightPrice(p);
+    const basis = (p: any) => (sortBasis === "bundle" ? bundleTotal(p) : flightPrice(p));
 
     if (sort === "cheapest") items.sort((a, b) => basis(a)! - basis(b)!);
     else if (sort === "fastest") items.sort((a, b) => outDur(a)! - outDur(b)!);
     else if (sort === "flexible")
       items.sort(
         (a, b) =>
-          (a.flight?.refundable ? 0 : 1) - (b.flight?.refundable ? 0 : 1) ||
-          basis(a)! - basis(b)!
+          (a.flight?.refundable ? 0 : 1) - (b.flight?.refundable ? 0 : 1) || basis(a)! - basis(b)!
       );
     else items.sort((a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!);
 
@@ -234,17 +221,12 @@ export default function Page() {
   }, [results, sort, sortBasis]);
 
   /** List slice: Top-3 vs All (All is unlimited) */
-  const top3 = useMemo(
-    () => (sortedResults ? sortedResults.slice(0, 3) : null),
-    [sortedResults]
-  );
+  const top3 = useMemo(() => (sortedResults ? sortedResults.slice(0, 3) : null), [sortedResults]);
   const shown = (listTab === "all" ? sortedResults : top3) || [];
 
   /** Compare selections */
   function toggleCompare(id: string) {
-    setComparedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setComparedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   /** Styles */
@@ -473,9 +455,7 @@ export default function Page() {
             <select
               style={sInput}
               value={maxStops}
-              onChange={(e) =>
-                setMaxStops(Number(e.target.value) as 0 | 1 | 2)
-              }
+              onChange={(e) => setMaxStops(Number(e.target.value) as 0 | 1 | 2)}
             >
               <option value={0}>Nonstop</option>
               <option value={1}>1 stop</option>
@@ -601,9 +581,7 @@ export default function Page() {
                   style={{
                     padding: "8px 12px",
                     borderRadius: 10,
-                    border: `1px solid ${
-                      sortBasis === "flightOnly" ? "#60a5fa" : "#e2e8f0"
-                    }`,
+                    border: `1px solid ${sortBasis === "flightOnly" ? "#60a5fa" : "#e2e8f0"}`,
                   }}
                 >
                   Flight only
@@ -614,9 +592,7 @@ export default function Page() {
                   style={{
                     padding: "8px 12px",
                     borderRadius: 10,
-                    border: `1px solid ${
-                      sortBasis === "bundle" ? "#60a5fa" : "#e2e8f0"
-                    }`,
+                    border: `1px solid ${sortBasis === "bundle" ? "#60a5fa" : "#e2e8f0"}`,
                   }}
                 >
                   Bundle total
@@ -640,22 +616,13 @@ export default function Page() {
               fontWeight: 700,
             }}
           >
-            <button
-              className={`subtab ${subTab === "explore" ? "on" : ""}`}
-              onClick={() => setSubTab("explore")}
-            >
+            <button className={`subtab ${subTab === "explore" ? "on" : ""}`} onClick={() => setSubTab("explore")}>
               Explore
             </button>
-            <button
-              className={`subtab ${subTab === "savor" ? "on" : ""}`}
-              onClick={() => setSubTab("savor")}
-            >
+            <button className={`subtab ${subTab === "savor" ? "on" : ""}`} onClick={() => setSubTab("savor")}>
               Savor
             </button>
-            <button
-              className={`subtab ${subTab === "misc" ? "on" : ""}`}
-              onClick={() => setSubTab("misc")}
-            >
+            <button className={`subtab ${subTab === "misc" ? "on" : ""}`} onClick={() => setSubTab("misc")}>
               Miscellaneous
             </button>
             <style jsx>{`
@@ -684,12 +651,8 @@ export default function Page() {
           >
             <ExploreSavorTabs
               city={destCity || "Destination"}
+              // originCountry / destCountry can be wired here if you have ISO codes from inputs
               mode={subTab}
-              heading={`${subTab === "explore"
-                ? "Explore"
-                : subTab === "savor"
-                ? "Savor"
-                : "Miscellaneous"} — ${destCity || "Destination"}`}
             />
           </div>
         </>
@@ -698,43 +661,25 @@ export default function Page() {
       {/* ===== SORT & VIEW CHIPS (only after search) ===== */}
       {showControls && (
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <button
-            className={`chip ${sort === "best" ? "on" : ""}`}
-            onClick={() => setSort("best")}
-          >
+          <button className={`chip ${sort === "best" ? "on" : ""}`} onClick={() => setSort("best")}>
             Best
           </button>
-          <button
-            className={`chip ${sort === "cheapest" ? "on" : ""}`}
-            onClick={() => setSort("cheapest")}
-          >
+          <button className={`chip ${sort === "cheapest" ? "on" : ""}`} onClick={() => setSort("cheapest")}>
             Cheapest
           </button>
-          <button
-            className={`chip ${sort === "fastest" ? "on" : ""}`}
-            onClick={() => setSort("fastest")}
-          >
+          <button className={`chip ${sort === "fastest" ? "on" : ""}`} onClick={() => setSort("fastest")}>
             Fastest
           </button>
-          <button
-            className={`chip ${sort === "flexible" ? "on" : ""}`}
-            onClick={() => setSort("flexible")}
-          >
+          <button className={`chip ${sort === "flexible" ? "on" : ""}`} onClick={() => setSort("flexible")}>
             Flexible
           </button>
 
           <span style={{ marginLeft: 8 }} />
 
-          <button
-            className={`chip ${listTab === "top3" ? "on" : ""}`}
-            onClick={() => setListTab("top3")}
-          >
+          <button className={`chip ${listTab === "top3" ? "on" : ""}`} onClick={() => setListTab("top3")}>
             Top-3
           </button>
-          <button
-            className={`chip ${listTab === "all" ? "on" : ""}`}
-            onClick={() => setListTab("all")}
-          >
+          <button className={`chip ${listTab === "all" ? "on" : ""}`} onClick={() => setListTab("all")}>
             All
           </button>
 
@@ -798,14 +743,10 @@ export default function Page() {
       {/* ===== COMPARE (supports unlimited) ===== */}
       {comparedIds.length >= 2 && (
         <ComparePanel
-          items={(shown || []).filter((r: any) =>
-            comparedIds.includes(String(r.id || ""))
-          )}
+          items={(shown || []).filter((r: any) => comparedIds.includes(String(r.id || "")))}
           currency={currency}
           onClose={() => setComparedIds([])}
-          onRemove={(id) =>
-            setComparedIds((prev) => prev.filter((x) => x !== id))
-          }
+          onRemove={(id) => setComparedIds((prev) => prev.filter((x) => x !== id))}
         />
       )}
     </div>
