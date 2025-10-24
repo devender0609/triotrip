@@ -1,231 +1,291 @@
-/* -------- Root & base -------- */
+/* ================================
+   app/globals.css  (full file)
+   ================================ */
+
+/* --- Basic reset (minimal, safe) --- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+html, body { padding: 0; margin: 0; height: 100%; }
+img, video { max-width: 100%; height: auto; display: block; }
+
+/* ================================
+   Design tokens (popular defaults)
+   ================================ */
 :root{
-  --bg: #f7fafc;
-  --card: #ffffff;
-  --ink: #0f172a;
-  --muted:#475569;
-  --ring:#cbd5e1;
-  --ring-strong:#94a3b8;
-  --primary:#2563eb;
-  --success:#10b981;
-  --warning:#f59e0b;
-  --danger:#ef4444;
+  /* Brand */
+  --c-primary: #0ea5e9; /* Sky-500 */
+  --c-accent:  #06b6d4; /* Cyan-500 */
 
-  /* gradients for tabs/chips */
-  --g-blue: linear-gradient(90deg,#60a5fa 0%,#34d399 100%);
-  --g-amber: linear-gradient(90deg,#fbbf24 0%,#f472b6 100%);
-  --g-purple: linear-gradient(90deg,#a78bfa 0%,#22d3ee 100%);
-  --g-slate: linear-gradient(90deg,#cbd5e1 0%,#94a3b8 100%);
+  /* Neutrals */
+  --c-ink-strong: #0f172a; /* Slate-900 */
+  --c-ink-subtle: #475569; /* Slate-600 */
+  --c-line: #e2e8f0;       /* Slate-200 */
+  --c-card: #ffffff;
+  --c-page: #f8fafc;
+
+  /* Semantic */
+  --c-success: #10b981; /* Emerald-500 */
+  --c-warn:    #f59e0b; /* Amber-500 */
+  --c-danger:  #ef4444; /* Red-500 */
+  --c-info:    #6366f1; /* Indigo-500 */
+
+  /* Effects */
+  --shadow-soft: 0 10px 30px rgba(2, 8, 23, 0.06);
+  --ring: rgba(14,165,233,.35);
+
+  /* Components */
+  --chip-on: linear-gradient(90deg, var(--c-accent), var(--c-primary));
+  --chip-off: #ffffff;
+
+  /* Radii / sizes */
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 10px;
+
+  --h-input: 44px;
+  --fs-body: 16px;
+
+  /* New: gradient palettes per tab */
+  --grad-explore: linear-gradient(90deg, #22c55e, #0ea5e9);  /* green -> sky */
+  --grad-savor:   linear-gradient(90deg, #f97316, #ef4444);  /* orange -> red */
+  --grad-misc:    linear-gradient(90deg, #a855f7, #6366f1);  /* purple -> indigo */
+  --grad-compare: linear-gradient(90deg, #f59e0b, #f97316);  /* amber -> orange */
 }
 
-html,body{
-  background: var(--bg);
-  color: var(--ink);
+body{
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(14,165,233,.10) 0%, rgba(224,242,254,0) 60%),
+    radial-gradient(1000px 500px at 120% 10%, rgba(6,182,212,.08) 0%, rgba(207,250,254,0) 60%),
+    var(--c-page);
+  color: var(--c-ink-strong);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.45;
+  font-size: var(--fs-body);
 }
 
-/* -------- Utilities -------- */
-.badge{
-  padding:.25rem .5rem;
-  font-weight:600;
-  border-radius:999px;
-  border:1px solid var(--ring);
-  background:#fff;
-  display:inline-flex; align-items:center; gap:.4rem;
+/* ================================
+   Links & focus
+   ================================ */
+a { color: inherit; text-decoration: none; }
+a:hover { opacity: .9; }
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }
-.badge.money{
-  background:#f8fafc;
-  border-color:#dbeafe;
-}
-.icon{display:inline-flex;align-items:center;}
 
-/* gradient chips for top filters / tabs (Best, Cheapest, Flexible, Explore, Savor…) */
+/* ================================
+   Inputs / buttons
+   ================================ */
+input, select, button, textarea{ font: inherit; color: var(--c-ink-strong); }
+
+input[type="text"], input[type="date"], input[type="search"], input[type="number"],
+select, textarea {
+  background: #fff; border: 1px solid var(--c-line); color: var(--c-ink-strong);
+  border-radius: var(--r-md); padding: 12px 14px; outline: none; height: var(--h-input);
+}
+
+input[type="text"]:focus, input[type="date"]:focus, input[type="search"]:focus,
+input[type="number"]:focus, select:focus, textarea:focus {
+  border-color: #7dd3fc; box-shadow: 0 0 0 3px var(--ring);
+}
+
+button {
+  border: 1px solid var(--c-line); background: #fff; color: var(--c-ink-strong);
+  border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; font-weight: 700;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
+button:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Hide number spinners */
+.no-spin::-webkit-outer-spin-button,
+.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.no-spin { -moz-appearance: textfield; }
+
+/* Stepper (Adults/Children/Infants) */
+.stepper{ display: inline-flex; align-items: center; gap: 6px; }
+.stepper input{
+  width: 70px; text-align: center; font-weight: 600; height: 46px;
+  border-radius: var(--r-md); border: 1px solid var(--c-line); background: #fff; padding: 0 14px;
+}
+.stepper button{ height: 46px; width: 42px; border-radius: var(--r-sm); }
+.stepper button:hover{ transform: translateY(-1px); background: #f8fafc; border-color: #dce7f5; }
+
+/* ================================
+   Layout containers
+   ================================ */
+.container, .main-wrap { max-width: 1240px; margin: 0 auto; width: 100%; }
+
+/* ================================
+   Header: logo + actions (Saved, Login, Currency)
+   ================================ */
+.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; }
+.logo-link { display: inline-flex; align-items: center; gap: 8px; font-weight: 900; }
+.logo-link:hover { opacity: .9; }
+.nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nav-pill, .currency-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #fff; border: 1px solid var(--c-line); color: var(--c-ink-strong);
+  padding: 8px 12px; border-radius: 999px; font-weight: 700;
+}
+.nav-pill:hover, .currency-pill:hover { background: #f8fafc; }
+.nav-pill--active, .currency-pill--active { background: var(--chip-on); color: #fff; border: none; }
+
+/* flag (emoji or small img) next to code */
+.currency-flag { font-size: 16px; line-height: 1; }
+
+/* ================================
+   Cards / panels
+   ================================ */
+.card{
+  background: var(--c-card);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  padding: 16px; margin: 14px 0;
+  box-shadow: var(--shadow-soft);
+}
+
+/* Results card (list items) */
+.result-card{
+  background: linear-gradient(180deg, #ffffff, #f6fbff);
+  border: 1px solid var(--c-line);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 8px 20px rgba(2,6,23,.06);
+}
+.result-card--compared{ border-width: 2px; border-color: var(--c-primary); }
+
+/* Booking/Action pills inside cards */
+.book-link {
+  display: inline-block; padding: 8px 12px; border: 1px solid var(--c-line); border-radius: 10px;
+  background: #fff; text-decoration: none; font-weight: 700; color: var(--c-ink-strong);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.book-link:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
+.book-link--booking { border-color: #2563eb22; }
+.book-link--expedia { border-color: #0ea5e922; }
+.book-link--hotels  { border-color: #22c55e22; }
+.book-link--maps    { border-color: #f59e0b22; }
+
+/* Layover badge (elegant) */
+.layover-badge{
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
+  background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
+}
+
+/* ================================
+   Toolbar & Tabs (Explore | Savor | Misc)
+   ================================ */
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Base tab */
+.tab {
+  border: 1px solid var(--c-line);
+  background: #fff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--c-ink-strong);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.tab:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
+
+/* Active state uses per-tab gradients */
+.tab--active { color: #fff; border: none; }
+.tabs .tab:nth-child(1).tab--active { background: var(--grad-explore); }
+.tabs .tab:nth-child(2).tab--active { background: var(--grad-savor); }
+.tabs .tab:nth-child(3).tab--active { background: var(--grad-misc); }
+.tabs .tab:nth-child(4).tab--active { background: var(--grad-compare); }
+
+/* Optional: via data-kind attr if you use it */
+.tab[data-kind="explore"].tab--active { background: var(--grad-explore); }
+.tab[data-kind="savor"].tab--active   { background: var(--grad-savor); }
+.tab[data-kind="misc"].tab--active    { background: var(--grad-misc); }
+.tab[data-kind="compare"].tab--active { background: var(--grad-compare); }
+
+/* Sort / View chips (Best, Cheapest, Top-3, All, Print) */
+.chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .chip{
-  --grad: var(--g-blue);
-  background: var(--grad);
-  color:#0b1220;
-  border:none;
-  padding:.45rem .85rem;
-  border-radius:999px;
-  font-weight:700;
-  box-shadow: 0 1px 0 rgba(0,0,0,.03), inset 0 0 0 1px rgba(255,255,255,.35);
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--chip-off);
+  border: 1px solid var(--c-line);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
-.chip.blue{--grad:var(--g-blue)}
-.chip.amber{--grad:var(--g-amber)}
-.chip.purple{--grad:var(--g-purple)}
-.chip.slate{--grad:var(--g-slate)}
-.chip.outline{
-  background:#fff;
-  color:var(--ink);
-  border:1px solid var(--ring);
-  box-shadow:none;
+.chip:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
+.chip--on {
+  background: var(--chip-on);
+  color: #fff;
+  border: none;
 }
 
-/* -------- Package / Result Card -------- */
-.pkg{
-  background:var(--card);
-  border:1px solid var(--ring);
-  border-radius:16px;
-  box-shadow: 0 6px 18px -10px rgba(2,6,23,.25);
-  overflow:hidden;
-  margin:16px 0;
+/* ================================
+   Explore / Savor / Misc content panel
+   ================================ */
+.places-panel {
+  background: #fff; border: 1px solid var(--c-line); border-radius: var(--r-lg);
+  padding: 18px; margin-top: 12px; box-shadow: var(--shadow-soft);
+}
+.subtle-h { font-weight: 900; color: #0b3b52; margin-bottom: 12px; }
+
+/* Roomier grid + cards to avoid cramped look */
+.places-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.place-card {
+  border: 1px solid var(--c-line); border-radius: 14px; padding: 14px; background: #fff;
+  box-shadow: 0 10px 24px rgba(2,132,199,.06);
+}
+.place-title { font-weight: 900; color: var(--c-ink-strong); margin-bottom: 8px; }
+.place-links {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;
+}
+.place-link {
+  display: inline-block; padding: 8px 12px; border: 1px solid var(--c-line); border-radius: 12px;
+  background: #fff; text-decoration: none; font-weight: 800; color: var(--c-ink-strong);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  white-space: nowrap;
+}
+.place-link:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
+
+/* ================================
+   Messages (errors / warnings)
+   ================================ */
+.msg {
+  margin-top: 12px; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--c-line); background: #fff;
+}
+.msg--error { border-color: #fecaca; background: #fff1f2; color: #7f1d1d; }
+.msg--warn  { border-color: #fde68a; background: #fffbeb; color: #7c2d12; }
+
+/* ================================
+   Compare tray (sticky, scrollable)
+   ================================ */
+.compare-tray {
+  position: sticky; bottom: 10px; z-index: 40;
+  border: 1px solid var(--c-line); background: #ffffff;
+  border-radius: 14px; padding: 10px; box-shadow: var(--shadow-soft);
+}
+.compare-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 1fr);
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
 }
 
-/* header line with price + vendor buttons */
-.pkg-header{
-  display:flex; flex-wrap:wrap; gap:.5rem;
-  align-items:center; justify-content:flex-start;
-  padding:12px 14px;
-  border-bottom:1px solid var(--ring);
-  background: linear-gradient(180deg,#fff 0%,#f8fafc 100%);
+/* ================================
+   Print helpers
+   ================================ */
+@media print {
+  .toolbar, .tabs, .chips, .chip, .book-link, .compare-tray { display: none !important; }
+  body { background: #fff; }
+  .result-card { box-shadow: none; border-color: #cbd5e1; }
 }
-.pkg-title{
-  font-weight:800; letter-spacing:.2px; margin-right:auto;
-}
-.pkg-meta{
-  color:var(--muted); font-weight:600;
-}
-
-/* >>>> IMPORTANT: make sure body is visible by default */
-.pkg-body{ display:block; }
-.pkg[data-collapsed="true"] .pkg-body{ display:none; }
-
-/* flight + hotel sections inside the card */
-.pkg-sections{
-  display:flex; flex-direction:column; gap:14px;
-  padding:14px;
-}
-
-/* Flight block */
-.flight-block{
-  background: #f8fbff;
-  border:1px solid #dbeafe;
-  border-radius:14px;
-  padding:12px;
-}
-
-.flight-row{
-  display:flex; align-items:center; gap:12px;
-  justify-content:space-between;
-  padding:8px 4px;
-  border-bottom:1px dashed #e2e8f0;
-}
-.flight-row:last-child{ border-bottom:none; }
-
-.flight-side{
-  display:flex; align-items:center; gap:12px;
-  flex-wrap:wrap;
-}
-.flight-airline{
-  font-weight:700; color:#0b1220;
-}
-.flight-route{
-  font-weight:800;
-}
-.flight-time{
-  color:var(--muted); font-weight:600; white-space:nowrap;
-}
-.flight-duration{
-  min-width:64px; text-align:right; color:var(--muted); font-weight:700;
-}
-
-/* Layover chip */
-.layover{
-  display:inline-flex; align-items:center; gap:.5rem;
-  font-weight:700;
-  padding:.35rem .65rem;
-  border-radius:999px;
-  border:1px dashed #cbd5e1;
-  background:#fff;
-  color:#0b1220;
-}
-
-/* Hotel block */
-.hotel-block{
-  background:#fffdfa;
-  border:1px solid #fde68a;
-  border-radius:14px;
-  padding:10px;
-}
-.hotel-item{
-  display:flex; align-items:center; gap:14px;
-  padding:10px 4px;
-  border-bottom:1px dashed #f1f5f9;
-}
-.hotel-item:last-child{ border-bottom:none; }
-.hotel-thumb{
-  width:96px; height:72px; object-fit:cover; border-radius:10px;
-  border:1px solid var(--ring);
-}
-.hotel-title{ font-weight:800; }
-.hotel-meta{ color:var(--muted); font-weight:600; }
-.hotel-ctas{
-  margin-left:auto; display:flex; gap:.5rem; flex-wrap:wrap;
-}
-.hotel-ctas .btn{
-  border:1px solid var(--ring-strong);
-  background:#fff;
-  border-radius:999px;
-  padding:.45rem .75rem;
-  font-weight:700;
-}
-.btn.primary{
-  background:var(--g-purple);
-  border:none;
-}
-
-/* Buttons in header (Google Flights, Skyscanner, Airline, Save, Compare) */
-.vendor-btn{
-  background:#fff;
-  border:1px solid var(--ring);
-  border-radius:999px;
-  padding:.45rem .8rem;
-  font-weight:800;
-}
-.vendor-btn:hover{ border-color:var(--ring-strong); }
-
-/* “Outbound / Return” section titles */
-.section-title{
-  font-weight:900;
-  letter-spacing:.25px;
-  color:#0b1220;
-  margin:6px 0 4px;
-}
-
-/* Compare tray badge (when active) */
-.in-compare{
-  background:#fff7ed;
-  border:1px solid #fdba74;
-}
-
-/* ------- Explore / Savor / Misc link panels ------- */
-.topic-board{
-  display:grid; gap:16px;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-}
-@media (min-width: 900px){
-  .topic-board{ grid-template-columns: repeat(4,minmax(0,1fr)); }
-}
-.topic-card{
-  background:#fff;
-  border:1px solid var(--ring);
-  border-radius:16px;
-  padding:14px;
-  box-shadow: 0 8px 24px -16px rgba(2,6,23,.25);
-}
-.topic-card h4{
-  margin:0 0 10px; font-weight:900;
-}
-.topic-links{
-  display:flex; flex-wrap:wrap; gap:8px;
-}
-.topic-links a{
-  background:#fff; border:1px solid var(--ring);
-  padding:.4rem .7rem; border-radius:999px; font-weight:700;
-}
-.topic-links a:hover{ border-color:var(--ring-strong); }
-
-/* ------- Minor helpers ------- */
-.mt-8{ margin-top: 8px; }
-.mt-12{ margin-top: 12px; }
-.gap-8{ gap: 8px; }
-
