@@ -10,7 +10,7 @@ import ExploreSavorTabs from "../components/ExploreSavorTabs";
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
 type TabKey = "top3" | "all";
-type SubTab = "explore" | "savor" | "misc" | "compare";
+type SubTab = "explore" | "savor" | "misc"; // removed the 'compare' nav tab
 
 const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
   .toISOString().slice(0, 10);
@@ -315,18 +315,16 @@ export default function Page() {
             <button className={`subtab ${activeSubTab==="explore"?"on":""}`} onClick={()=>setActiveSubTab("explore")}>Explore</button>
             <button className={`subtab ${activeSubTab==="savor"?"on":""}`}   onClick={()=>setActiveSubTab("savor")}>Savor</button>
             <button className={`subtab ${activeSubTab==="misc"?"on":""}`}    onClick={()=>setActiveSubTab("misc")}>Miscellaneous</button>
-            <button className={`subtab ${activeSubTab==="compare"?"on":""}`} onClick={()=>setActiveSubTab("compare")}>Compare</button>
             <style jsx>{`
               .subtab{padding:8px 12px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;cursor:pointer}
               .subtab.on{background:linear-gradient(90deg,#06b6d4,#0ea5e9);color:#fff;border:none}
             `}</style>
           </div>
 
-          {activeSubTab !== "compare" && (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff", padding: 12 }}>
-              <ExploreSavorTabs city={cityFromDisplay(destDisplay) || "Destination"} />
-            </div>
-          )}
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff", padding: 12 }}>
+            {/* Show *only* the active panel */}
+            <ExploreSavorTabs city={cityFromDisplay(destDisplay) || "Destination"} mode={activeSubTab} />
+          </div>
         </>
       )}
 
@@ -351,7 +349,7 @@ export default function Page() {
       {error && <div style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#7f1d1d", padding:10, borderRadius:10 }}>⚠ {error}</div>}
 
       {/* Results */}
-      {shown.length>0 && (
+      {(shown?.length ?? 0) > 0 && (
         <div style={{ display:"grid", gap: 10 }}>
           {shown.map((pkg, i) => (
             <ResultCard
@@ -361,7 +359,7 @@ export default function Page() {
               currency={currency}
               pax={adults + children + infants}
               showHotel={includeHotel}
-              hotelNights={hotelNights}
+              hotelNights={includeHotel ? nightsBetween(hotelCheckIn, hotelCheckOut) : 0}
               showAllHotels={activeTab === "all"}
               comparedIds={comparedIds}
               onToggleCompare={(id)=>toggleCompare(id)}
@@ -371,10 +369,10 @@ export default function Page() {
         </div>
       )}
 
-      {/* Compare tray (no hint text) */}
+      {/* Compare tray (only tray; no duplicate nav tab) */}
       {comparedIds.length >= 2 && (
         <ComparePanel
-          items={shown.filter((r: any) => comparedIds.includes(String(r.id || "")))}
+          items={(shown || []).filter((r: any) => comparedIds.includes(String(r.id || "")))}
           currency={currency}
           onClose={() => setComparedIds([])}
           onRemove={(id) => setComparedIds(prev => prev.filter(x => x !== id))}
