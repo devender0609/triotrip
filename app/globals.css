@@ -45,6 +45,12 @@ img, video { max-width: 100%; height: auto; display: block; }
 
   --h-input: 44px;
   --fs-body: 16px;
+
+  /* New: gradient palettes per tab */
+  --grad-explore: linear-gradient(90deg, #22c55e, #0ea5e9);  /* green -> sky */
+  --grad-savor:   linear-gradient(90deg, #f97316, #ef4444);  /* orange -> red */
+  --grad-misc:    linear-gradient(90deg, #a855f7, #6366f1);  /* purple -> indigo */
+  --grad-compare: linear-gradient(90deg, #f59e0b, #f97316);  /* amber -> orange */
 }
 
 body{
@@ -87,7 +93,9 @@ input[type="number"]:focus, select:focus, textarea:focus {
 button {
   border: 1px solid var(--c-line); background: #fff; color: var(--c-ink-strong);
   border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; font-weight: 700;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
+button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
 button:disabled { opacity: .6; cursor: not-allowed; }
 
 /* Hide number spinners */
@@ -152,8 +160,9 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .book-link {
   display: inline-block; padding: 8px 12px; border: 1px solid var(--c-line); border-radius: 10px;
   background: #fff; text-decoration: none; font-weight: 700; color: var(--c-ink-strong);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
-.book-link:hover { background: #f8fafc; }
+.book-link:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
 .book-link--booking { border-color: #2563eb22; }
 .book-link--expedia { border-color: #0ea5e922; }
 .book-link--hotels  { border-color: #22c55e22; }
@@ -170,15 +179,34 @@ button:disabled { opacity: .6; cursor: not-allowed; }
    Toolbar & Tabs (Explore | Savor | Misc)
    ================================ */
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
-.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; }
 
+/* Base tab */
 .tab {
-  border: 1px solid var(--c-line); background: #fff;
-  padding: 10px 12px; border-radius: 999px; cursor: pointer; font-weight: 700; color: var(--c-ink-strong);
+  border: 1px solid var(--c-line);
+  background: #fff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--c-ink-strong);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
-.tab:hover { background: #f8fafc; }
-.tab--active { background: var(--chip-on); color: #fff; border: none; }
-.tab--compare { border-color: #fde68a; background: linear-gradient(180deg,#ffffff,#fff7ed); }
+.tab:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
+
+/* Active state uses per-tab gradients
+   (works automatically by position: Explore, Savor, Misc, Compare) */
+.tab--active { color: #fff; border: none; }
+.tabs .tab:nth-child(1).tab--active { background: var(--grad-explore); }
+.tabs .tab:nth-child(2).tab--active { background: var(--grad-savor); }
+.tabs .tab:nth-child(3).tab--active { background: var(--grad-misc); }
+.tabs .tab:nth-child(4).tab--active { background: var(--grad-compare); }
+
+/* Optional: if components set data-kind, this also works */
+.tab[data-kind="explore"].tab--active { background: var(--grad-explore); }
+.tab[data-kind="savor"].tab--active   { background: var(--grad-savor); }
+.tab[data-kind="misc"].tab--active    { background: var(--grad-misc); }
+.tab[data-kind="compare"].tab--active { background: var(--grad-compare); }
 
 /* Sort / View chips (Best, Cheapest, Top-3, All, Print) */
 .chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -189,8 +217,9 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   border: 1px solid var(--c-line);
   font-weight: 700;
   cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
-.chip:hover { background: #f8fafc; }
+.chip:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
 .chip--on {
   background: var(--chip-on);
   color: #fff;
@@ -201,24 +230,31 @@ button:disabled { opacity: .6; cursor: not-allowed; }
    Explore / Savor / Misc content panel
    ================================ */
 .places-panel {
-  background: #fff; border: 1px solid var(--c-line); border-radius: var(--r-lg); padding: 16px; margin-top: 12px;
+  background: #fff; border: 1px solid var(--c-line); border-radius: var(--r-lg);
+  padding: 18px; margin-top: 12px; box-shadow: var(--shadow-soft);
 }
-.subtle-h { font-weight: 900; color: #0b3b52; margin-bottom: 10px; }
+.subtle-h { font-weight: 900; color: #0b3b52; margin-bottom: 12px; }
+
+/* Roomier grid + cards to avoid cramped look */
 .places-grid {
-  display: grid; gap: 12px;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 .place-card {
-  border: 1px solid var(--c-line); border-radius: 12px; padding: 12px; background: #fff;
-  box-shadow: 0 6px 16px rgba(2,132,199,.06);
+  border: 1px solid var(--c-line); border-radius: 14px; padding: 14px; background: #fff;
+  box-shadow: 0 10px 24px rgba(2,132,199,.06);
 }
-.place-title { font-weight: 800; color: var(--c-ink-strong); margin-bottom: 4px; }
-.place-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.place-title { font-weight: 900; color: var(--c-ink-strong); margin-bottom: 8px; }
+.place-links {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;
+}
 .place-link {
-  display: inline-block; padding: 6px 10px; border: 1px solid var(--c-line); border-radius: 10px;
-  background: #fff; text-decoration: none; font-weight: 700; color: var(--c-ink-strong);
+  display: inline-block; padding: 8px 12px; border: 1px solid var(--c-line); border-radius: 12px;
+  background: #fff; text-decoration: none; font-weight: 800; color: var(--c-ink-strong);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  white-space: nowrap;
 }
-.place-link:hover { background: #f8fafc; }
+.place-link:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
 
 /* ================================
    Messages (errors / warnings)
