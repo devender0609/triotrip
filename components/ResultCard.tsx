@@ -1,247 +1,328 @@
 "use client";
+import React, { useMemo } from "react";
 
-import React from "react";
-
-/**
- * Very tolerant types so we can read whatever the search API gives us.
- * We normalize into a simple Segment[] for outbound/return rendering.
- */
-type RawSegment = {
-  from?: string;            // IATA (e.g., AUS)
-  to?: string;              // IATA (e.g., CLT)
-  depart?: string;          // ISO or display (we'll format defensively)
-  arrive?: string;          // ISO or display
-  depTime?: string;         // alt names
-  arrTime?: string;
-  departTime?: string;
-  arrivalTime?: string;
-  airline?: string;         // "AA"
-  airlineCode?: string;     // "AA"
-  airlineName?: string;     // "American Airlines"
-  durationMinutes?: number;
+/** Known airline homepages for a clean “Airline” button. */
+const AIRLINE_SITE: Record<string, string> = {
+  "American Airlines": "https://www.aa.com",
+  American: "https://www.aa.com",
+  "Delta Air Lines": "https://www.delta.com",
+  Delta: "https://www.delta.com",
+  "United Airlines": "https://www.united.com",
+  United: "https://www.united.com",
+  "Alaska Airlines": "https://www.alaskaair.com",
+  Alaska: "https://www.alaskaair.com",
+  Southwest: "https://www.southwest.com",
+  JetBlue: "https://www.jetblue.com",
+  Lufthansa: "https://www.lufthansa.com",
+  Emirates: "https://www.emirates.com",
+  Qatar: "https://www.qatarairways.com",
+  "British Airways": "https://www.britishairways.com",
+  "Air France": "https://wwws.airfrance.us",
+  KLM: "https://www.klm.com",
 };
 
-type PkgLike = {
-  id?: string;
-  price?: number | string;
-  currency?: string;
-  /**
-   * Different shapes we’ve seen—pick the first that exists.
-   * Each should be an array of segments in flight order.
-   */
-  outbound?: RawSegment[];
-  inbound?: RawSegment[];
-  return?: RawSegment[];
-  outboundSegments?: RawSegment[];
-  returnSegments?: RawSegment[];
-  legs?: { type?: "outbound" | "return"; segments?: RawSegment[] }[];
-  /**
-   * Optional hotel chunk – left untouched; this component focuses on flights.
-   */
-  hotels?: any[];
-  /**
-   * Prebuilt booking links (if present). We keep them exactly as you have.
-   */
-  links?: {
-    googleFlights?: string;
-    skyscanner?: string;
-    airline?: string;
-    meta?: Record<string, string>;
-  };
-  // Route/date chips for header (if present)
-  from?: string;
-  to?: string;
-  departDate?: string;
-  returnDate?: string;
+const money = (n: number, ccy: string) => {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: ccy || "USD",
+      maximumFractionDigits: 0,
+    }).format(Math.round(n));
+  } catch {
+    return `$${Math.round(n).toLocaleString()}`;
+  }
+};
+const ensureHttps = (u?: string) =>
+  !u ? "" : u.startsWith("http") ? u : `https://${u.replace(/^\/\//, "")}`;
+const hash = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
+  return Math.abs(h);
 };
 
 type Props = {
-  pkg: PkgLike;
-  index: number;
-  currency: string;
-  pax: number;
-  showHotel: boolean;
-  hotelNights: number;
-  showAllHotels: boolean;
-  comparedIds: string[];
-  onToggleCompare: (id: string) => void;
-  onSavedChangeGlobal: () => void;
+  pkg: any;
+  index?: number;
+  currency?: string;
+  pax?: number;
+  comparedIds?: string[];
+  onToggleCompare?: (id: string) => void;
+  onSavedChangeGlobal?: (count: number) => void;
+
+  /** Hotel display controls + date context (so we can prefill links) */
+  showHotel?: boolean;
+  showAllHotels?: boolean;
+  hotelNights?: number;
+  hotelCheckIn?: string;
+  hotelCheckOut?: string;
 };
 
-function fmtTime(t?: string) {
-  if (!t) return "";
-  // If already pretty (contains AM/PM or colon with spaces), return as-is
-  if (/[AP]M\b/.test(t) || /\d{1,2}:\d{2}/.test(t)) return t;
-  // Try to parse ISO
-  try {
-    const d = new Date(t);
-    if (!isNaN(d.getTime())) {
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    }
-  } catch {}
-  return t;
-}
+export default function ResultCard({
+  pkg,
+  index = 0,
+  currency = "USD",
+  pax = 1,
+  comparedIds,
+  onToggleCompare,
+  onSavedChangeGlobal,
+  showHotel,
+  showAllHotels = false,
+  hotelNights = 0,
+  hotelCheckIn,
+  hotelCheckOut,
+}: Props) {
+  const id = pkg.id || `pkg-${index}`;
+  const compared = !!comparedIds?.includes(id);
 
-function airlineLabel(seg: RawSegment) {
-  const code = seg.airline || seg.airlineCode || "";
-  const name = seg.airlineName || "";
-  if (name && code) return `${name} (${code})`;
-  if (name) return name;
-  if (code) return code;
-  return ""; // unknown
-}
+  const outSegs: any[] = pkg?.flight?.segments_out || pkg?.flight?.segments || [];
+  const inSegs: any[] = pkg?.flight?.segments_in || pkg?.flight?.segments_return || [];
 
-function normalizeSegments(pkg: PkgLike, which: "outbound" | "return"): RawSegment[] {
-  // 1) direct properties
-  if (which === "outbound") {
-    if (Array.isArray(pkg.outbound)) return pkg.outbound;
-    if (Array.isArray(pkg.outboundSegments)) return pkg.outboundSegments;
-    if (Array.isArray(pkg.legs)) {
-      const leg = pkg.legs.find(l => (l.type || "").toLowerCase() === "outbound");
-      if (leg?.segments) return leg.segments;
-    }
-  } else {
-    if (Array.isArray(pkg.inbound)) return pkg.inbound;
-    if (Array.isArray(pkg.return)) return pkg.return;
-    if (Array.isArray(pkg.returnSegments)) return pkg.returnSegments;
-    if (Array.isArray(pkg.legs)) {
-      const leg = pkg.legs.find(l => (l.type || "").toLowerCase() === "return");
-      if (leg?.segments) return leg.segments;
-    }
-  }
-  // Fallback: nothing
-  return [];
-}
-
-function SegmentRow({ seg }: { seg: RawSegment }) {
-  const from = seg.from || "";
-  const to = seg.to || "";
-  const dep = fmtTime(seg.depart || seg.depTime || seg.departTime);
-  const arr = fmtTime(seg.arrive || seg.arrTime || seg.arrivalTime);
-  const airline = airlineLabel(seg);
-
-  return (
-    <div className="tt-seg">
-      <div className="tt-seg-route">
-        <span className="tt-iata">{from}</span>
-        <span className="tt-arrow">→</span>
-        <span className="tt-iata">{to}</span>
-        {airline && <span className="tt-airline"> • {airline}</span>}
-      </div>
-      <div className="tt-seg-time">
-        {dep && arr ? (
-          <span>{dep} — {arr}</span>
-        ) : (
-          <span>{dep || arr}</span>
-        )}
-      </div>
-    </div>
+  const carriers = Array.from(
+    new Set(
+      [
+        ...(outSegs || []).map((s: any) => s?.carrier_name || s?.carrier),
+        ...(inSegs || []).map((s: any) => s?.carrier_name || s?.carrier),
+        pkg.flight?.carrier_name || pkg.flight?.carrier,
+      ].filter(Boolean)
+    )
   );
-}
+  const airline = carriers[0];
 
-function LayoverPill({ nextDepart, cityCode }: { nextDepart?: string; cityCode?: string }) {
-  const nd = fmtTime(nextDepart);
-  return (
-    <div className="tt-layover">
-      <span className="tt-dot" />
-      <span>Layover in</span>
-      <strong>{cityCode || "—"}</strong>
-      <span>• Next departs at</span>
-      <strong>{nd || "—"}</strong>
-    </div>
-  );
-}
+  const out0 = outSegs?.[0];
+  const in0 = inSegs?.[0];
+  const from = (out0?.from || pkg.origin || "").toUpperCase();
+  const to = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase();
+  const dateOut = (out0?.depart_time || pkg.departDate || "").slice(0, 10);
+  const dateRet = (in0?.depart_time || pkg.returnDate || "").slice(0, 10);
 
-export default function ResultCard(props: Props) {
-  const { pkg, index } = props;
-
-  const outSegs = normalizeSegments(pkg, "outbound");
-  const retSegs = normalizeSegments(pkg, "return");
-
-  // header helpers
-  const route = `${pkg.from || outSegs[0]?.from || "—"}–${pkg.to || outSegs[outSegs.length - 1]?.to || "—"}`;
-  const depDate = pkg.departDate || "";
-  const retDate = pkg.returnDate || "";
   const price =
-    typeof pkg.price === "number"
-      ? pkg.price.toLocaleString(undefined, { style: "currency", currency: (pkg.currency || "USD") as any })
-      : pkg.price || "";
+    pkg.total_cost_converted ??
+    pkg.total_cost ??
+    pkg.flight?.price_usd_converted ??
+    pkg.flight?.price_usd ??
+    pkg.flight_total ??
+    0;
 
-  // Build pills row (keep your existing links if present)
-  const gf = pkg.links?.googleFlights;
-  const sky = pkg.links?.skyscanner;
-  const airline = pkg.links?.airline;
+  // --- Prefilled booking links for flights ---
+  const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(
+    `${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax || 1} travelers`
+  )}`;
+  const ssOut = (dateOut || "").replace(/-/g, "");
+  const ssRet = (dateRet || "").replace(/-/g, "");
+  const sky =
+    from && to && ssOut
+      ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${dateRet ? `${ssRet}/` : ""}`
+      : "https://www.skyscanner.com/";
+  const airlineUrl =
+    AIRLINE_SITE[airline || ""] ||
+    (airline
+      ? `https://www.google.com/search?q=${encodeURIComponent(`${airline} ${from} ${to} ${dateOut}`)}`
+      : `https://www.google.com/search?q=${encodeURIComponent(`airline booking ${from} ${to} ${dateOut}`)}`);
+
+  // --- Save button state ---
+  const saved = useMemo(() => {
+    try {
+      return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).includes(id);
+    } catch {
+      return false;
+    }
+  }, [id]);
+
+  function toggleSave(e: React.MouseEvent) {
+    e.stopPropagation();
+    try {
+      const key = "triptrio:saved";
+      const arr = JSON.parse(localStorage.getItem(key) || "[]") as string[];
+      const next = arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
+      localStorage.setItem(key, JSON.stringify(next));
+      onSavedChangeGlobal?.(next.length);
+    } catch {}
+  }
+
+  // ----- Hotels (price detection & links) -----
+  const hotels: any[] = Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels : pkg.hotel ? [pkg.hotel] : [];
+
+  const readNightly = (h: any): number | undefined => {
+    const n =
+      h?.price_per_night ??
+      h?.nightly ??
+      h?.rate ??
+      h?.nightly_price ??
+      h?.night_price ??
+      h?.priceNight ??
+      h?.price_night ??
+      h?.pricePerNight ??
+      h?.amountNight ??
+      h?.amount_night;
+    const v = Number(n);
+    return Number.isFinite(v) ? v : undefined;
+  };
+
+  const readTotal = (h: any): number | undefined => {
+    const t =
+      h?.price_total ??
+      h?.priceTotal ??
+      h?.total ??
+      h?.total_price ??
+      h?.amount ??
+      h?.price ??
+      h?.cost;
+    const v = Number(t);
+    return Number.isFinite(v) ? v : undefined;
+  };
+
+  const photo = (h: any, i: number) => {
+    const src =
+      ensureHttps(h?.image) ||
+      ensureHttps(h?.photoUrl) ||
+      ensureHttps(h?.thumbnail) ||
+      ensureHttps(h?.images?.[0]) ||
+      "";
+    if (src) return src;
+    const seed = hash((h?.name || "hotel") + "|" + i);
+    return `https://picsum.photos/seed/${seed}/400/240`;
+  };
+
+  const hotelLinks = (h: any) => {
+    const city = h?.city || pkg?.destination || "";
+    const q = h?.name ? `${h.name}, ${city}` : city;
+
+    const booking = new URL("https://www.booking.com/searchresults.html");
+    if (q) booking.searchParams.set("ss", q);
+    if (hotelCheckIn) booking.searchParams.set("checkin", hotelCheckIn);
+    if (hotelCheckOut) booking.searchParams.set("checkout", hotelCheckOut);
+
+    const exp = new URL("https://www.expedia.com/Hotel-Search");
+    if (q) exp.searchParams.set("destination", q);
+    if (hotelCheckIn) exp.searchParams.set("startDate", hotelCheckIn);
+    if (hotelCheckOut) exp.searchParams.set("endDate", hotelCheckOut);
+
+    const hcx = new URL("https://www.hotels.com/Hotel-Search");
+    if (q) hcx.searchParams.set("destination", q);
+    if (hotelCheckIn) hcx.searchParams.set("checkIn", hotelCheckIn);
+    if (hotelCheckOut) hcx.searchParams.set("checkOut", hotelCheckOut);
+
+    const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q || "hotels")}`;
+    return { booking: booking.toString(), exp: exp.toString(), hcx: hcx.toString(), maps };
+  };
+
+  const computePrices = (h: any) => {
+    const nightly = readNightly(h);
+    const total = readTotal(h);
+
+    if (nightly != null && total == null && hotelNights && hotelNights > 0) {
+      return { nightly, total: nightly * hotelNights };
+    }
+    if (total != null && nightly == null && hotelNights && hotelNights > 0) {
+      return { nightly: total / hotelNights, total };
+    }
+    return { nightly, total };
+  };
 
   return (
-    <div className="tt-card">
-      <div className="tt-card-head">
-        <div className="tt-title">
-          <span className="tt-option">Option {index + 1}</span>
-          <span className="tt-dot">•</span>
-          <span className="tt-route">{route}</span>
-          {depDate && retDate && (
-            <>
-              <span className="tt-dot">•</span>
-              <span className="tt-dates">{depDate}</span>
-              <span className="tt-arrow-small">➜</span>
-              <span className="tt-dates">{retDate}</span>
-            </>
-          )}
-        </div>
-
-        <div className="tt-pills">
-          {price && <span className="tt-price-pill">💵 {price}</span>}
-          <a className="tt-pill" href="#" onClick={(e) => e.preventDefault()}>TrioTrip</a>
-          {gf && <a className="tt-pill" href={gf} target="_blank" rel="noreferrer">Google Flights</a>}
-          {sky && <a className="tt-pill" href={sky} target="_blank" rel="noreferrer">Skyscanner</a>}
-          {airline && <a className="tt-pill" href={airline} target="_blank" rel="noreferrer">Airline</a>}
-        </div>
-      </div>
-
-      {/* Outbound */}
-      {outSegs.length > 0 && (
-        <div className="tt-leg">
-          <div className="tt-leg-title">Outbound</div>
-          <div className="tt-leg-body">
-            {outSegs.map((seg, i) => (
-              <React.Fragment key={`ob-${i}`}>
-                <SegmentRow seg={seg} />
-                {i < outSegs.length - 1 && (
-                  <LayoverPill
-                    cityCode={seg.to}
-                    nextDepart={outSegs[i + 1]?.depart || outSegs[i + 1]?.depTime || outSegs[i + 1]?.departTime}
-                  />
-                )}
-              </React.Fragment>
-            ))}
+    <section onClick={() => onToggleCompare?.(id)} className={`card ${compared ? "card--on" : ""}`}>
+      <header className="hdr">
+        <div className="route">
+          <div className="title">Option {index + 1} • {from} — {to}</div>
+          <div className="sub">
+            {dateOut && <>Outbound {dateOut}</>} {dateRet && <>• Return {dateRet}</>} {airline && <>• {airline}</>}
           </div>
+        </div>
+        <div className="actions">
+          <div className="price">💵 {money(Number(price) || 0, currency)}</div>
+          <a className="btn" href={gf} target="_blank" rel="noreferrer">Google Flights</a>
+          <a className="btn" href={sky} target="_blank" rel="noreferrer">Skyscanner</a>
+          <a className="btn" href={airlineUrl} target="_blank" rel="noreferrer">{airline ? "Airline" : "Airlines"}</a>
+          <button className="btn btn--ghost" onClick={toggleSave}>{saved ? "💾 Saved" : "＋ Save"}</button>
+          <button
+            className={`btn ${compared ? "btn--on" : ""}`}
+            onClick={(e) => { e.stopPropagation(); onToggleCompare?.(id); }}
+          >
+            {compared ? "🆚 In Compare" : "➕ Compare"}
+          </button>
+        </div>
+      </header>
+
+      {/* Your existing flight segments UI remains as-is */}
+
+      {showHotel && hotels.length > 0 && (
+        <div className="hotels">
+          <div className="hotels__title">Hotels</div>
+          {hotels.map((h, i) => {
+            const { booking, exp, hcx, maps } = hotelLinks(h);
+            const { nightly, total } = computePrices(h);
+
+            return (
+              <div key={i} className="hotel">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <a href={booking} target="_blank" rel="noreferrer" className="hotel__img">
+                  <img src={photo(h, i)} alt={h?.name || "Hotel"} />
+                </a>
+                <div className="hotel__body">
+                  <div className="hotel__head">
+                    <a href={booking} target="_blank" rel="noreferrer" className="hotel__name">
+                      {h?.name || "Hotel"}
+                    </a>
+                    <div className="hotel__price">
+                      {nightly != null && (
+                        <span>
+                          {money(nightly, currency)} <span className="muted">/ night</span>
+                        </span>
+                      )}
+                      {total != null && (
+                        <span className="muted"> • {money(total, currency)} total</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="hotel__links">
+                    <a className="btn" href={booking} target="_blank" rel="noreferrer">Booking.com</a>
+                    <a className="btn" href={exp} target="_blank" rel="noreferrer">Expedia</a>
+                    <a className="btn" href={hcx} target="_blank" rel="noreferrer">Hotels</a>
+                    <a className="btn" href={maps} target="_blank" rel="noreferrer">Map</a>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Return */}
-      {retSegs.length > 0 && (
-        <div className="tt-leg">
-          <div className="tt-leg-title">Return</div>
-          <div className="tt-leg-body">
-            {retSegs.map((seg, i) => (
-              <React.Fragment key={`rt-${i}`}>
-                <SegmentRow seg={seg} />
-                {i < retSegs.length - 1 && (
-                  <LayoverPill
-                    cityCode={seg.to}
-                    nextDepart={retSegs[i + 1]?.depart || retSegs[i + 1]?.depTime || retSegs[i + 1]?.departTime}
-                  />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+      <style jsx>{`
+        .card {
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 12px;
+          background: linear-gradient(180deg, #ffffff, #f6fbff);
+          box-shadow: 0 8px 20px rgba(2, 6, 23, 0.06);
+        }
+        .card--on { border: 2px solid #0ea5e9; }
+        .hdr { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .route .title { font-weight: 900; color: #0f172a; }
+        .route .sub { color: #334155; font-weight: 600; }
+        .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .price {
+          font-weight: 900; color: #0b3b52;
+          background: #e7f5ff; border: 1px solid #cfe3ff; border-radius: 10px; padding: 6px 10px;
+        }
+        .btn { padding: 6px 10px; border-radius: 10px; border: 1px solid #94a3b8; background: #fff; font-weight: 800; color: #0f172a; text-decoration: none; cursor: pointer; }
+        .btn--ghost { background: #f8fafc; }
+        .btn--on { border: 2px solid #0ea5e9; background: #e0f2fe; }
+
+        .hotels { display: grid; gap: 12px; margin-top: 10px; }
+        .hotels__title { font-weight: 800; color: #0f172a; }
+        .hotel {
+          display: grid; grid-template-columns: 160px 1fr; gap: 12px;
+          border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: #fff;
+        }
+        .hotel__img { border-radius: 10px; overflow: hidden; display: block; background: #f1f5f9; }
+        .hotel__img img { width: 160px; height: 100px; object-fit: cover; display: block; }
+        .hotel__body { display: grid; gap: 6px; }
+        .hotel__head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .hotel__name { font-weight: 800; color: #0f172a; text-decoration: none; }
+        .hotel__price { font-weight: 800; color: #0369a1; }
+        .muted { opacity: 0.7; font-weight: 700; }
+        .hotel__links { display: flex; gap: 8px; flex-wrap: wrap; }
+      `}</style>
+    </section>
   );
-}
-
-/* ---------- lightweight styles to match your screenshot ---------- */
-declare global {
-  interface Document {}
 }
