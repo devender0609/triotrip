@@ -116,7 +116,7 @@ export default function Header() {
           padding-right: 6px; cursor: pointer;
         }
         .currency-select:focus { outline: none; }
-      `}</style>
+      </style>
     </header>
   );
 }
