@@ -5,7 +5,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import ComparePanel from "../components/ComparePanel";
-import ExploreSavorTabs from "../components/ExploreSavorTabs";
+// use alias path to avoid relative import issues
+import ExploreSavorTabs from "@/components/ExploreSavorTabs";
 
 /** ===== Types ===== */
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
@@ -710,10 +711,8 @@ export default function Page() {
             >
               <ExploreSavorTabs
                 city={destCity || "Destination"}
-                // for intl detection in ExploreSavorTabs (set these if you have them)
-                originCountry={undefined}
-                destCountry={undefined}
                 active={subTab}
+                // isInternational can be provided by ExploreSavorTabs’ own detection or left undefined here
               />
             </div>
           )}
