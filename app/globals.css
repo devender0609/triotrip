@@ -1,250 +1,146 @@
-/* ============================
-   app/globals.css  (light theme)
-   ============================ */
+/* ================================
+   app/globals.css  (full file)
+   ================================ */
 
-/* Tailwind (leave if you use it; remove if not) */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* ---- CSS reset (safe, minimal) ---- */
+/* --- Basic reset (minimal, safe) --- */
 *,
 *::before,
-*::after {
-  box-sizing: border-box;
-}
-html, body {
-  margin: 0;
-  padding: 0;
+*::after { box-sizing: border-box; }
+html, body { padding: 0; margin: 0; height: 100%; }
+img, video { max-width: 100%; height: auto; display: block; }
+
+/* ================================
+   Design tokens (popular defaults)
+   ================================ */
+:root{
+  /* Brand */
+  --c-primary: #0ea5e9; /* Sky-500 */
+  --c-accent:  #06b6d4; /* Cyan-500 */
+
+  /* Neutrals */
+  --c-ink-strong: #0f172a; /* Slate-900 */
+  --c-ink-subtle: #475569; /* Slate-600 */
+  --c-line: #e2e8f0;       /* Slate-200 */
+  --c-card: #ffffff;
+  --c-page: #f8fafc;
+
+  /* Semantic */
+  --c-success: #10b981; /* Emerald-500 */
+  --c-warn:    #f59e0b; /* Amber-500 */
+  --c-danger:  #ef4444; /* Red-500 */
+  --c-info:    #6366f1; /* Indigo-500 */
+
+  /* Effects */
+  --shadow-soft: 0 10px 30px rgba(2, 8, 23, 0.06);
+  --ring: rgba(14,165,233,.35);
+
+  /* Components */
+  --chip-on: linear-gradient(90deg, var(--c-accent), var(--c-primary));
+  --chip-off: #ffffff;
+
+  /* Radii / sizes */
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 10px;
+
+  --h-input: 44px;
+  --fs-body: 16px;
+
+  /* New: gradient palettes per tab */
+  --grad-explore: linear-gradient(90deg, #22c55e, #0ea5e9);  /* green -> sky */
+  --grad-savor:   linear-gradient(90deg, #f97316, #ef4444);  /* orange -> red */
+  --grad-misc:    linear-gradient(90deg, #a855f7, #6366f1);  /* purple -> indigo */
+  --grad-compare: linear-gradient(90deg, #f59e0b, #f97316);  /* amber -> orange */
 }
 
-/* ---- Light background + default text ---- */
-:root {
-  --page-bg: #ffffff;          /* keep site light */
-  --page-fg: #0f172a;          /* slate-900-ish for good contrast */
-  --muted-fg: #475569;         /* slate-600 */
-  --border: rgba(0,0,0,0.08);
-  --card-bg: #ffffff;
-  --chip-bg: #ffffff;
+body{
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(14,165,233,.10) 0%, rgba(224,242,254,0) 60%),
+    radial-gradient(1000px 500px at 120% 10%, rgba(6,182,212,.08) 0%, rgba(207,250,254,0) 60%),
+    var(--c-page);
+  color: var(--c-ink-strong);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.45;
+  font-size: var(--fs-body);
 }
 
-html, body {
-  background: var(--page-bg) !important;
-  color: var(--page-fg);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-               Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
-               "Noto Color Emoji", sans-serif;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Links & focus */
+a { color: inherit; text-decoration: none; }
+a:hover { opacity: .9; }
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }
 
-/* Neutralize any dark/gradient wrappers that might have been added earlier */
-#root, #__next,
-.app, .site, .page, main, .content, .container,
-.gradient-page-bg, .page-gradient, .bg-page, .bg-app {
-  background: transparent !important;
+/* Inputs / buttons */
+input, select, button, textarea{ font: inherit; color: var(--c-ink-strong); }
+input[type="text"], input[type="date"], input[type="search"], input[type="number"],
+select, textarea {
+  background: #fff; border: 1px solid var(--c-line); color: var(--c-ink-strong);
+  border-radius: var(--r-md); padding: 12px 14px; outline: none; height: var(--h-input);
 }
-
-/* ---- Links (keep elegant, no harsh underlines) ---- */
-a {
-  color: inherit;
-  text-decoration: none; /* prevents stray underlines on logo / top nav */
-}
-a:hover {
-  text-decoration: underline;  /* subtle affordance on hover */
-  text-underline-offset: 2px;
-}
-
-/* ---- Utility chips/pills (used around header/actions) ---- */
-.pill,
-.tt-link-pill,
-.tt-price-pill,
-.tt-compare-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--chip-bg);
-  border: 1px solid var(--border);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* Compare active state */
-.tt-compare-pill.is-in {
-  background: #fff7e6;
-  border-color: #ffd591;
-}
-
-/* ---- Result card container (kept light & subtle) ---- */
-.result-card,
-.result-card.fancy-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-  margin-bottom: 16px;
-}
-
-/* Header row inside result cards */
-.tt-result-head {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-.tt-route-title {
-  font-weight: 700;
-}
-.tt-head-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-/* ---- Flights two-box layout (Outbound / Return) ---- */
-.tt-flight-section {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 12px;
-  align-items: start;
-  padding: 10px;
-  border-radius: 12px;
-  background: #f8fafc; /* very light slate */
-  border: 1px solid var(--border);
-}
-.tt-flight-box {
-  border: 1px solid var(--border);
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 12px;
-  min-height: 120px;
-}
-.tt-flight-box-title {
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-.tt-layover-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.tt-layover-chip {
-  border: 1px dashed rgba(0,0,0,0.2);
-  background: #ffffff;
-  border-radius: 999px;
-  padding: 6px 12px;
-  box-shadow: inset 0 0 0 2px rgba(0,0,0,0.02);
-  white-space: nowrap;
-}
-
-/* Single leg row */
-.tt-leg-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px dashed rgba(0,0,0,0.06);
-}
-.tt-leg-row:last-child {
-  border-bottom: none;
-}
-.tt-leg-route {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.tt-leg-time {
-  color: var(--muted-fg);
-}
-.tt-leg-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* ---- Hotels block ---- */
-.tt-hotels {
-  margin-top: 12px;
-}
-.tt-hotels-title {
-  font-weight: 700;
-  margin: 8px 4px 10px;
-}
-.tt-hotels-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.tt-hotel-item {
-  display: grid;
-  grid-template-columns: 128px 1fr auto;
-  gap: 12px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 10px;
-}
-.tt-hotel-thumb img {
-  width: 128px;
-  height: 88px;
-  object-fit: cover;
-  border-radius: 10px;
-}
-.tt-hotel-name {
-  font-weight: 700;
-}
-.tt-hotel-city {
-  color: var(--muted-fg);
-  margin-top: 4px;
-}
-.tt-hotel-links {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-/* ---- Empty state text ---- */
-.tt-empty {
-  color: var(--muted-fg);
-  padding: 6px 0;
-}
-
-/* ---- Header (top bar) tidy underlines & spacing without changing layout) ---- */
-.tt-header a,
-header a.brand,
-header nav a {
-  text-decoration: none;
-}
-header nav {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-/* ---- Optional: colorful gradient tabs (light, not dark) ---- */
-.tab-gradient {
-  background: linear-gradient(135deg, #fef3c7 0%, #e0f2fe 50%, #ede9fe 100%);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-weight: 600;
-}
-.tab-gradient[aria-current="true"] {
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
-}
-
-/* Keep forms tidy without altering your layout */
-input, select, button {
-  font: inherit;
+input[type="text"]:focus, input[type="date"]:focus, input[type="search"]:focus,
+input[type="number"]:focus, select:focus, textarea:focus {
+  border-color: #7dd3fc; box-shadow: 0 0 0 3px var(--ring);
 }
 button {
-  cursor: pointer;
+  border: 1px solid var(--c-line); background: #fff; color: var(--c-ink-strong);
+  border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; font-weight: 700;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
+button:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Hide number spinners */
+.no-spin::-webkit-outer-spin-button,
+.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.no-spin { -moz-appearance: textfield; }
+
+/* Stepper */
+.stepper{ display: inline-flex; align-items: center; gap: 6px; }
+.stepper input{
+  width: 70px; text-align: center; font-weight: 600; height: 46px;
+  border-radius: var(--r-md); border: 1px solid var(--c-line); background: #fff; padding: 0 14px;
+}
+.stepper button{ height: 46px; width: 42px; border-radius: var(--r-sm); }
+.stepper button:hover{ transform: translateY(-1px); background: #f8fafc; border-color: #dce7f5; }
+
+/* Containers */
+.container, .main-wrap { max-width: 1240px; margin: 0 auto; width: 100%; }
+
+/* Simple cards & result list base (used by ResultCard) */
+.card{
+  background: var(--c-card);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  padding: 16px; margin: 14px 0;
+  box-shadow: var(--shadow-soft);
+}
+.result-card{
+  background: linear-gradient(180deg, #ffffff, #f6fbff);
+  border: 1px solid var(--c-line);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 8px 20px rgba(2,6,23,.06);
+}
+.result-card--compared{ border-width: 2px; border-color: var(--c-primary); }
+
+/* Layover chip (theme token) */
+.layover-badge{
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
+  background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
+}
+
+/* Tabs/chips colors (unchanged behaviour, just tokens) */
+.tab { border: 1px solid var(--c-line); background: #fff; padding: 10px 14px; border-radius: 999px; font-weight: 800; }
+.tab--active { color: #fff; border: none; }
+.chip { padding: 8px 12px; border-radius: 999px; background: var(--chip-off); border: 1px solid var(--c-line); font-weight: 700; }
+.chip--on { background: var(--chip-on); color: #fff; border: none; }
+
+/* Print helpers */
+@media print {
+  .tab, .chip, .compare-tray { display: none !important; }
+  body { background: #fff; }
+  .result-card { box-shadow: none; border-color: #cbd5e1; }
 }
