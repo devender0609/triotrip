@@ -1,13 +1,10 @@
-"use client";
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 
 type Props = {
   pkg: any;
   index: number;
-  // props page.tsx passes — keep for compatibility
-  currency?: string;
-  pax?: number;
-
+  pax: number;
   showHotel: boolean;
   hotelNights: number;
   showAllHotels: boolean;
@@ -16,341 +13,296 @@ type Props = {
   onSavedChangeGlobal: () => void;
 };
 
-const fmtTime = (v?: string | number | Date) => {
+// ---------- small format helpers (defensive) ----------
+const fmtTime = (v: any) => {
   if (!v) return "";
-  const d = typeof v === "string" || typeof v === "number" ? new Date(v) : v;
-  if (isNaN(d.getTime())) return String(v);
-  const hh = d.getHours() % 12 || 12;
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  const am = d.getHours() < 12 ? "AM" : "PM";
-  return `${hh}:${mm} ${am}`;
+  const d = typeof v === "string" ? new Date(v) : v;
+  if (Number.isNaN(d?.getTime?.())) return String(v);
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const hh = ((h + 11) % 12) + 1;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const mm = m.toString().padStart(2, "0");
+  return `${hh}:${mm} ${ampm}`;
 };
 
-const fmtDur = (mins?: number) => {
+const minsToText = (mins?: number) => {
   if (!mins && mins !== 0) return "";
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  if (h && m) return `${h}h ${m}m`;
-  if (h) return `${h}h`;
-  return `${m}m`;
+  if (!h) return `${m}m`;
+  if (!m) return `${h}h`;
+  return `${h}h ${m}m`;
 };
 
-function getSegments(pkg: any, which: "outbound" | "return" | "inbound"): any[] {
-  const paths: (string | string[])[] = [
-    `${which}Segments`,
-    which === "return" ? "returnSegments" : "",
-    [which, "segments"],
-    [which === "return" ? "inbound" : which, "segments"],
-    ["segments", which],
-    ["itinerary", which, "segments"],
-    ["trip", which, "segments"],
-    ["legs", which],
-  ].filter(Boolean) as (string | string[])[];
+const guessCode = (a: any) =>
+  a?.code || a?.iata || a?.iataCode || a?.airportCode || a?.cityCode || a || "";
 
-  for (const p of paths) {
-    const val = Array.isArray(p) ? p.reduce((a: any, k) => (a ? a[k] : undefined), pkg) : pkg?.[p];
-    if (Array.isArray(val) && val.length) return val;
-  }
-  if (pkg?.origin && pkg?.dest && (pkg?.depart || pkg?.departure)) {
-    return [
-      {
-        origin: pkg.origin,
-        dest: pkg.dest,
-        depart: pkg.depart ?? pkg.departure,
-        arrive: pkg.arrive ?? pkg.arrival,
-        durationMin: pkg.durationMin ?? pkg.durationMinutes,
-      },
-    ];
-  }
-  return [];
-}
-
-type Seg = {
-  origin?: string;
-  dest?: string;
-  depart?: string | number | Date;
-  arrival?: string | number | Date;
-  arrive?: string | number | Date;
-  durationMin?: number;
-  durationMinutes?: number;
-  carrier?: string;
+const airlineName = (codeOrName?: string) => {
+  if (!codeOrName) return "";
+  // If upstream already gives full name, return it; otherwise leave code.
+  if (codeOrName.length > 3) return codeOrName;
+  return codeOrName; // keep code (AA, DL, UA...) to avoid wrong mappings
 };
 
-const LayoverPill: React.FC<{ at?: string; nextDepart?: string | number | Date }> = ({
-  at,
-  nextDepart,
-}) => {
-  if (!at && !nextDepart) return null;
+// Try to normalize a single leg/segment into a canonical shape
+const normLeg = (seg: any) => {
+  const depTime =
+    seg?.departTimeLocal || seg?.departTime || seg?.departureTime || seg?.departAt;
+  const arrTime =
+    seg?.arriveTimeLocal || seg?.arriveTime || seg?.arrivalTime || seg?.arriveAt;
+  const dep = seg?.depart || seg?.from || seg?.origin || {};
+  const arr = seg?.arrive || seg?.to || seg?.destination || {};
+  const depCode = guessCode(dep);
+  const arrCode = guessCode(arr);
+  const dur =
+    seg?.durationMinutes ||
+    seg?.durationMin ||
+    seg?.duration ||
+    (typeof seg?.minutes === "number" ? seg.minutes : undefined);
+
+  return {
+    airline: airlineName(seg?.airlineName || seg?.carrierName || seg?.airline || seg?.carrier),
+    depCode,
+    arrCode,
+    depTime,
+    arrTime,
+    durationMin: typeof dur === "number" ? dur : undefined,
+  };
+};
+
+// Find legs for outbound/return despite different shapes
+const extractLegs = (pkg: any) => {
+  // Most permissive sources
+  const flights = pkg?.flights || pkg?.itinerary || pkg?.itin || {};
+
+  const outRaw =
+    flights?.outbound ||
+    flights?.out ||
+    pkg?.outbound ||
+    pkg?.out ||
+    (Array.isArray(pkg?.segments)
+      ? pkg.segments.filter((s: any) => (s?.dir || s?.direction || "").toLowerCase() === "outbound")
+      : []);
+  const retRaw =
+    flights?.return ||
+    flights?.inbound ||
+    pkg?.return ||
+    pkg?.inbound ||
+    (Array.isArray(pkg?.segments)
+      ? pkg.segments.filter((s: any) => (s?.dir || s?.direction || "").toLowerCase() === "return")
+      : []);
+
+  // If provider already split into legs arrays
+  const normalizeArray = (arr: any) =>
+    (Array.isArray(arr) ? arr : []).map(normLeg).filter((x) => x.depCode && x.arrCode);
+
+  let outbound = normalizeArray(outRaw);
+  let inbound = normalizeArray(retRaw);
+
+  // Some shapes put everything under flights.segments all together in order
+  if (!outbound.length && !inbound.length && Array.isArray(flights?.segments)) {
+    const segs = flights.segments.map(normLeg).filter((x: any) => x.depCode && x.arrCode);
+    // If exactly 2 legs, assume [outboundLegs..., inboundLegs...]
+    // or if we have a midpoint marker, you can split by a flag—fall back to even split
+    if (segs.length >= 1) {
+      // heuristic split: look for turn-around (arrives at destination then later departs from there)
+      // fallback: half/half
+      const mid = Math.floor(segs.length / 2);
+      outbound = segs.slice(0, mid || 1);
+      inbound = segs.slice(mid);
+    }
+  }
+
+  return { outbound, inbound };
+};
+
+const LayoverChip = ({ cityCode, nextDepartTime }: { cityCode?: string; nextDepartTime?: any }) => {
+  if (!cityCode && !nextDepartTime) return null;
   return (
-    <div
-      className="layover-pill"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        border: "1px dashed #cbd5e1",
-        borderRadius: 12,
-        padding: "6px 10px",
-        background: "rgba(0,0,0,0.02)",
-      }}
-    >
-      <span style={{ fontSize: 14 }}>🕑</span>
-      <span style={{ fontSize: 14 }}>
-        Layover {at ? (<><span>in</span> <b>{at}</b></>) : null}
-        {nextDepart ? (<> • <span>Next departs at</span> <b>{fmtTime(nextDepart)}</b></>) : null}
-      </span>
+    <div className="tt-layover-chip" aria-label="Layover">
+      <span role="img" aria-label="clock">🕒</span>{" "}
+      Layover in{" "}
+      <strong>{cityCode || ""}</strong>
+      {nextDepartTime ? <> • Next departs at <strong>{fmtTime(nextDepartTime)}</strong></> : null}
     </div>
   );
 };
 
-const LegRow: React.FC<{ seg: Seg }> = ({ seg }) => {
-  const depart = seg.depart ?? (seg as any).departure;
-  const arrive = seg.arrive ?? seg.arrival;
-  const dur = seg.durationMin ?? (seg as any).durationMinutes;
+const FlightRow = ({ leg }: { leg: ReturnType<typeof normLeg> }) => {
+  return (
+    <div className="tt-flight-row">
+      {leg.airline ? <div className="tt-flight-airline">{leg.airline}</div> : null}
+      <div className="tt-flight-route">
+        <strong>{leg.depCode}</strong> → <strong>{leg.arrCode}</strong>
+      </div>
+      <div className="tt-flight-times">
+        {fmtTime(leg.depTime)} — {fmtTime(leg.arrTime)}
+      </div>
+      {typeof leg.durationMin === "number" ? (
+        <div className="tt-flight-duration">{minsToText(leg.durationMin)}</div>
+      ) : null}
+    </div>
+  );
+};
+
+const FlightBox = ({
+  title,
+  legs,
+}: {
+  title: string;
+  legs: ReturnType<typeof normLeg>[];
+}) => {
+  const hasLayover = legs.length >= 2;
+  // compute layover display between leg 0 and leg 1
+  const layoverCity = hasLayover ? legs[0]?.arrCode : undefined;
+  const nextDepart = hasLayover ? legs[1]?.depTime : undefined;
 
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ fontWeight: 600 }}>
-        {seg.origin} → {seg.dest}
-      </div>
-      <div style={{ color: "#334155" }}>
-        {fmtTime(depart)} — {fmtTime(arrive)}
-      </div>
-      {dur != null && (
-        <div style={{ color: "#64748b", fontSize: 13 }}>{fmtDur(dur)}</div>
+    <div className="tt-flight-box">
+      <div className="tt-flight-box-title">{title}</div>
+      {legs.length === 0 ? (
+        <div className="tt-muted">No {title.toLowerCase()} details</div>
+      ) : (
+        <>
+          <FlightRow leg={legs[0]} />
+          {hasLayover ? <LayoverChip cityCode={layoverCity} nextDepartTime={nextDepart} /> : null}
+          {legs.slice(1).map((lg, i) => (
+            <FlightRow key={i} leg={lg} />
+          ))}
+        </>
       )}
     </div>
   );
 };
 
-const Box: React.FC<{ title: string; children?: React.ReactNode }> = ({ title, children }) => {
+// ---------- hotels (leave behavior as-is; defensive fields) ----------
+const HotelRow = ({ h }: { h: any }) => {
+  const name = h?.name || h?.title || "Hotel";
+  const city = h?.city || h?.iata || h?.code || "";
+  const img = h?.image || h?.img || h?.photo;
   return (
-    <div
-      style={{
-        background: "linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%)",
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        padding: 16,
-      }}
-    >
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>{title}</div>
-      {children}
+    <div className="tt-hotel-row">
+      <div className="tt-hotel-img-wrap">
+        <img src={img || "/tourism.png"} alt={name} className="tt-hotel-img" />
+      </div>
+      <div className="tt-hotel-main">
+        <div className="tt-hotel-name">{name}</div>
+        {city ? <div className="tt-hotel-sub">{city}</div> : null}
+      </div>
+      <div className="tt-hotel-actions">
+        {h?.links?.booking ? (
+          <a className="btn" href={h.links.booking} target="_blank" rel="noreferrer">
+            Booking.com
+          </a>
+        ) : null}
+        {h?.links?.expedia ? (
+          <a className="btn" href={h.links.expedia} target="_blank" rel="noreferrer">
+            Expedia
+          </a>
+        ) : null}
+        {h?.links?.hotels ? (
+          <a className="btn" href={h.links.hotels} target="_blank" rel="noreferrer">
+            Hotels
+          </a>
+        ) : null}
+        {h?.links?.map ? (
+          <a className="btn" href={h.links.map} target="_blank" rel="noreferrer">
+            Map
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 };
 
-const HotelsBlock: React.FC<{ pkg: any; nights: number; showAll: boolean }> = ({
-  pkg,
-  nights,
-  showAll,
-}) => {
-  const hotels: any[] =
-    pkg?.hotels || pkg?.hotelOptions || pkg?.hotel_candidates || pkg?.topHotels || [];
-  if (!hotels?.length) return null;
+export default function ResultCard(props: Props) {
+  const { pkg, index, showHotel, hotelNights, showAllHotels } = props;
 
-  const list = showAll ? hotels : hotels.slice(0, 3);
+  // route + price (defensive)
+  const routeText =
+    pkg?.routeText ||
+    pkg?.route ||
+    (pkg?.origin && pkg?.destination ? `${pkg.origin} — ${pkg.destination}` : "");
+  const priceText =
+    pkg?.price?.display ||
+    pkg?.priceText ||
+    (typeof pkg?.price?.total === "number" ? `$${pkg.price.total.toFixed(2)}` : undefined);
 
-  return (
-    <section style={{ marginTop: 16 }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>
-        Hotels ({showAll ? "all" : "top options"})
-      </div>
-      <div style={{ display: "grid", gap: 12 }}>
-        {list.map((h, i) => (
-          <div
-            key={h.id || h.name || i}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "120px 1fr auto",
-              alignItems: "center",
-              gap: 12,
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: 12,
-              background: "#fff",
-            }}
-          >
-            <div
-              style={{
-                width: 120,
-                height: 80,
-                borderRadius: 8,
-                overflow: "hidden",
-                background: "#f1f5f9",
-              }}
-            >
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "grid",
-                  placeItems: "center",
-                  color: "#94a3b8",
-                  fontSize: 12,
-                }}
-              >
-                {h.city || h.iata || "IMG"}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 600 }}>{h.name || "Hotel"}</div>
-              <div style={{ color: "#64748b", fontSize: 13 }}>
-                {h.city || h.iata}
-                {nights ? ` • ${nights} night${nights > 1 ? "s" : ""}` : ""}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {h.links?.booking && (
-                <a className="btn" href={h.links.booking} target="_blank" rel="noreferrer">
-                  Booking.com
-                </a>
-              )}
-              {h.links?.expedia && (
-                <a className="btn" href={h.links.expedia} target="_blank" rel="noreferrer">
-                  Expedia
-                </a>
-              )}
-              {h.links?.hotels && (
-                <a className="btn" href={h.links.hotels} target="_blank" rel="noreferrer">
-                  Hotels
-                </a>
-              )}
-              {(h.map || h.links?.map) && (
-                <a className="btn" href={h.map || h.links?.map} target="_blank" rel="noreferrer">
-                  Map
-                </a>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-};
+  const { outbound, inbound } = extractLegs(pkg);
 
-const ResultCard: React.FC<Props> = ({
-  pkg,
-  index,
-  currency, // kept for compatibility with page.tsx
-  pax,       // kept for compatibility with page.tsx
-  showHotel,
-  hotelNights,
-  showAllHotels,
-  comparedIds,
-  onToggleCompare,
-}) => {
-  const outbound = getSegments(pkg, "outbound");
-  const inbound = getSegments(pkg, "return");
-
-  const id = pkg?.id || `opt-${index + 1}`;
-  const isCompared = comparedIds?.includes(id);
-
-  const outboundLayover =
-    outbound.length > 1
-      ? { at: outbound[0]?.dest, next: outbound[1]?.depart ?? (outbound[1] as any)?.departure }
-      : null;
-
-  const inboundLayover =
-    inbound.length > 1
-      ? { at: inbound[0]?.dest, next: inbound[1]?.depart ?? (inbound[1] as any)?.departure }
-      : null;
+  // hotels
+  const hotelsAll: any[] = Array.isArray(pkg?.hotels) ? pkg.hotels : [];
+  const hotels = showAllHotels ? hotelsAll : hotelsAll.slice(0, 3);
 
   return (
-    <section
-      className="result-card"
-      style={{
-        border: "1px solid #e2e8f0",
-        borderRadius: 14,
-        padding: 16,
-        background: "#fff",
-        boxShadow: "0 1px 0 rgba(15,23,42,0.02)",
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ fontWeight: 700 }}>
-          {`Option ${index + 1} • ${pkg?.routeLabel || `${pkg?.origin || ""} — ${pkg?.dest || ""}`}`}
+    <section className="result-card">
+      {/* header row (keep your look & feel) */}
+      <div className="tt-result-header">
+        <div className="tt-result-title">
+          <strong>Option {index + 1}</strong>
+          {routeText ? <> • {routeText}</> : null}
+          {pkg?.dates?.depart && pkg?.dates?.return ? (
+            <>
+              {" "}
+              • <span>{pkg.dates.depart}</span> <span className="tt-arrow">▸</span>{" "}
+              <span>{pkg.dates.return}</span>
+            </>
+          ) : null}
+          {pkg?.carrier || pkg?.airline ? <> • {pkg.carrier || pkg.airline}</> : null}
         </div>
-
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          {pkg?.deeplinks?.gflights && (
-            <a className="btn" href={pkg.deeplinks.gflights} target="_blank" rel="noreferrer">
+        <div className="tt-result-actions">
+          {priceText ? <div className="pill money">{priceText}</div> : null}
+          {pkg?.links?.trioTrip ? (
+            <a className="btn" href={pkg.links.trioTrip} target="_blank" rel="noreferrer">
+              TrioTrip
+            </a>
+          ) : null}
+          {pkg?.links?.google ? (
+            <a className="btn" href={pkg.links.google} target="_blank" rel="noreferrer">
               Google Flights
             </a>
-          )}
-          {pkg?.deeplinks?.skyscanner && (
-            <a className="btn" href={pkg.deeplinks.skyscanner} target="_blank" rel="noreferrer">
+          ) : null}
+          {pkg?.links?.skyscanner ? (
+            <a className="btn" href={pkg.links.skyscanner} target="_blank" rel="noreferrer">
               Skyscanner
             </a>
-          )}
-          {pkg?.deeplinks?.airline && (
-            <a className="btn" href={pkg.deeplinks.airline} target="_blank" rel="noreferrer">
+          ) : null}
+          {pkg?.links?.airline ? (
+            <a className="btn" href={pkg.links.airline} target="_blank" rel="noreferrer">
               Airline
             </a>
-          )}
-          <button
-            className={`btn ${isCompared ? "btn-contrast" : ""}`}
-            onClick={() => onToggleCompare(id)}
-            aria-pressed={isCompared}
-            aria-label="Compare this option"
-          >
-            {isCompared ? "✓ In Compare" : "+ Compare"}
+          ) : null}
+          <button className="btn" onClick={() => props.onToggleCompare?.(pkg?.id || `${index}`)}>
+            + Compare
           </button>
         </div>
       </div>
 
-      {/* Outbound / Return boxes */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <Box title="Outbound">
-          {outbound.length ? (
-            <>
-              <LegRow seg={outbound[0]} />
-              {outboundLayover && (
-                <div style={{ marginBottom: 12 }}>
-                  <LayoverPill at={outboundLayover.at} nextDepart={outboundLayover.next} />
-                </div>
-              )}
-              {outbound.slice(1).map((s, i) => (
-                <LegRow key={i} seg={s} />
-              ))}
-            </>
-          ) : (
-            <div style={{ color: "#64748b" }}>No outbound details</div>
-          )}
-        </Box>
-
-        <Box title="Return">
-          {inbound.length ? (
-            <>
-              <LegRow seg={inbound[0]} />
-              {inboundLayover && (
-                <div style={{ marginBottom: 12 }}>
-                  <LayoverPill at={inboundLayover.at} nextDepart={inboundLayover.next} />
-                </div>
-              )}
-              {inbound.slice(1).map((s, i) => (
-                <LegRow key={i} seg={s} />
-              ))}
-            </>
-          ) : (
-            <div style={{ color: "#64748b" }}>No return details</div>
-          )}
-        </Box>
+      {/* FLIGHTS: two clean boxes */}
+      <div className="tt-flight-grid">
+        <FlightBox title="Outbound" legs={outbound} />
+        <FlightBox title="Return" legs={inbound} />
       </div>
 
-      {showHotel ? (
-        <HotelsBlock pkg={pkg} nights={hotelNights} showAll={showAllHotels} />
+      {/* HOTELS */}
+      {showHotel && hotels?.length ? (
+        <>
+          <h4 className="tt-hotels-title">
+            Hotels ({showAllHotels ? "all" : "top options"})
+            {hotelNights ? <span className="tt-muted"> • {hotelNights} night{hotelNights > 1 ? "s" : ""}</span> : null}
+          </h4>
+          <div className="tt-hotels-list">
+            {hotels.map((h, i) => (
+              <HotelRow key={h?.id || i} h={h} />
+            ))}
+          </div>
+        </>
       ) : null}
     </section>
   );
-};
+}
 
-export default ResultCard;
+/* -------------- styles scoped to this card (uses your existing tokens) --------------
+   Keep everything light; no font/size changes; only gentle structure.
+*/
