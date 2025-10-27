@@ -1,360 +1,430 @@
-/* eslint-disable react/jsx-key */
-import React from "react";
+"use client";
+import React, { useMemo } from "react";
 
-/**
- * Props expected by <ResultCard /> as used from app/page.tsx.
- * NOTE: Only the "currency" key is new (optional) to fix page.tsx compile error.
- */
+/** Known airline homepages for a clean “Airline” button. */
+const AIRLINE_SITE: Record<string, string> = {
+  "American Airlines": "https://www.aa.com",
+  American: "https://www.aa.com",
+  "Delta Air Lines": "https://www.delta.com",
+  Delta: "https://www.delta.com",
+  "United Airlines": "https://www.united.com",
+  United: "https://www.united.com",
+  "Alaska Airlines": "https://www.alaskaair.com",
+  Alaska: "https://www.alaskaair.com",
+  Southwest: "https://www.southwest.com",
+  JetBlue: "https://www.jetblue.com",
+  Lufthansa: "https://www.lufthansa.com",
+  Emirates: "https://www.emirates.com",
+  Qatar: "https://www.qatarairways.com",
+  "British Airways": "https://www.britishairways.com",
+  "Air France": "https://wwws.airfrance.us",
+  KLM: "https://www.klm.com",
+};
+
+const money = (n: number, ccy: string) => {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: ccy || "USD",
+      maximumFractionDigits: 0,
+    }).format(Math.round(n));
+  } catch {
+    return `$${Math.round(n).toLocaleString()}`;
+  }
+};
+const ensureHttps = (u?: string) =>
+  !u ? "" : u.startsWith("http") ? u : `https://${u.replace(/^\/\//, "")}`;
+const hash = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
+  return Math.abs(h);
+};
+
+/* --------- Small time helpers --------- */
+const fmtTime = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+const fmtDate = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toISOString().slice(0, 10);
+};
+const mins = (a?: string, b?: string) =>
+  a && b ? Math.max(0, Math.round((+new Date(b) - +new Date(a)) / 60000)) : 0;
+const fmtDur = (m: number) => (m <= 0 ? "" : `${Math.floor(m / 60)}h ${m % 60}m`);
+
 type Props = {
   pkg: any;
-  index: number;
+  index?: number;
   currency?: string;
   pax?: number;
+  comparedIds?: string[];
+  onToggleCompare?: (id: string) => void;
+  onSavedChangeGlobal?: (count: number) => void;
 
-  showHotel: boolean;
-  hotelNights: number;
-  showAllHotels: boolean;
-
-  comparedIds: string[];
-  onToggleCompare: (id: string) => void;
-  onSavedChangeGlobal: () => void;
+  /** Hotel display controls + date context (so we can prefill links) */
+  showHotel?: boolean;
+  showAllHotels?: boolean;
+  hotelNights?: number;
+  hotelCheckIn?: string;
+  hotelCheckOut?: string;
 };
-
-/* ------------------------------------------------------------
-   Small helpers – keep everything internal so we don’t depend
-   on other files. These are defensive against partial data.
--------------------------------------------------------------*/
-
-function fmtTime(s?: string | number | Date) {
-  if (!s) return "";
-  const d = new Date(s);
-  // If it isn’t a valid date, just echo
-  if (isNaN(+d)) return String(s);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function fmtDur(min?: number | string) {
-  if (min == null || min === "") return "";
-  const m = typeof min === "string" ? parseInt(min, 10) : min;
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return `${h}h ${mm}m`;
-}
-
-function Airline({ name }: { name?: string }) {
-  return <div style={{ fontWeight: 600 }}>{name || "—"}</div>;
-}
-
-type Leg = {
-  from?: string;
-  to?: string;
-  depart?: string;
-  arrive?: string;
-  durationMin?: number;
-  airline?: string;
-  flightNo?: string;
-};
-
-type Layover = {
-  at?: string; // airport code
-  minutes?: number;
-  nextDeparts?: string;
-};
-
-function FlightLegRow({ leg }: { leg: Leg }) {
-  return (
-    <div className="tt-leg-row">
-      <div className="tt-leg-route">
-        <div>{(leg.from || "").toUpperCase()} → {(leg.to || "").toUpperCase()}</div>
-        <div className="tt-leg-time">
-          {fmtTime(leg.depart)} — {fmtTime(leg.arrive)}
-        </div>
-      </div>
-      <div className="tt-leg-meta">
-        <Airline name={leg.airline} />
-        <div className="tt-leg-duration">{fmtDur(leg.durationMin)}</div>
-      </div>
-    </div>
-  );
-}
-
-function LayoverChip({ lay }: { lay?: Layover }) {
-  if (!lay || (!lay.at && !lay.minutes && !lay.nextDeparts)) return null;
-  const mins = lay.minutes ?? 0;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  const pretty = mins ? ` (${h}h ${m}m)` : "";
-  return (
-    <div className="tt-layover-chip" role="note" aria-label="Layover">
-      <span style={{ marginRight: 8 }}>⏱️ Layover in</span>
-      <strong style={{ marginRight: 8 }}>{(lay.at || "").toUpperCase()}</strong>
-      {lay.nextDeparts && (
-        <>
-          <span style={{ opacity: 0.8, marginRight: 6 }}>Next departs at</span>
-          <strong>{fmtTime(lay.nextDeparts)}</strong>
-        </>
-      )}
-      {pretty && <span style={{ marginLeft: 6, opacity: 0.75 }}>{pretty}</span>}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------
-   Main card
--------------------------------------------------------------*/
 
 export default function ResultCard({
   pkg,
-  index,
-  currency, // optional – used if present
-  pax,
-  showHotel,
-  hotelNights,
-  showAllHotels,
+  index = 0,
+  currency = "USD",
+  pax = 1,
   comparedIds,
   onToggleCompare,
   onSavedChangeGlobal,
+  showHotel,
+  showAllHotels = false,
+  hotelNights = 0,
+  hotelCheckIn,
+  hotelCheckOut,
 }: Props) {
-  // Defensive extraction with sensible fallbacks so we don’t crash if shape differs
-  const price = pkg?.price ?? pkg?.totalPrice ?? "";
-  const priceLabel =
-    price && currency ? `${new Intl.NumberFormat(undefined, { style: "currency", currency }).format(Number(price))}` : (price || "");
+  const id = pkg.id || `pkg-${index}`;
+  const compared = !!comparedIds?.includes(id);
 
-  const carrier = pkg?.carrier || pkg?.airline || "";
-  const origin = (pkg?.origin || pkg?.from || "").toUpperCase?.() || "";
-  const dest = (pkg?.destination || pkg?.to || "").toUpperCase?.() || "";
+  // Accept either shape you’ve used
+  const outSegs: any[] = pkg?.flight?.segments_out || pkg?.flight?.segments || [];
+  const inSegs: any[] = pkg?.flight?.segments_in || pkg?.flight?.segments_return || [];
 
-  const outbound: Leg[] = pkg?.outbound?.legs || pkg?.outbound || pkg?.outboundSegments || [];
-  const outLay: Layover | undefined = pkg?.outbound?.layover || pkg?.outLayover;
+  const carriers = Array.from(
+    new Set(
+      [
+        ...(outSegs || []).map((s: any) => s?.carrier_name || s?.carrier),
+        ...(inSegs || []).map((s: any) => s?.carrier_name || s?.carrier),
+        pkg.flight?.carrier_name || pkg.flight?.carrier,
+      ].filter(Boolean)
+    )
+  );
+  const airline = carriers[0];
 
-  const inbound: Leg[] = pkg?.return?.legs || pkg?.return || pkg?.returnSegments || [];
-  const inLay: Layover | undefined = pkg?.return?.layover || pkg?.inLayover;
+  const out0 = outSegs?.[0];
+  const in0 = inSegs?.[0];
+  const from = (out0?.from || pkg.origin || "").toUpperCase();
+  const to = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase();
+  const dateOut = fmtDate(out0?.depart_time || pkg.departDate);
+  const dateRet = fmtDate(in0?.depart_time || pkg.returnDate);
 
-  const hotels: any[] = Array.isArray(pkg?.hotels) ? pkg.hotels : [];
+  const price =
+    pkg.total_cost_converted ??
+    pkg.total_cost ??
+    pkg.flight?.price_usd_converted ??
+    pkg.flight?.price_usd ??
+    pkg.flight_total ??
+    0;
 
-  const id = pkg?.id || `${origin}-${dest}-${index}`;
+  // Prefilled booking links for flights (Google Flights / Skyscanner / Airline)
+  const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(
+    `${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax || 1} travelers`
+  )}`;
+  const ssOut = (dateOut || "").replace(/-/g, "");
+  const ssRet = (dateRet || "").replace(/-/g, "");
+  const sky =
+    from && to && ssOut
+      ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${dateRet ? `${ssRet}/` : ""}`
+      : "https://www.skyscanner.com/";
+  const airlineUrl =
+    AIRLINE_SITE[airline || ""] ||
+    (airline
+      ? `https://www.google.com/search?q=${encodeURIComponent(`${airline} ${from} ${to} ${dateOut}`)}`
+      : `https://www.google.com/search?q=${encodeURIComponent(`airline booking ${from} ${to} ${dateOut}`)}`);
 
-  const inCompare = comparedIds?.includes(id);
+  // Saved state
+  const saved = useMemo(() => {
+    try {
+      return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).includes(id);
+    } catch {
+      return false;
+    }
+  }, [id]);
+
+  function toggleSave(e: React.MouseEvent) {
+    e.stopPropagation();
+    try {
+      const key = "triptrio:saved";
+      const arr = JSON.parse(localStorage.getItem(key) || "[]") as string[];
+      const next = arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
+      localStorage.setItem(key, JSON.stringify(next));
+      onSavedChangeGlobal?.(next.length);
+    } catch {}
+  }
+
+  // ----- Hotels (price detection & links) -----
+  const hotels: any[] = Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels : pkg.hotel ? [pkg.hotel] : [];
+
+  const readNightly = (h: any): number | undefined => {
+    const n =
+      h?.price_per_night ??
+      h?.nightly ??
+      h?.rate ??
+      h?.nightly_price ??
+      h?.night_price ??
+      h?.priceNight ??
+      h?.price_night ??
+      h?.pricePerNight ??
+      h?.amountNight ??
+      h?.amount_night;
+    const v = Number(n);
+    return Number.isFinite(v) ? v : undefined;
+  };
+
+  const readTotal = (h: any): number | undefined => {
+    const t =
+      h?.price_total ??
+      h?.priceTotal ??
+      h?.total ??
+      h?.total_price ??
+      h?.amount ??
+      h?.price ??
+      h?.cost;
+    const v = Number(t);
+    return Number.isFinite(v) ? v : undefined;
+  };
+
+  const photo = (h: any, i: number) => {
+    const src =
+      ensureHttps(h?.image) ||
+      ensureHttps(h?.photoUrl) ||
+      ensureHttps(h?.thumbnail) ||
+      ensureHttps(h?.images?.[0]) ||
+      "";
+    if (src) return src;
+    const seed = hash((h?.name || "hotel") + "|" + i);
+    return `https://picsum.photos/seed/${seed}/400/240`;
+  };
+
+  const hotelLinks = (h: any) => {
+    const city = h?.city || pkg?.destination || "";
+    const q = h?.name ? `${h.name}, ${city}` : city;
+
+    const booking = new URL("https://www.booking.com/searchresults.html");
+    if (q) booking.searchParams.set("ss", q);
+    if (hotelCheckIn) booking.searchParams.set("checkin", hotelCheckIn);
+    if (hotelCheckOut) booking.searchParams.set("checkout", hotelCheckOut);
+
+    const exp = new URL("https://www.expedia.com/Hotel-Search");
+    if (q) exp.searchParams.set("destination", q);
+    if (hotelCheckIn) exp.searchParams.set("startDate", hotelCheckIn);
+    if (hotelCheckOut) exp.searchParams.set("endDate", hotelCheckOut);
+
+    const hcx = new URL("https://www.hotels.com/Hotel-Search");
+    if (q) hcx.searchParams.set("destination", q);
+    if (hotelCheckIn) hcx.searchParams.set("checkIn", hotelCheckIn);
+    if (hotelCheckOut) hcx.searchParams.set("checkOut", hotelCheckOut);
+
+    const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q || "hotels")}`;
+    return { booking: booking.toString(), exp: exp.toString(), hcx: hcx.toString(), maps };
+  };
+
+  const computePrices = (h: any) => {
+    const nightly = readNightly(h);
+    const total = readTotal(h);
+
+    if (nightly != null && total == null && hotelNights && hotelNights > 0) {
+      return { nightly, total: nightly * hotelNights };
+    }
+    if (total != null && nightly == null && hotelNights && hotelNights > 0) {
+      return { nightly: total / hotelNights, total };
+    }
+    return { nightly, total };
+  };
+
+  /* ------- Flight leg renderer (rows + layovers between segments) ------- */
+  const LegRows: React.FC<{ segs: any[] }> = ({ segs }) => {
+    if (!segs?.length) return null;
+    const rows: React.ReactNode[] = [];
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      const carrier = s?.carrier_name || s?.carrier || airline || "—";
+      const dep = s?.depart_time;
+      const arr = s?.arrive_time;
+      const dur = fmtDur(mins(dep, arr));
+      rows.push(
+        <div key={`seg-${i}`} className="leg-row">
+          <div className="leg-left">
+            <div className="leg-route">
+              <div className="leg-airline">{carrier}</div>
+              <div className="leg-cities">
+                {s?.from?.toUpperCase()} <span className="arrow">→</span> {s?.to?.toUpperCase()}
+              </div>
+            </div>
+            <div className="leg-times">
+              {fmtTime(dep)} — {fmtTime(arr)}
+            </div>
+          </div>
+          <div className="leg-right">{dur}</div>
+        </div>
+      );
+      // layover chip (between this arrival and next departure)
+      const next = segs[i + 1];
+      if (next) {
+        const lay = mins(arr, next?.depart_time);
+        rows.push(
+          <div key={`lay-${i}`} className="layover">
+            <span className="dot">⏱</span>
+            <span>Layover in</span>
+            <strong>{` ${next?.from?.toUpperCase()} `}</strong>
+            <span>• Next departs at</span>
+            <strong>{` ${fmtTime(next?.depart_time)} `}</strong>
+            <span className="lo-dur">({fmtDur(lay)})</span>
+          </div>
+        );
+      }
+    }
+    return <>{rows}</>;
+  };
 
   return (
-    <section className="result-card fancy-card" aria-label={`Result ${index + 1}`}>
-      {/* Header line */}
-      <div className="tt-result-head">
-        <div className="tt-route-title">
-          <strong>Option {index + 1}</strong> • {origin} — {dest}
+    <section onClick={() => onToggleCompare?.(id)} className={`card ${compared ? "card--on" : ""}`}>
+      <header className="hdr">
+        <div className="route">
+          <div className="title">Option {index + 1} • {from} — {to}</div>
+          <div className="sub">
+            {dateOut && <>Outbound {dateOut}</>} {dateRet && <>• Return {dateRet}</>} {airline && <>• {airline}</>}
+          </div>
         </div>
-
-        <div className="tt-head-actions">
-          {priceLabel && (
-            <span className="tt-price-pill" title={`${pax ? `${pax} pax • ` : ""}${currency || ""}`}>
-              💵 {priceLabel}
-            </span>
-          )}
-
-          {/* Example provider buttons – keep generic to avoid external deps */}
-          {pkg?.links?.google && (
-            <a className="tt-link-pill" href={pkg.links.google} target="_blank" rel="noreferrer">
-              Google Flights
-            </a>
-          )}
-          {pkg?.links?.skyscanner && (
-            <a className="tt-link-pill" href={pkg.links.skyscanner} target="_blank" rel="noreferrer">
-              Skyscanner
-            </a>
-          )}
-          {pkg?.links?.airline && (
-            <a className="tt-link-pill" href={pkg.links.airline} target="_blank" rel="noreferrer">
-              Airline
-            </a>
-          )}
-
+        <div className="actions">
+          <div className="price">💵 {money(Number(price) || 0, currency)}</div>
+          <a className="btn" href={gf} target="_blank" rel="noreferrer">Google Flights</a>
+          <a className="btn" href={sky} target="_blank" rel="noreferrer">Skyscanner</a>
+          <a className="btn" href={airlineUrl} target="_blank" rel="noreferrer">{airline ? "Airline" : "Airlines"}</a>
+          <button className="btn btn--ghost" onClick={toggleSave}>{saved ? "💾 Saved" : "＋ Save"}</button>
           <button
-            type="button"
-            className={`tt-compare-pill ${inCompare ? "is-in" : ""}`}
-            onClick={() => onToggleCompare?.(id)}
+            className={`btn ${compared ? "btn--on" : ""}`}
+            onClick={(e) => { e.stopPropagation(); onToggleCompare?.(id); }}
           >
-            {inCompare ? "🆚 In Compare" : "＋ Compare"}
+            {compared ? "🆚 In Compare" : "➕ Compare"}
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Flights */}
-      <div className="tt-flight-section">
-        {/* OUTBOUND BOX */}
-        <div className="tt-flight-box" aria-label="Outbound flights">
-          <div className="tt-flight-box-title">Outbound</div>
-          {outbound?.length ? (
-            outbound.map((leg, i) => (
-              <React.Fragment key={`out-${i}-${leg.from}-${leg.to}-${leg.depart}`}>
-                {i === 0 && <Airline name={carrier || leg.airline} />}
-                <FlightLegRow leg={leg} />
-              </React.Fragment>
-            ))
-          ) : (
-            <div className="tt-empty">No outbound details</div>
-          )}
-        </div>
-
-        {/* LAYOVER CHIP BETWEEN OUTBOUND AND RETURN */}
-        <div className="tt-layover-center">
-          <LayoverChip lay={outLay} />
-        </div>
-
-        {/* RETURN BOX */}
-        <div className="tt-flight-box" aria-label="Return flights">
-          <div className="tt-flight-box-title">Return</div>
-          {inbound?.length ? (
-            inbound.map((leg, i) => (
-              <React.Fragment key={`in-${i}-${leg.from}-${leg.to}-${leg.depart}`}>
-                {i === 0 && <Airline name={carrier || leg.airline} />}
-                <FlightLegRow leg={leg} />
-              </React.Fragment>
-            ))
-          ) : (
-            <div className="tt-empty">No return details</div>
-          )}
-        </div>
-
-        {/* Bottom layover (if present for the return side) */}
-        <div className="tt-layover-center">
-          <LayoverChip lay={inLay} />
-        </div>
-      </div>
-
-      {/* Hotels */}
-      {showHotel && (
-        <div className="tt-hotels">
-          <div className="tt-hotels-title">
-            Hotels {showAllHotels ? "(all)" : "(top options)"} {hotelNights ? `• ${hotelNights} night${hotelNights > 1 ? "s" : ""}` : ""}
-          </div>
-
-          {hotels?.length ? (
-            <div className="tt-hotels-list">
-              {hotels.map((h, i) => (
-                <article className="tt-hotel-item" key={`h-${i}-${h?.name || i}`}>
-                  <div className="tt-hotel-thumb">
-                    {/* simple defensive thumb */}
-                    <img
-                      src={h?.image || "/logo.png"}
-                      alt={h?.name || "Hotel"}
-                      onError={(e: any) => (e.currentTarget.src = "/logo.png")}
-                    />
-                  </div>
-
-                  <div className="tt-hotel-body">
-                    <div className="tt-hotel-name">{h?.name || "Hotel"}</div>
-                    <div className="tt-hotel-city">{(h?.city || dest || "").toUpperCase()}</div>
-                  </div>
-
-                  <div className="tt-hotel-links">
-                    {h?.links?.booking && (
-                      <a className="tt-link-pill" href={h.links.booking} target="_blank" rel="noreferrer">
-                        Booking.com
-                      </a>
-                    )}
-                    {h?.links?.expedia && (
-                      <a className="tt-link-pill" href={h.links.expedia} target="_blank" rel="noreferrer">
-                        Expedia
-                      </a>
-                    )}
-                    {h?.links?.hotels && (
-                      <a className="tt-link-pill" href={h.links.hotels} target="_blank" rel="noreferrer">
-                        Hotels
-                      </a>
-                    )}
-                    {h?.links?.map && (
-                      <a className="tt-link-pill" href={h.links.map} target="_blank" rel="noreferrer">
-                        Map
-                      </a>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="tt-empty">No hotels for this option.</div>
-          )}
+      {/* Outbound box */}
+      {outSegs?.length > 0 && (
+        <div className="leg">
+          <div className="leg-title">Outbound</div>
+          <LegRows segs={outSegs} />
         </div>
       )}
+
+      {/* Return box */}
+      {inSegs?.length > 0 && (
+        <div className="leg">
+          <div className="leg-title">Return</div>
+          <LegRows segs={inSegs} />
+        </div>
+      )}
+
+      {/* Hotels (unchanged except for price/nightly display) */}
+      {showHotel && hotels.length > 0 && (
+        <div className="hotels">
+          <div className="hotels__title">Hotels (top options)</div>
+          {(showAllHotels ? hotels : hotels.slice(0, 12)).map((h, i) => {
+            const { booking, exp, hcx, maps } = hotelLinks(h);
+            const { nightly, total } = computePrices(h);
+
+            return (
+              <div key={i} className="hotel">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <a href={booking} target="_blank" rel="noreferrer" className="hotel__img">
+                  <img src={photo(h, i)} alt={h?.name || "Hotel"} />
+                </a>
+                <div className="hotel__body">
+                  <div className="hotel__head">
+                    <a href={booking} target="_blank" rel="noreferrer" className="hotel__name">
+                      {h?.name || "Hotel"}
+                    </a>
+                    <div className="hotel__price">
+                      {nightly != null && (
+                        <span>
+                          {money(nightly, currency)} <span className="muted">/ night</span>
+                        </span>
+                      )}
+                      {total != null && (
+                        <span className="muted"> • {money(total, currency)} total</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="hotel__links">
+                    <a className="btn" href={booking} target="_blank" rel="noreferrer">Booking.com</a>
+                    <a className="btn" href={exp} target="_blank" rel="noreferrer">Expedia</a>
+                    <a className="btn" href={hcx} target="_blank" rel="noreferrer">Hotels</a>
+                    <a className="btn" href={maps} target="_blank" rel="noreferrer">Map</a>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <style jsx>{`
+        .card {
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 12px;
+          background: linear-gradient(180deg, #ffffff, #f6fbff);
+          box-shadow: 0 8px 20px rgba(2, 6, 23, 0.06);
+        }
+        .card--on { border: 2px solid #0ea5e9; }
+        .hdr { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .route .title { font-weight: 900; color: #0f172a; }
+        .route .sub { color: #334155; font-weight: 600; }
+        .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .price {
+          font-weight: 900; color: #0b3b52;
+          background: #e7f5ff; border: 1px solid #cfe3ff; border-radius: 10px; padding: 6px 10px;
+        }
+        .btn { padding: 6px 10px; border-radius: 10px; border: 1px solid #94a3b8; background: #fff; font-weight: 800; color: #0f172a; text-decoration: none; cursor: pointer; }
+        .btn--ghost { background: #f8fafc; }
+        .btn--on { border: 2px solid #0ea5e9; background: #e0f2fe; }
+
+        /* Outbound / Return boxes */
+        .leg { margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+        .leg-title { font-weight: 900; color: #0b3b52; margin-bottom: 6px; }
+        .leg-row {
+          display: grid; grid-template-columns: 1fr auto; align-items: center;
+          padding: 8px 10px; border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0; margin-bottom: 8px;
+        }
+        .leg-left { display: grid; gap: 4px; }
+        .leg-route { display: flex; gap: 10px; align-items: baseline; }
+        .leg-airline { font-weight: 900; color: #0f172a; }
+        .leg-cities { font-weight: 800; color: #0f172a; }
+        .arrow { opacity: .65; margin: 0 4px; }
+        .leg-times { color: #334155; font-weight: 700; }
+        .leg-right { font-weight: 900; color: #0f172a; }
+
+        /* Elegant layover chip between segments */
+        .layover {
+          display: inline-flex; align-items: center; gap: 6px;
+          border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
+          background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
+          margin: 6px 0 10px 0;
+        }
+        .dot { opacity: .8; }
+        .lo-dur { opacity: .8; margin-left: 4px; }
+
+        /* Hotels (unchanged) */
+        .hotels { display: grid; gap: 12px; margin-top: 12px; }
+        .hotels__title { font-weight: 800; color: #0f172a; }
+        .hotel {
+          display: grid; grid-template-columns: 160px 1fr; gap: 12px;
+          border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: #fff;
+        }
+        .hotel__img { border-radius: 10px; overflow: hidden; display: block; background: #f1f5f9; }
+        .hotel__img img { width: 160px; height: 100px; object-fit: cover; display: block; }
+        .hotel__body { display: grid; gap: 6px; }
+        .hotel__head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .hotel__name { font-weight: 800; color: #0f172a; text-decoration: none; }
+        .hotel__price { font-weight: 800; color: #0369a1; }
+        .muted { opacity: 0.7; font-weight: 700; }
+        .hotel__links { display: flex; gap: 8px; flex-wrap: wrap; }
+      `}</style>
     </section>
   );
-}
-
-/* ------------------------------------------------------------
-   Light, component-scoped styles (classNames also referenced
-   in your globals can continue to style as before).
-   These are minimal to create the “two boxes + center chip”
-   layout without changing your global scale/typography.
--------------------------------------------------------------*/
-
-const css = `
-.result-card.fancy-card {
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 14px;
-  padding: 12px;
-  background: linear-gradient(180deg, rgba(250,252,255,0.9), rgba(245,247,250,0.9));
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-  margin-bottom: 16px;
-}
-
-.tt-result-head{
-  display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
-  margin-bottom: 10px;
-}
-.tt-route-title{ font-weight:700; }
-.tt-head-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.tt-price-pill, .tt-link-pill, .tt-compare-pill{
-  display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:10px;
-  border:1px solid rgba(0,0,0,0.08); background:#fff; font-weight:600;
-}
-.tt-compare-pill.is-in{ background:#fff7e6; border-color:#ffd591; }
-
-.tt-flight-section{
-  display:grid; grid-template-columns: 1fr auto 1fr; gap:12px; align-items:start;
-  padding:10px; border-radius:12px; background:linear-gradient(180deg,#f7fbff 0%, #f6f8fb 100%);
-  border: 1px solid rgba(0,0,0,0.06);
-}
-.tt-flight-box{
-  border:1px solid rgba(0,0,0,0.06); background:#fff; border-radius:12px; padding:12px;
-  min-height: 120px;
-}
-.tt-flight-box-title{ font-weight:700; margin-bottom:8px; }
-
-.tt-layover-center{ display:flex; align-items:center; justify-content:center; }
-.tt-layover-chip{
-  border:1px dashed rgba(0,0,0,0.2); background:#fff; border-radius:999px; padding:6px 12px;
-  box-shadow: inset 0 0 0 2px rgba(0,0,0,0.02);
-  white-space:nowrap;
-}
-
-.tt-leg-row{
-  display:flex; align-items:center; justify-content:space-between;
-  padding:8px 0; border-bottom:1px dashed rgba(0,0,0,0.06);
-}
-.tt-leg-row:last-child{ border-bottom:none; }
-.tt-leg-route{ display:flex; flex-direction:column; gap:2px; }
-.tt-leg-time{ opacity:0.8; }
-.tt-leg-meta{ display:flex; align-items:center; gap:12px; }
-
-.tt-empty{ opacity:0.6; padding:6px 0; }
-
-.tt-hotels{ margin-top:12px; }
-.tt-hotels-title{ font-weight:700; margin: 8px 4px 10px; }
-.tt-hotels-list{ display:flex; flex-direction:column; gap:10px; }
-.tt-hotel-item{
-  display:grid; grid-template-columns: 128px 1fr auto; gap:12px;
-  border:1px solid rgba(0,0,0,0.06); background:#fff; border-radius:12px; padding:10px;
-}
-.tt-hotel-thumb img{ width:128px; height:88px; object-fit:cover; border-radius:10px; }
-.tt-hotel-name{ font-weight:700; }
-.tt-hotel-city{ opacity:0.75; margin-top:4px; }
-.tt-hotel-links{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-`;
-
-// inject once
-if (typeof document !== "undefined" && !document.getElementById("resultcard-inline-css")) {
-  const style = document.createElement("style");
-  style.id = "resultcard-inline-css";
-  style.textContent = css;
-  document.head.appendChild(style);
 }
