@@ -4,6 +4,10 @@ import React from "react";
 type Props = {
   pkg: any;
   index: number;
+  // props page.tsx passes — keep for compatibility
+  currency?: string;
+  pax?: number;
+
   showHotel: boolean;
   hotelNights: number;
   showAllHotels: boolean;
@@ -15,7 +19,6 @@ type Props = {
 const fmtTime = (v?: string | number | Date) => {
   if (!v) return "";
   const d = typeof v === "string" || typeof v === "number" ? new Date(v) : v;
-  // fallback: if not a valid date, return the original string
   if (isNaN(d.getTime())) return String(v);
   const hh = d.getHours() % 12 || 12;
   const mm = d.getMinutes().toString().padStart(2, "0");
@@ -32,28 +35,22 @@ const fmtDur = (mins?: number) => {
   return `${m}m`;
 };
 
-// Robustly discover segments inside a pkg.
-// Accepts many shapes: pkg.outboundSegments, pkg.outbound.segments, pkg.segments.outbound, etc.
 function getSegments(pkg: any, which: "outbound" | "return" | "inbound"): any[] {
   const paths: (string | string[])[] = [
-    // straight arrays
     `${which}Segments`,
     which === "return" ? "returnSegments" : "",
-    // nested objects
     [which, "segments"],
-    [which === "return" ? "inbound" : which, "segments"], // tolerate inbound wording
+    [which === "return" ? "inbound" : which, "segments"],
     ["segments", which],
     ["itinerary", which, "segments"],
     ["trip", which, "segments"],
-    // some feeds store both legs together
     ["legs", which],
   ].filter(Boolean) as (string | string[])[];
 
   for (const p of paths) {
-    const val = Array.isArray(p) ? pluck(pkg, p) : (pkg?.[p] as any);
+    const val = Array.isArray(p) ? p.reduce((a: any, k) => (a ? a[k] : undefined), pkg) : pkg?.[p];
     if (Array.isArray(val) && val.length) return val;
   }
-  // Single-segment shape fallback (origin/dest/times on the parent)
   if (pkg?.origin && pkg?.dest && (pkg?.depart || pkg?.departure)) {
     return [
       {
@@ -66,10 +63,6 @@ function getSegments(pkg: any, which: "outbound" | "return" | "inbound"): any[] 
     ];
   }
   return [];
-}
-
-function pluck(obj: any, path: string[]) {
-  return path.reduce((acc, k) => (acc ? acc[k] : undefined), obj);
 }
 
 type Seg = {
@@ -103,13 +96,8 @@ const LayoverPill: React.FC<{ at?: string; nextDepart?: string | number | Date }
     >
       <span style={{ fontSize: 14 }}>🕑</span>
       <span style={{ fontSize: 14 }}>
-        Layover {at ? <><span>in</span> <b>{at}</b></> : null}
-        {nextDepart ? (
-          <>
-            {" "}
-            • <span>Next departs at</span> <b>{fmtTime(nextDepart)}</b>
-          </>
-        ) : null}
+        Layover {at ? (<><span>in</span> <b>{at}</b></>) : null}
+        {nextDepart ? (<> • <span>Next departs at</span> <b>{fmtTime(nextDepart)}</b></>) : null}
       </span>
     </div>
   );
@@ -135,10 +123,7 @@ const LegRow: React.FC<{ seg: Seg }> = ({ seg }) => {
   );
 };
 
-const Box: React.FC<{ title: string; children?: React.ReactNode }> = ({
-  title,
-  children,
-}) => {
+const Box: React.FC<{ title: string; children?: React.ReactNode }> = ({ title, children }) => {
   return (
     <div
       style={{
@@ -160,11 +145,7 @@ const HotelsBlock: React.FC<{ pkg: any; nights: number; showAll: boolean }> = ({
   showAll,
 }) => {
   const hotels: any[] =
-    pkg?.hotels ||
-    pkg?.hotelOptions ||
-    pkg?.hotel_candidates ||
-    pkg?.topHotels ||
-    [];
+    pkg?.hotels || pkg?.hotelOptions || pkg?.hotel_candidates || pkg?.topHotels || [];
   if (!hotels?.length) return null;
 
   const list = showAll ? hotels : hotels.slice(0, 3);
@@ -198,7 +179,6 @@ const HotelsBlock: React.FC<{ pkg: any; nights: number; showAll: boolean }> = ({
                 background: "#f1f5f9",
               }}
             >
-              {/* fallback image box; your real <Image> logic can remain elsewhere */}
               <div
                 style={{
                   width: "100%",
@@ -235,16 +215,11 @@ const HotelsBlock: React.FC<{ pkg: any; nights: number; showAll: boolean }> = ({
                   Hotels
                 </a>
               )}
-              {h.map || h.links?.map ? (
-                <a
-                  className="btn"
-                  href={h.map || h.links?.map}
-                  target="_blank"
-                  rel="noreferrer"
-                >
+              {(h.map || h.links?.map) && (
+                <a className="btn" href={h.map || h.links?.map} target="_blank" rel="noreferrer">
                   Map
                 </a>
-              ) : null}
+              )}
             </div>
           </div>
         ))}
@@ -256,6 +231,8 @@ const HotelsBlock: React.FC<{ pkg: any; nights: number; showAll: boolean }> = ({
 const ResultCard: React.FC<Props> = ({
   pkg,
   index,
+  currency, // kept for compatibility with page.tsx
+  pax,       // kept for compatibility with page.tsx
   showHotel,
   hotelNights,
   showAllHotels,
@@ -268,21 +245,14 @@ const ResultCard: React.FC<Props> = ({
   const id = pkg?.id || `opt-${index + 1}`;
   const isCompared = comparedIds?.includes(id);
 
-  // Compute a single “layover” (between segment 1 and 2) for each leg
   const outboundLayover =
     outbound.length > 1
-      ? {
-          at: outbound[0]?.dest,
-          next: outbound[1]?.depart ?? (outbound[1] as any)?.departure,
-        }
+      ? { at: outbound[0]?.dest, next: outbound[1]?.depart ?? (outbound[1] as any)?.departure }
       : null;
 
   const inboundLayover =
     inbound.length > 1
-      ? {
-          at: inbound[0]?.dest,
-          next: inbound[1]?.depart ?? (inbound[1] as any)?.departure,
-        }
+      ? { at: inbound[0]?.dest, next: inbound[1]?.depart ?? (inbound[1] as any)?.departure }
       : null;
 
   return (
@@ -296,7 +266,7 @@ const ResultCard: React.FC<Props> = ({
         boxShadow: "0 1px 0 rgba(15,23,42,0.02)",
       }}
     >
-      {/* Header row */}
+      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -306,9 +276,9 @@ const ResultCard: React.FC<Props> = ({
           marginBottom: 12,
         }}
       >
-        <div style={{ fontWeight: 700 }}>{`Option ${index + 1} • ${
-          pkg?.routeLabel || `${pkg?.origin || ""} — ${pkg?.dest || ""}`
-        }`}</div>
+        <div style={{ fontWeight: 700 }}>
+          {`Option ${index + 1} • ${pkg?.routeLabel || `${pkg?.origin || ""} — ${pkg?.dest || ""}`}`}
+        </div>
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {pkg?.deeplinks?.gflights && (
@@ -337,26 +307,17 @@ const ResultCard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Two boxes row */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-        }}
-      >
+      {/* Outbound / Return boxes */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Box title="Outbound">
           {outbound.length ? (
             <>
-              {/* first leg */}
               <LegRow seg={outbound[0]} />
-              {/* layover pill if any */}
               {outboundLayover && (
                 <div style={{ marginBottom: 12 }}>
                   <LayoverPill at={outboundLayover.at} nextDepart={outboundLayover.next} />
                 </div>
               )}
-              {/* remaining legs */}
               {outbound.slice(1).map((s, i) => (
                 <LegRow key={i} seg={s} />
               ))}
@@ -385,7 +346,6 @@ const ResultCard: React.FC<Props> = ({
         </Box>
       </div>
 
-      {/* Hotels */}
       {showHotel ? (
         <HotelsBlock pkg={pkg} nights={hotelNights} showAll={showAllHotels} />
       ) : null}
