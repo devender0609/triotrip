@@ -1,146 +1,136 @@
-/* ================================
-   app/globals.css  (full file)
-   ================================ */
-
-/* --- Basic reset (minimal, safe) --- */
-*,
-*::before,
-*::after { box-sizing: border-box; }
-html, body { padding: 0; margin: 0; height: 100%; }
-img, video { max-width: 100%; height: auto; display: block; }
-
-/* ================================
-   Design tokens (popular defaults)
-   ================================ */
+/* ---------- Theme tokens ---------- */
 :root{
-  /* Brand */
-  --c-primary: #0ea5e9; /* Sky-500 */
-  --c-accent:  #06b6d4; /* Cyan-500 */
+  /* dark elegant background (not pitch black) */
+  --bg: #0f1420;
+  --bg-card: #101827;           /* cards */
+  --bg-card2: #0e1524;          /* deeper panel */
+  --ring: #2b3a55;
 
-  /* Neutrals */
-  --c-ink-strong: #0f172a; /* Slate-900 */
-  --c-ink-subtle: #475569; /* Slate-600 */
-  --c-line: #e2e8f0;       /* Slate-200 */
-  --c-card: #ffffff;
-  --c-page: #f8fafc;
+  --text: #e7eefc;
+  --muted: #bcd0ffcc;
 
-  /* Semantic */
-  --c-success: #10b981; /* Emerald-500 */
-  --c-warn:    #f59e0b; /* Amber-500 */
-  --c-danger:  #ef4444; /* Red-500 */
-  --c-info:    #6366f1; /* Indigo-500 */
+  /* buttons/chips */
+  --chip: #111a2c;
+  --chip-ring: #29406a;
 
-  /* Effects */
-  --shadow-soft: 0 10px 30px rgba(2, 8, 23, 0.06);
-  --ring: rgba(14,165,233,.35);
-
-  /* Components */
-  --chip-on: linear-gradient(90deg, var(--c-accent), var(--c-primary));
-  --chip-off: #ffffff;
-
-  /* Radii / sizes */
-  --r-lg: 16px;
-  --r-md: 12px;
-  --r-sm: 10px;
-
-  --h-input: 44px;
-  --fs-body: 16px;
-
-  /* New: gradient palettes per tab */
-  --grad-explore: linear-gradient(90deg, #22c55e, #0ea5e9);  /* green -> sky */
-  --grad-savor:   linear-gradient(90deg, #f97316, #ef4444);  /* orange -> red */
-  --grad-misc:    linear-gradient(90deg, #a855f7, #6366f1);  /* purple -> indigo */
-  --grad-compare: linear-gradient(90deg, #f59e0b, #f97316);  /* amber -> orange */
+  /* gradients for tabs/pills */
+  --grad-blue: linear-gradient(135deg, #2c73ff, #0ec9ff);
+  --grad-lime: linear-gradient(135deg, #16c18b, #79f1a4);
+  --grad-pink: linear-gradient(135deg, #ff6bb6, #ffcc70);
+  --grad-purple: linear-gradient(135deg, #6a5cff, #b673ff);
 }
 
-body{
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(14,165,233,.10) 0%, rgba(224,242,254,0) 60%),
-    radial-gradient(1000px 500px at 120% 10%, rgba(6,182,212,.08) 0%, rgba(207,250,254,0) 60%),
-    var(--c-page);
-  color: var(--c-ink-strong);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  line-height: 1.45;
-  font-size: var(--fs-body);
+/* ---------- Page base ---------- */
+html, body{
+  background: radial-gradient(1200px 700px at 20% -10%, #1a2240 0%, transparent 60%),
+              radial-gradient(1300px 800px at 110% 0%, #11223e 0%, transparent 60%),
+              var(--bg);
+  color: var(--text);
 }
 
-/* Links & focus */
-a { color: inherit; text-decoration: none; }
-a:hover { opacity: .9; }
-:focus-visible {
-  outline: 3px solid var(--ring);
-  outline-offset: 2px;
-}
+a{ color: inherit; text-decoration: none; }
 
-/* Inputs / buttons */
-input, select, button, textarea{ font: inherit; color: var(--c-ink-strong); }
-input[type="text"], input[type="date"], input[type="search"], input[type="number"],
-select, textarea {
-  background: #fff; border: 1px solid var(--c-line); color: var(--c-ink-strong);
-  border-radius: var(--r-md); padding: 12px 14px; outline: none; height: var(--h-input);
-}
-input[type="text"]:focus, input[type="date"]:focus, input[type="search"]:focus,
-input[type="number"]:focus, select:focus, textarea:focus {
-  border-color: #7dd3fc; box-shadow: 0 0 0 3px var(--ring);
-}
-button {
-  border: 1px solid var(--c-line); background: #fff; color: var(--c-ink-strong);
-  border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; font-weight: 700;
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
-}
-button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
-button:disabled { opacity: .6; cursor: not-allowed; }
-
-/* Hide number spinners */
-.no-spin::-webkit-outer-spin-button,
-.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.no-spin { -moz-appearance: textfield; }
-
-/* Stepper */
-.stepper{ display: inline-flex; align-items: center; gap: 6px; }
-.stepper input{
-  width: 70px; text-align: center; font-weight: 600; height: 46px;
-  border-radius: var(--r-md); border: 1px solid var(--c-line); background: #fff; padding: 0 14px;
-}
-.stepper button{ height: 46px; width: 42px; border-radius: var(--r-sm); }
-.stepper button:hover{ transform: translateY(-1px); background: #f8fafc; border-color: #dce7f5; }
-
-/* Containers */
-.container, .main-wrap { max-width: 1240px; margin: 0 auto; width: 100%; }
-
-/* Simple cards & result list base (used by ResultCard) */
-.card{
-  background: var(--c-card);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-lg);
-  padding: 16px; margin: 14px 0;
-  box-shadow: var(--shadow-soft);
-}
-.result-card{
-  background: linear-gradient(180deg, #ffffff, #f6fbff);
-  border: 1px solid var(--c-line);
+section.result-card{
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)) , var(--bg-card);
+  border: 1px solid var(--ring);
   border-radius: 14px;
-  padding: 12px;
-  box-shadow: 0 8px 20px rgba(2,6,23,.06);
-}
-.result-card--compared{ border-width: 2px; border-color: var(--c-primary); }
-
-/* Layover chip (theme token) */
-.layover-badge{
-  display: inline-flex; align-items: center; gap: 6px;
-  border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
-  background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
+  padding: 14px;
+  margin: 16px 0;
+  box-shadow: 0 12px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03);
 }
 
-/* Tabs/chips colors (unchanged behaviour, just tokens) */
-.tab { border: 1px solid var(--c-line); background: #fff; padding: 10px 14px; border-radius: 999px; font-weight: 800; }
-.tab--active { color: #fff; border: none; }
-.chip { padding: 8px 12px; border-radius: 999px; background: var(--chip-off); border: 1px solid var(--c-line); font-weight: 700; }
-.chip--on { background: var(--chip-on); color: #fff; border: none; }
-
-/* Print helpers */
-@media print {
-  .tab, .chip, .compare-tray { display: none !important; }
-  body { background: #fff; }
-  .result-card { box-shadow: none; border-color: #cbd5e1; }
+/* ---------- Header row in card ---------- */
+.rc-header{
+  display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap;
+  margin-bottom:10px;
 }
+.rc-title{ display:flex; gap:8px; align-items:center; font-weight:600; }
+.rc-dates{ color: var(--muted); font-weight:500; }
+.rc-airline{ color: var(--muted); }
+
+.rc-cta{ display:flex; gap:8px; flex-wrap:wrap; }
+.price-pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:12px;
+  background: var(--grad-blue); color:#081122; font-weight:800;
+  box-shadow: 0 8px 20px rgba(44,115,255,.25);
+}
+.price-emoji{ filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+
+.btn{
+  padding:8px 12px; border-radius:12px; border:1px solid var(--chip-ring);
+  background: var(--chip); color:var(--text); font-weight:700;
+}
+.btn:hover{ border-color:#4c6aa8; }
+
+/* compare on */
+.btn-compare-on{
+  background: var(--grad-pink); color:#2a0e10; border-color: transparent;
+}
+
+/* ---------- Leg cards (Outbound/Return) ---------- */
+.leg-card{
+  margin-top:12px;
+  border-radius:12px;
+  border:1px solid var(--ring);
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)), var(--bg-card2);
+  overflow:hidden;
+}
+.leg-card__header{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px;
+  background: linear-gradient(135deg, rgba(255,255,255,.05), rgba(255,255,255,.0));
+  border-bottom:1px solid var(--ring);
+}
+.leg-card__header h4{ margin:0; font-size:15px; }
+.dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+.dot--out{ background: #3dd2ff; box-shadow:0 0 0 3px rgba(61,210,255,.2); }
+.dot--ret{ background: #a288ff; box-shadow:0 0 0 3px rgba(162,136,255,.2); }
+
+.leg-card__body{ padding:10px 12px; display:grid; gap:8px; }
+.leg-row{ display:grid; grid-template-columns: 110px 1fr 180px 80px; gap:8px; align-items:center; }
+.leg-row .carrier{ color: var(--muted); font-weight:600; }
+.leg-row .route .arrow{ margin:0 6px; color: var(--muted); }
+.leg-row .times{ color: var(--muted); }
+.leg-row .dur{ text-align:right; color: var(--muted); }
+
+/* ---------- Layover chip (between boxes) ---------- */
+.layover-chip{
+  margin:10px auto; width:max-content;
+  padding:8px 12px; border-radius:16px;
+  border:1px dashed #476399; color:var(--muted);
+  background: rgba(17,27,44,.4);
+  display:flex; gap:8px; align-items:center;
+}
+.layover-chip .sep{ opacity:.65; }
+.layover-chip .clock{ filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+
+/* ---------- Hotels (unchanged structure; dark-suited) ---------- */
+.hotel-block{ margin-top:14px; }
+.hotel-title{ font-weight:700; margin-bottom:8px; color:var(--muted); }
+
+.hotel-row{
+  display:flex; align-items:center; justify-content:space-between;
+  border:1px solid var(--ring); border-radius:12px;
+  padding:10px; margin:8px 0; background: var(--bg-card2);
+}
+.hotel-info{ display:flex; gap:12px; align-items:center; }
+.hotel-img img{ width:140px; height:88px; object-fit:cover; border-radius:10px; border:1px solid var(--ring); }
+.hotel-txt .name{ font-weight:700; }
+.hotel-txt .code{ color:var(--muted); }
+
+.hotel-links{ display:flex; gap:8px; flex-wrap:wrap; }
+
+/* ---------- Tabs / chips (Explore, Savor, Misc; Best/Cheapest/Flexible/etc.) ---------- */
+.tabs, .subtabs, .chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+
+.tabs .chip, .subtabs .chip, .chip{
+  padding:8px 12px; border-radius:999px; font-weight:800; color:#0a1224;
+  border:1px solid transparent;
+}
+.tabs .chip:nth-child(1){ background: var(--grad-blue); }
+.tabs .chip:nth-child(2){ background: var(--grad-lime); }
+.tabs .chip:nth-child(3){ background: var(--grad-pink); }
+
+.subtabs .chip{ background: #eef3ff; }
+.subtabs .chip.is-active{ background: var(--grad-purple); color:#150d2a; }
