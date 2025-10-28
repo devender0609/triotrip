@@ -1,117 +1,255 @@
-/* ---------- Global tokens (keep light theme) ---------- */
+/* ------------------------------------------------------------------
+   TrioTrip – Global styles
+   NOTE:
+   - Keeps your existing look & type (system fonts).
+   - Adds non-breaking styles for flight result layout:
+     .flight-group, .flight-box, .segment-row, .layover-chip
+   - Also polishes pills and cards a bit without changing sizes.
+   ------------------------------------------------------------------ */
+
 :root{
-  --bg-page: #f8fafc;           /* page background (very light) */
-  --bg-card: #ffffff;           /* white cards */
-  --bg-card-soft: #f6fbff;      /* soft white w/ hint of blue */
-  --line: #e2e8f0;              /* soft border */
-  --ink: #0f172a;               /* strong ink */
-  --ink-2: #334155;             /* secondary ink */
-  --accent-1: #0ea5e9;          /* cyan */
-  --accent-1-weak: #e0f2fe;     /* pale cyan */
-  --money-bg: #e7f5ff;          /* price chip bg */
-  --money-bd: #cfe3ff;          /* price chip border */
-  --shadow: 0 8px 20px rgba(2,6,23,.06);
+  --bg:#f7fafc;
+  --panel:#ffffff;
+  --ink:#0f172a;
+  --muted:#64748b;
+  --brand:#0ea5e9;
+  --brand-2:#60a5fa;
+  --ok:#10b981;
+  --ring:#e2e8f0;
+  --ring-strong:#cbd5e1;
+  --chip:#eef2f7;
+  --chip-ink:#0f172a;
+  --shadow: 0 1px 1px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.06);
+  --shadow-soft: 0 1px 1px rgba(15,23,42,.05), 0 4px 12px rgba(15,23,42,.05);
+  --radius:14px;
+  --radius-sm:10px;
+  --radius-xs:8px;
 }
 
-html, body { margin:0; padding:0; background: var(--bg-page); }
+html,body{
+  height:100%;
+  background:var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
 
-/* ---------- Result card wrapper ---------- */
+*{ box-sizing:border-box; }
+
+/* ---- Cards / sections --------------------------------------------------- */
+
+.card,
+.colorful-card,
 .result-card{
-  background: linear-gradient(180deg,var(--bg-card),var(--bg-card-soft));
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px;
-  box-shadow: var(--shadow);
-}
-.result-card--compared{ border: 2px solid var(--accent-1); }
-
-/* ---------- Buttons (kept understated) ---------- */
-.result-card .btn{
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid #94a3b8;
-  background: #fff;
-  font-weight: 800;
-  color: var(--ink);
-  text-decoration: none;
-  cursor: pointer;
-}
-.result-card .btn.btn--ghost{ background: #f8fafc; }
-.result-card .btn.btn--on{ border: 2px solid var(--accent-1); background: var(--accent-1-weak); }
-
-/* ---------- Price chip ---------- */
-.result-card .price{
-  font-weight: 900;
-  color: #0b3b52;
-  background: var(--money-bg);
-  border: 1px solid var(--money-bd);
-  border-radius: 10px;
-  padding: 6px 10px;
+  background:var(--panel);
+  border:1px solid var(--ring);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-soft);
 }
 
-/* ---------- Flight leg boxes ---------- */
-.result-card .leg{
-  margin-top: 12px;
-  border: 1px solid var(--line);
-  background: #f8fbff;
-  border-radius: 14px;
-  padding: 10px;
+.section{
+  background:var(--panel);
+  border:1px solid var(--ring);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-soft);
 }
-.result-card .leg + .leg{ margin-top: 10px; }
-.result-card .leg-title{
-  font-weight: 900;
-  color: #0b3b52;
-  margin-bottom: 6px;
-}
-.result-card .leg-row{
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: #fff;
-  border: 1px solid var(--line);
-  margin-bottom: 8px;
-}
-.result-card .leg-left{ display: grid; gap: 4px; }
-.result-card .leg-route{ display: flex; gap: 10px; align-items: baseline; }
-.result-card .leg-airline{ font-weight: 900; color: var(--ink); }
-.result-card .leg-cities{ font-weight: 800; color: var(--ink); }
-.result-card .arrow{ opacity: .65; margin: 0 4px; }
-.result-card .leg-times{ color: var(--ink-2); font-weight: 700; }
-.result-card .leg-right{ font-weight: 900; color: var(--ink); }
 
-/* ---------- Layover pill ---------- */
-.result-card .layover-chip{
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px dashed #cbd5e1;
-  border-radius: 12px;
-  padding: 6px 10px;
-  font-size: 12px;
-  background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
-  margin: 6px 0 10px 0;
+/* Keep your hotel cards visuals consistent */
+.hotel-card{
+  background:var(--panel);
+  border:1px solid var(--ring);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
 }
-.result-card .lo-dur{ opacity:.8; margin-left:4px; }
 
-/* ---------- Hotels ---------- */
-.result-card .hotels{ display: grid; gap: 12px; margin-top: 12px; }
-.result-card .hotels__title{ font-weight: 800; color: var(--ink); }
-.result-card .hotel{
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 10px;
-  background: #fff;
+/* ---- Pills / small chips ------------------------------------------------ */
+
+.pill,
+.badge,
+.pill-tab{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.35rem .7rem;
+  border-radius:999px;
+  background:var(--chip);
+  color:var(--chip-ink);
+  border:1px solid var(--ring);
+  line-height:1;
+  white-space:nowrap;
 }
-.result-card .hotel__img{ border-radius: 10px; overflow: hidden; display:block; background:#f1f5f9; }
-.result-card .hotel__img img{ width:160px; height:100px; object-fit:cover; display:block; }
-.result-card .hotel__body{ display: grid; gap: 6px; }
-.result-card .hotel__head{ display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;}
-.result-card .hotel__name{ font-weight: 800; color: var(--ink); text-decoration: none; }
-.result-card .hotel__price{ font-weight: 800; color: #0369a1; }
-.result-card .muted{ opacity: .7; font-weight: 700; }
-.result-card .hotel__links{ display: flex; gap: 8px; flex-wrap: wrap; }
+
+.pill-tab.is-active{
+  border-color:transparent;
+  background-image: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%);
+  color:#fff;
+  box-shadow:0 0 0 3px rgba(14,165,233,.15);
+}
+
+/* ---- Buttons (keeps sizes; just clearer focus ring) -------------------- */
+
+button, .btn{
+  border-radius:999px;
+  border:1px solid var(--ring);
+  background:#fff;
+}
+button:focus-visible, .btn:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 3px rgba(14,165,233,.25);
+}
+
+/* ---- Flight result layout ---------------------------------------------- */
+/* Wrapper that contains both Outbound and Return boxes */
+.flight-group{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+/* The box that holds a list of segments (Outbound or Return) */
+.flight-box{
+  background:linear-gradient(0deg,#ffffff, #ffffff) padding-box,
+             radial-gradient(120% 120% at 0% 0%, #e6f3ff 0%, #ffffff 70%) border-box;
+  border:1px solid var(--ring);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:16px;
+}
+
+/* Title row inside each flight box */
+.flight-box .box-title{
+  font-weight:700;
+  margin-bottom:10px;
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+}
+
+/* Each flight segment row */
+.segment-row{
+  display:grid;
+  grid-template-columns: 140px 1fr 110px;
+  gap:14px;
+  align-items:center;
+  padding:12px 14px;
+  border:1px dashed var(--ring-strong);
+  border-radius:var(--radius-sm);
+  background:#fff;
+}
+
+/* Airline + route column stays tidy */
+.segment-carrier{
+  font-weight:600;
+  color:var(--ink);
+}
+.segment-route{
+  color:var(--muted);
+}
+
+/* Times column */
+.segment-times{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  font-variation-settings:"wght" 520;
+}
+.segment-times small{
+  color:var(--muted);
+}
+
+/* Duration column (right side) */
+.segment-duration{
+  display:flex;
+  justify-content:flex-end;
+  font-weight:600;
+  color:var(--muted);
+}
+
+/* Layover chip that appears BETWEEN segment rows */
+.layover-chip{
+  display:flex;
+  align-items:center;
+  gap:.6rem;
+  align-self:center;
+  margin:8px 0;
+  padding:.5rem .85rem;
+  border:1px dashed var(--ring-strong);
+  background:#fff;
+  border-radius:999px;
+  color:var(--muted);
+  box-shadow:var(--shadow-soft);
+}
+.layover-dot{
+  width:9px;
+  height:9px;
+  background:var(--brand);
+  border-radius:50%;
+  box-shadow:0 0 0 3px rgba(14,165,233,.12);
+}
+
+/* Horizontal rule between Outbound and Return (optional & subtle) */
+.flight-divider{
+  height:1px;
+  margin:4px 0;
+  background:linear-gradient(90deg,transparent, var(--ring-strong), transparent);
+  border:0;
+}
+
+/* The action bar (price + links) stays punchy but compact */
+.result-toolbar{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.price-badge{
+  background:#f0f9ff;
+  color:#0369a1;
+  border:1px solid #bae6fd;
+}
+
+/* ---- Hotels list keeps current sizes ----------------------------------- */
+
+.hotel-list{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.hotel-item{
+  display:flex;
+  gap:16px;
+  align-items:center;
+  padding:14px;
+  border:1px solid var(--ring);
+  border-radius:var(--radius);
+  background:#fff;
+  box-shadow:var(--shadow-soft);
+}
+.hotel-item img{
+  width:140px;
+  height:90px;
+  object-fit:cover;
+  border-radius:12px;
+  border:1px solid var(--ring);
+}
+
+/* ---- Utilities ---------------------------------------------------------- */
+
+.muted{ color:var(--muted); }
+.hr-soft{
+  border:0;
+  height:1px;
+  background:linear-gradient(90deg, transparent, var(--ring), transparent);
+}
+
+/* ---- Responsive tweaks -------------------------------------------------- */
+
+@media (max-width: 920px){
+  .segment-row{
+    grid-template-columns: 1fr;
+    gap:8px;
+  }
+  .segment-duration{
+    justify-content:flex-start;
+  }
+  .hotel-item img{ width:110px; height:78px; }
+}
