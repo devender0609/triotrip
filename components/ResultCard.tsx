@@ -119,7 +119,7 @@ export default function ResultCard({
     pkg.flight_total ??
     0;
 
-  // Prefilled booking links for flights (Google Flights / Skyscanner / Airline)
+  // Prefilled booking links (Flights)
   const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(
     `${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax || 1} travelers`
   )}`;
@@ -134,6 +134,15 @@ export default function ResultCard({
     (airline
       ? `https://www.google.com/search?q=${encodeURIComponent(`${airline} ${from} ${to} ${dateOut}`)}`
       : `https://www.google.com/search?q=${encodeURIComponent(`airline booking ${from} ${to} ${dateOut}`)}`);
+
+  // **TrioTrip** internal booking deep-link (kept)
+  const trio = `/book?from=${encodeURIComponent(from)}&to=${encodeURIComponent(
+    to
+  )}&depart=${encodeURIComponent(dateOut || "")}${
+    dateRet ? `&return=${encodeURIComponent(dateRet)}` : ""
+  }&price=${encodeURIComponent(String(Number(price) || 0))}&airline=${encodeURIComponent(airline || "")}&pax=${encodeURIComponent(
+    String(pax || 1)
+  )}`;
 
   // Saved state
   const saved = useMemo(() => {
@@ -291,6 +300,7 @@ export default function ResultCard({
         </div>
         <div className="actions">
           <div className="price">💵 {money(Number(price) || 0, currency)}</div>
+          <a className="btn" href={trio} target="_blank" rel="noreferrer">TrioTrip</a>
           <a className="btn" href={gf} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="btn" href={sky} target="_blank" rel="noreferrer">Skyscanner</a>
           <a className="btn" href={airlineUrl} target="_blank" rel="noreferrer">{airline ? "Airline" : "Airlines"}</a>
@@ -320,7 +330,7 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* Hotels (unchanged except for price/nightly display) */}
+      {/* Hotels */}
       {showHotel && hotels.length > 0 && (
         <div className="hotels">
           <div className="hotels__title">Hotels (top options)</div>
@@ -409,7 +419,7 @@ export default function ResultCard({
         .dot { opacity: .8; }
         .lo-dur { opacity: .8; margin-left: 4px; }
 
-        /* Hotels (unchanged) */
+        /* Hotels */
         .hotels { display: grid; gap: 12px; margin-top: 12px; }
         .hotels__title { font-weight: 800; color: #0f172a; }
         .hotel {
