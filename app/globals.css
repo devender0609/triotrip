@@ -1,255 +1,146 @@
-/* ------------------------------------------------------------------
-   TrioTrip – Global styles
-   NOTE:
-   - Keeps your existing look & type (system fonts).
-   - Adds non-breaking styles for flight result layout:
-     .flight-group, .flight-box, .segment-row, .layover-chip
-   - Also polishes pills and cards a bit without changing sizes.
-   ------------------------------------------------------------------ */
+/* ================================
+   app/globals.css  (full file)
+   ================================ */
 
+/* --- Basic reset (minimal, safe) --- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+html, body { padding: 0; margin: 0; height: 100%; }
+img, video { max-width: 100%; height: auto; display: block; }
+
+/* ================================
+   Design tokens (popular defaults)
+   ================================ */
 :root{
-  --bg:#f7fafc;
-  --panel:#ffffff;
-  --ink:#0f172a;
-  --muted:#64748b;
-  --brand:#0ea5e9;
-  --brand-2:#60a5fa;
-  --ok:#10b981;
-  --ring:#e2e8f0;
-  --ring-strong:#cbd5e1;
-  --chip:#eef2f7;
-  --chip-ink:#0f172a;
-  --shadow: 0 1px 1px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.06);
-  --shadow-soft: 0 1px 1px rgba(15,23,42,.05), 0 4px 12px rgba(15,23,42,.05);
-  --radius:14px;
-  --radius-sm:10px;
-  --radius-xs:8px;
+  /* Brand */
+  --c-primary: #0ea5e9; /* Sky-500 */
+  --c-accent:  #06b6d4; /* Cyan-500 */
+
+  /* Neutrals */
+  --c-ink-strong: #0f172a; /* Slate-900 */
+  --c-ink-subtle: #475569; /* Slate-600 */
+  --c-line: #e2e8f0;       /* Slate-200 */
+  --c-card: #ffffff;
+  --c-page: #f8fafc;
+
+  /* Semantic */
+  --c-success: #10b981; /* Emerald-500 */
+  --c-warn:    #f59e0b; /* Amber-500 */
+  --c-danger:  #ef4444; /* Red-500 */
+  --c-info:    #6366f1; /* Indigo-500 */
+
+  /* Effects */
+  --shadow-soft: 0 10px 30px rgba(2, 8, 23, 0.06);
+  --ring: rgba(14,165,233,.35);
+
+  /* Components */
+  --chip-on: linear-gradient(90deg, var(--c-accent), var(--c-primary));
+  --chip-off: #ffffff;
+
+  /* Radii / sizes */
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 10px;
+
+  --h-input: 44px;
+  --fs-body: 16px;
+
+  /* New: gradient palettes per tab */
+  --grad-explore: linear-gradient(90deg, #22c55e, #0ea5e9);  /* green -> sky */
+  --grad-savor:   linear-gradient(90deg, #f97316, #ef4444);  /* orange -> red */
+  --grad-misc:    linear-gradient(90deg, #a855f7, #6366f1);  /* purple -> indigo */
+  --grad-compare: linear-gradient(90deg, #f59e0b, #f97316);  /* amber -> orange */
 }
 
-html,body{
-  height:100%;
-  background:var(--bg);
-  color:var(--ink);
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
+body{
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(14,165,233,.10) 0%, rgba(224,242,254,0) 60%),
+    radial-gradient(1000px 500px at 120% 10%, rgba(6,182,212,.08) 0%, rgba(207,250,254,0) 60%),
+    var(--c-page);
+  color: var(--c-ink-strong);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.45;
+  font-size: var(--fs-body);
 }
 
-*{ box-sizing:border-box; }
+/* Links & focus */
+a { color: inherit; text-decoration: none; }
+a:hover { opacity: .9; }
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
 
-/* ---- Cards / sections --------------------------------------------------- */
+/* Inputs / buttons */
+input, select, button, textarea{ font: inherit; color: var(--c-ink-strong); }
+input[type="text"], input[type="date"], input[type="search"], input[type="number"],
+select, textarea {
+  background: #fff; border: 1px solid var(--c-line); color: var(--c-ink-strong);
+  border-radius: var(--r-md); padding: 12px 14px; outline: none; height: var(--h-input);
+}
+input[type="text"]:focus, input[type="date"]:focus, input[type="search"]:focus,
+input[type="number"]:focus, select:focus, textarea:focus {
+  border-color: #7dd3fc; box-shadow: 0 0 0 3px var(--ring);
+}
+button {
+  border: 1px solid var(--c-line); background: #fff; color: var(--c-ink-strong);
+  border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; font-weight: 700;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
+button:disabled { opacity: .6; cursor: not-allowed; }
 
-.card,
-.colorful-card,
+/* Hide number spinners */
+.no-spin::-webkit-outer-spin-button,
+.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.no-spin { -moz-appearance: textfield; }
+
+/* Stepper */
+.stepper{ display: inline-flex; align-items: center; gap: 6px; }
+.stepper input{
+  width: 70px; text-align: center; font-weight: 600; height: 46px;
+  border-radius: var(--r-md); border: 1px solid var(--c-line); background: #fff; padding: 0 14px;
+}
+.stepper button{ height: 46px; width: 42px; border-radius: var(--r-sm); }
+.stepper button:hover{ transform: translateY(-1px); background: #f8fafc; border-color: #dce7f5; }
+
+/* Containers */
+.container, .main-wrap { max-width: 1240px; margin: 0 auto; width: 100%; }
+
+/* Simple cards & result list base (used by ResultCard) */
+.card{
+  background: var(--c-card);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  padding: 16px; margin: 14px 0;
+  box-shadow: var(--shadow-soft);
+}
 .result-card{
-  background:var(--panel);
-  border:1px solid var(--ring);
-  border-radius:var(--radius);
-  box-shadow:var(--shadow-soft);
+  background: linear-gradient(180deg, #ffffff, #f6fbff);
+  border: 1px solid var(--c-line);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 8px 20px rgba(2,6,23,.06);
+}
+.result-card--compared{ border-width: 2px; border-color: var(--c-primary); }
+
+/* Layover chip (theme token) */
+.layover-badge{
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
+  background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
 }
 
-.section{
-  background:var(--panel);
-  border:1px solid var(--ring);
-  border-radius:var(--radius);
-  box-shadow:var(--shadow-soft);
-}
+/* Tabs/chips colors (unchanged behaviour, just tokens) */
+.tab { border: 1px solid var(--c-line); background: #fff; padding: 10px 14px; border-radius: 999px; font-weight: 800; }
+.tab--active { color: #fff; border: none; }
+.chip { padding: 8px 12px; border-radius: 999px; background: var(--chip-off); border: 1px solid var(--c-line); font-weight: 700; }
+.chip--on { background: var(--chip-on); color: #fff; border: none; }
 
-/* Keep your hotel cards visuals consistent */
-.hotel-card{
-  background:var(--panel);
-  border:1px solid var(--ring);
-  border-radius:var(--radius);
-  box-shadow:var(--shadow);
-}
-
-/* ---- Pills / small chips ------------------------------------------------ */
-
-.pill,
-.badge,
-.pill-tab{
-  display:inline-flex;
-  align-items:center;
-  gap:.5rem;
-  padding:.35rem .7rem;
-  border-radius:999px;
-  background:var(--chip);
-  color:var(--chip-ink);
-  border:1px solid var(--ring);
-  line-height:1;
-  white-space:nowrap;
-}
-
-.pill-tab.is-active{
-  border-color:transparent;
-  background-image: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%);
-  color:#fff;
-  box-shadow:0 0 0 3px rgba(14,165,233,.15);
-}
-
-/* ---- Buttons (keeps sizes; just clearer focus ring) -------------------- */
-
-button, .btn{
-  border-radius:999px;
-  border:1px solid var(--ring);
-  background:#fff;
-}
-button:focus-visible, .btn:focus-visible{
-  outline:none;
-  box-shadow:0 0 0 3px rgba(14,165,233,.25);
-}
-
-/* ---- Flight result layout ---------------------------------------------- */
-/* Wrapper that contains both Outbound and Return boxes */
-.flight-group{
-  display:flex;
-  flex-direction:column;
-  gap:16px;
-}
-
-/* The box that holds a list of segments (Outbound or Return) */
-.flight-box{
-  background:linear-gradient(0deg,#ffffff, #ffffff) padding-box,
-             radial-gradient(120% 120% at 0% 0%, #e6f3ff 0%, #ffffff 70%) border-box;
-  border:1px solid var(--ring);
-  border-radius:var(--radius);
-  box-shadow:var(--shadow);
-  padding:16px;
-}
-
-/* Title row inside each flight box */
-.flight-box .box-title{
-  font-weight:700;
-  margin-bottom:10px;
-  display:flex;
-  align-items:center;
-  gap:.5rem;
-}
-
-/* Each flight segment row */
-.segment-row{
-  display:grid;
-  grid-template-columns: 140px 1fr 110px;
-  gap:14px;
-  align-items:center;
-  padding:12px 14px;
-  border:1px dashed var(--ring-strong);
-  border-radius:var(--radius-sm);
-  background:#fff;
-}
-
-/* Airline + route column stays tidy */
-.segment-carrier{
-  font-weight:600;
-  color:var(--ink);
-}
-.segment-route{
-  color:var(--muted);
-}
-
-/* Times column */
-.segment-times{
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-  font-variation-settings:"wght" 520;
-}
-.segment-times small{
-  color:var(--muted);
-}
-
-/* Duration column (right side) */
-.segment-duration{
-  display:flex;
-  justify-content:flex-end;
-  font-weight:600;
-  color:var(--muted);
-}
-
-/* Layover chip that appears BETWEEN segment rows */
-.layover-chip{
-  display:flex;
-  align-items:center;
-  gap:.6rem;
-  align-self:center;
-  margin:8px 0;
-  padding:.5rem .85rem;
-  border:1px dashed var(--ring-strong);
-  background:#fff;
-  border-radius:999px;
-  color:var(--muted);
-  box-shadow:var(--shadow-soft);
-}
-.layover-dot{
-  width:9px;
-  height:9px;
-  background:var(--brand);
-  border-radius:50%;
-  box-shadow:0 0 0 3px rgba(14,165,233,.12);
-}
-
-/* Horizontal rule between Outbound and Return (optional & subtle) */
-.flight-divider{
-  height:1px;
-  margin:4px 0;
-  background:linear-gradient(90deg,transparent, var(--ring-strong), transparent);
-  border:0;
-}
-
-/* The action bar (price + links) stays punchy but compact */
-.result-toolbar{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-.price-badge{
-  background:#f0f9ff;
-  color:#0369a1;
-  border:1px solid #bae6fd;
-}
-
-/* ---- Hotels list keeps current sizes ----------------------------------- */
-
-.hotel-list{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-.hotel-item{
-  display:flex;
-  gap:16px;
-  align-items:center;
-  padding:14px;
-  border:1px solid var(--ring);
-  border-radius:var(--radius);
-  background:#fff;
-  box-shadow:var(--shadow-soft);
-}
-.hotel-item img{
-  width:140px;
-  height:90px;
-  object-fit:cover;
-  border-radius:12px;
-  border:1px solid var(--ring);
-}
-
-/* ---- Utilities ---------------------------------------------------------- */
-
-.muted{ color:var(--muted); }
-.hr-soft{
-  border:0;
-  height:1px;
-  background:linear-gradient(90deg, transparent, var(--ring), transparent);
-}
-
-/* ---- Responsive tweaks -------------------------------------------------- */
-
-@media (max-width: 920px){
-  .segment-row{
-    grid-template-columns: 1fr;
-    gap:8px;
-  }
-  .segment-duration{
-    justify-content:flex-start;
-  }
-  .hotel-item img{ width:110px; height:78px; }
+/* Print helpers */
+@media print {
+  .tab, .chip, .compare-tray { display: none !important; }
+  body { background: #fff; }
+  .result-card { box-shadow: none; border-color: #cbd5e1; }
 }
