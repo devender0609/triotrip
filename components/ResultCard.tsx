@@ -65,8 +65,8 @@ type Props = {
 };
 
 /* ---------------------------------------
-   Robust getters (accept many shapes seen
-   across your builds so data never “disappears”)
+   Robust getters (accept many shapes so
+   data never “disappears”)
 --------------------------------------- */
 function getSegmentsOutbound(pkg: any): any[] {
   return (
@@ -104,14 +104,12 @@ function getCarrierList(pkg: any, outSegs: any[], inSegs: any[]) {
     )
   );
 }
-
 function getOrigin(pkg: any, outSegs: any[]) {
   return (outSegs?.[0]?.from || pkg?.origin || pkg?.from || "").toUpperCase();
 }
 function getDestination(pkg: any, outSegs: any[]) {
   return (outSegs?.[outSegs.length - 1]?.to || pkg?.destination || pkg?.to || "").toUpperCase();
 }
-
 const readNightly = (h: any): number | undefined => {
   const n =
     h?.price_per_night ??
@@ -139,11 +137,53 @@ const readTotal = (h: any): number | undefined => {
   const v = Number(t);
   return Number.isFinite(v) ? v : undefined;
 };
-
 const photoSeed = (s: string) => {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
   return Math.abs(h);
+};
+
+/* -------- Leg rows with a layover chip between segments -------- */
+const LegRows: React.FC<{ segs: any[]; airlineFallback?: string }> = ({ segs, airlineFallback }) => {
+  if (!segs?.length) return <div style={{ color: "#94a3b8", fontWeight: 700 }}>No segments found</div>;
+  const rows: React.ReactNode[] = [];
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    const carrier = s?.carrier_name || s?.carrier || airlineFallback || "—";
+    const dep = s?.depart_time;
+    const arr = s?.arrive_time;
+    const dur = fmtDur(mins(dep, arr));
+    rows.push(
+      <div key={`seg-${i}`} className="leg-row">
+        <div className="leg-left">
+          <div className="leg-route">
+            <div className="leg-airline">{carrier}</div>
+            <div className="leg-cities">
+              {s?.from?.toUpperCase()} <span className="leg-arrow">→</span> {s?.to?.toUpperCase()}
+            </div>
+          </div>
+          <div className="leg-times">
+            {fmtTime(dep)} — {fmtTime(arr)}
+          </div>
+        </div>
+        <div className="leg-right">{dur}</div>
+      </div>
+    );
+    const next = segs[i + 1];
+    if (next) {
+      const lay = mins(arr, next?.depart_time);
+      rows.push(
+        <div key={`lay-${i}`} className="layover-chip">
+          ⏱ <span>Layover in</span>
+          <strong>{` ${next?.from?.toUpperCase()} `}</strong>
+          <span>• Next departs at</span>
+          <strong>{` ${fmtTime(next?.depart_time)} `}</strong>
+          <span className="layover-dur">({fmtDur(lay)})</span>
+        </div>
+      );
+    }
+  }
+  return <>{rows}</>;
 };
 
 /* ---------------------------------------
@@ -205,7 +245,7 @@ export default function ResultCard({
     AIRLINE_SITE[airline || ""] ||
     `https://www.google.com/search?q=${encodeURIComponent(`${airline || "airline"} ${from} ${to} ${dateOut}`)}`;
 
-  /* TrioTrip internal link (works with your /book/checkout route) */
+  /* TrioTrip internal link (kept; works with your /book/checkout route) */
   const trioQS = new URLSearchParams({
     from,
     to,
@@ -215,7 +255,7 @@ export default function ResultCard({
     airline: airline || "",
     pax: String(pax || 1),
   }).toString();
-  const trioCheckout = `/book/checkout?${trioQS}`; // your wired route
+  const trioCheckout = `/book/checkout?${trioQS}`;
 
   /* Save */
   const compared = !!comparedIds?.includes(id);
@@ -238,7 +278,7 @@ export default function ResultCard({
     } catch {}
   }
 
-  /* Hotels (leave logic intact, just robust links) */
+  /* Hotels (logic unchanged; just robust links) */
   const hotels: any[] = Array.isArray(pkg?.hotels) && pkg.hotels.length ? pkg.hotels : pkg?.hotel ? [pkg.hotel] : [];
 
   const hotelLinks = (h: any) => {
@@ -275,60 +315,17 @@ export default function ResultCard({
     return { nightly, total };
   };
 
-  /* -------- Flight rows with a layover pill between segments -------- */
-  const LegRows: React.FC<{ segs: any[] }> = ({ segs }) => {
-    if (!segs?.length) return null;
-    const rows: React.ReactNode[] = [];
-    for (let i = 0; i < segs.length; i++) {
-      const s = segs[i];
-      const carrier = s?.carrier_name || s?.carrier || airline || "—";
-      const dep = s?.depart_time;
-      const arr = s?.arrive_time;
-      const dur = fmtDur(mins(dep, arr));
-      rows.push(
-        <div key={`seg-${i}`} className="leg-row">
-          <div className="leg-left">
-            <div className="leg-route">
-              <div className="leg-airline">{carrier}</div>
-              <div className="leg-cities">
-                {s?.from?.toUpperCase()} <span className="arrow">→</span> {s?.to?.toUpperCase()}
-              </div>
-            </div>
-            <div className="leg-times">
-              {fmtTime(dep)} — {fmtTime(arr)}
-            </div>
-          </div>
-          <div className="leg-right">{dur}</div>
-        </div>
-      );
-      const next = segs[i + 1];
-      if (next) {
-        const lay = mins(arr, next?.depart_time);
-        rows.push(
-          <div key={`lay-${i}`} className="layover-chip">
-            ⏱ <span>Layover in</span>
-            <strong>{` ${next?.from?.toUpperCase()} `}</strong>
-            <span>• Next departs at</span>
-            <strong>{` ${fmtTime(next?.depart_time)} `}</strong>
-            <span className="lo-dur">({fmtDur(lay)})</span>
-          </div>
-        );
-      }
-    }
-    return <>{rows}</>;
-  };
-
   return (
     <section onClick={() => onToggleCompare?.(id)} className={`result-card ${compared ? "result-card--compared" : ""}`}>
-      <header className="hdr">
-        <div className="route">
-          <div className="title">Option {index + 1} • {from} — {to}</div>
-          <div className="sub">
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontWeight: 900, color: "#0f172a" }}>Option {index + 1} • {from} — {to}</div>
+          <div style={{ color: "#334155", fontWeight: 600 }}>
             {dateOut && <>Outbound {dateOut}</>} {dateRet && <>• Return {dateRet}</>} {airline && <>• {airline}</>}
           </div>
         </div>
-        <div className="actions">
-          <div className="price">💵 {money(Number(price) || 0, currency)}</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div className="price-badge">💵 {money(Number(price) || 0, currency || "USD")}</div>
           <a className="btn" href={trioCheckout} target="_blank" rel="noreferrer">TrioTrip</a>
           <a className="btn" href={gf} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="btn" href={sky} target="_blank" rel="noreferrer">Skyscanner</a>
@@ -343,20 +340,19 @@ export default function ResultCard({
         </div>
       </header>
 
-      {outSegs?.length > 0 && (
-        <div className="leg">
-          <div className="leg-title">Outbound</div>
-          <LegRows segs={outSegs} />
-        </div>
-      )}
+      {/* Outbound box */}
+      <div className="result-leg">
+        <div className="result-leg-title">Outbound</div>
+        <LegRows segs={outSegs} airlineFallback={airline} />
+      </div>
 
-      {inSegs?.length > 0 && (
-        <div className="leg">
-          <div className="leg-title">Return</div>
-          <LegRows segs={inSegs} />
-        </div>
-      )}
+      {/* Return box */}
+      <div className="result-leg">
+        <div className="result-leg-title">Return</div>
+        <LegRows segs={inSegs} airlineFallback={airline} />
+      </div>
 
+      {/* Hotels (unchanged list & links) */}
       {showHotel && (Array.isArray(pkg?.hotels) ? pkg.hotels.length : pkg?.hotel) ? (
         <div className="hotels">
           <div className="hotels__title">{showAllHotels ? "Hotels (all)" : "Hotels (top options)"}</div>
@@ -384,10 +380,10 @@ export default function ResultCard({
                     <div className="hotel__price">
                       {nightly != null && (
                         <span>
-                          {money(nightly, currency)} <span className="muted">/ night</span>
+                          {money(nightly, currency || "USD")} <span className="muted">/ night</span>
                         </span>
                       )}
-                      {total != null && <span className="muted"> • {money(total, currency)} total</span>}
+                      {total != null && <span className="muted"> • {money(total, currency || "USD")} total</span>}
                     </div>
                   </div>
                   <div className="hotel__links">
@@ -402,60 +398,6 @@ export default function ResultCard({
           })}
         </div>
       ) : null}
-
-      <style jsx>{`
-        .hdr { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-        .route .title { font-weight: 900; color: #0f172a; }
-        .route .sub { color: #334155; font-weight: 600; }
-        .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .price {
-          font-weight: 900; color: #0b3b52;
-          background: #e7f5ff; border: 1px solid #cfe3ff; border-radius: 10px; padding: 6px 10px;
-        }
-        .btn { padding: 6px 10px; border-radius: 10px; border: 1px solid #94a3b8; background: #fff; font-weight: 800; color: #0f172a; text-decoration: none; cursor: pointer; }
-        .btn--ghost { background: #f8fafc; }
-        .btn--on { border: 2px solid #0ea5e9; background: #e0f2fe; }
-
-        /* Two clean boxes */
-        .leg { margin-top: 12px; border: 1px solid #e2e8f0; background: #f8fbff; border-radius: 14px; padding: 10px; }
-        .leg + .leg { margin-top: 10px; }
-        .leg-title { font-weight: 900; color: #0b3b52; margin-bottom: 6px; }
-
-        .leg-row {
-          display: grid; grid-template-columns: 1fr auto; align-items: center;
-          padding: 8px 10px; border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0; margin-bottom: 8px;
-        }
-        .leg-left { display: grid; gap: 4px; }
-        .leg-route { display: flex; gap: 10px; align-items: baseline; }
-        .leg-airline { font-weight: 900; color: #0f172a; }
-        .leg-cities { font-weight: 800; color: #0f172a; }
-        .arrow { opacity: .65; margin: 0 4px; }
-        .leg-times { color: #334155; font-weight: 700; }
-        .leg-right { font-weight: 900; color: #0f172a; }
-
-        .layover-chip {
-          display: inline-flex; align-items: center; gap: 6px;
-          border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
-          background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
-          margin: 6px 0 10px 0;
-        }
-        .lo-dur { opacity: .8; margin-left: 4px; }
-
-        .hotels { display: grid; gap: 12px; margin-top: 12px; }
-        .hotels__title { font-weight: 800; color: #0f172a; }
-        .hotel {
-          display: grid; grid-template-columns: 160px 1fr; gap: 12px;
-          border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: #fff;
-        }
-        .hotel__img { border-radius: 10px; overflow: hidden; display: block; background: #f1f5f9; }
-        .hotel__img img { width: 160px; height: 100px; object-fit: cover; display: block; }
-        .hotel__body { display: grid; gap: 6px; }
-        .hotel__head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .hotel__name { font-weight: 800; color: #0f172a; text-decoration: none; }
-        .hotel__price { font-weight: 800; color: #0369a1; }
-        .muted { opacity: .7; font-weight: 700; }
-        .hotel__links { display: flex; gap: 8px; flex-wrap: wrap; }
-      `}</style>
     </section>
   );
 }

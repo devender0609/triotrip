@@ -1,146 +1,138 @@
-/* ================================
-   app/globals.css  (full file)
-   ================================ */
-
-/* --- Basic reset (minimal, safe) --- */
-*,
-*::before,
-*::after { box-sizing: border-box; }
-html, body { padding: 0; margin: 0; height: 100%; }
-img, video { max-width: 100%; height: auto; display: block; }
-
-/* ================================
-   Design tokens (popular defaults)
-   ================================ */
-:root{
-  /* Brand */
-  --c-primary: #0ea5e9; /* Sky-500 */
-  --c-accent:  #06b6d4; /* Cyan-500 */
-
-  /* Neutrals */
-  --c-ink-strong: #0f172a; /* Slate-900 */
-  --c-ink-subtle: #475569; /* Slate-600 */
-  --c-line: #e2e8f0;       /* Slate-200 */
-  --c-card: #ffffff;
-  --c-page: #f8fafc;
-
-  /* Semantic */
-  --c-success: #10b981; /* Emerald-500 */
-  --c-warn:    #f59e0b; /* Amber-500 */
-  --c-danger:  #ef4444; /* Red-500 */
-  --c-info:    #6366f1; /* Indigo-500 */
-
-  /* Effects */
-  --shadow-soft: 0 10px 30px rgba(2, 8, 23, 0.06);
-  --ring: rgba(14,165,233,.35);
-
-  /* Components */
-  --chip-on: linear-gradient(90deg, var(--c-accent), var(--c-primary));
-  --chip-off: #ffffff;
-
-  /* Radii / sizes */
-  --r-lg: 16px;
-  --r-md: 12px;
-  --r-sm: 10px;
-
-  --h-input: 44px;
-  --fs-body: 16px;
-
-  /* New: gradient palettes per tab */
-  --grad-explore: linear-gradient(90deg, #22c55e, #0ea5e9);  /* green -> sky */
-  --grad-savor:   linear-gradient(90deg, #f97316, #ef4444);  /* orange -> red */
-  --grad-misc:    linear-gradient(90deg, #a855f7, #6366f1);  /* purple -> indigo */
-  --grad-compare: linear-gradient(90deg, #f59e0b, #f97316);  /* amber -> orange */
+/* ------ Base reset (light, keeps your existing look) ------ */
+:root {
+  --ring: #0ea5e9;
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --card: #ffffff;
+  --chip-on-a: #06b6d4;
+  --chip-on-b: #0ea5e9;
+  --blue-soft: #f0f9ff;
 }
 
-body{
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(14,165,233,.10) 0%, rgba(224,242,254,0) 60%),
-    radial-gradient(1000px 500px at 120% 10%, rgba(6,182,212,.08) 0%, rgba(207,250,254,0) 60%),
-    var(--c-page);
-  color: var(--c-ink-strong);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  line-height: 1.45;
-  font-size: var(--fs-body);
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #fafcff; color: var(--ink); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
+button, input, select { font: inherit; }
+
+/* ------ Utility ------ */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
 }
 
-/* Links & focus */
-a { color: inherit; text-decoration: none; }
-a:hover { opacity: .9; }
-:focus-visible {
-  outline: 3px solid var(--ring);
-  outline-offset: 2px;
-}
-
-/* Inputs / buttons */
-input, select, button, textarea{ font: inherit; color: var(--c-ink-strong); }
-input[type="text"], input[type="date"], input[type="search"], input[type="number"],
-select, textarea {
-  background: #fff; border: 1px solid var(--c-line); color: var(--c-ink-strong);
-  border-radius: var(--r-md); padding: 12px 14px; outline: none; height: var(--h-input);
-}
-input[type="text"]:focus, input[type="date"]:focus, input[type="search"]:focus,
-input[type="number"]:focus, select:focus, textarea:focus {
-  border-color: #7dd3fc; box-shadow: 0 0 0 3px var(--ring);
-}
-button {
-  border: 1px solid var(--c-line); background: #fff; color: var(--c-ink-strong);
-  border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; font-weight: 700;
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
-}
-button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(2,6,23,.05); }
-button:disabled { opacity: .6; cursor: not-allowed; }
-
-/* Hide number spinners */
-.no-spin::-webkit-outer-spin-button,
-.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.no-spin { -moz-appearance: textfield; }
-
-/* Stepper */
-.stepper{ display: inline-flex; align-items: center; gap: 6px; }
-.stepper input{
-  width: 70px; text-align: center; font-weight: 600; height: 46px;
-  border-radius: var(--r-md); border: 1px solid var(--c-line); background: #fff; padding: 0 14px;
-}
-.stepper button{ height: 46px; width: 42px; border-radius: var(--r-sm); }
-.stepper button:hover{ transform: translateY(-1px); background: #f8fafc; border-color: #dce7f5; }
-
-/* Containers */
-.container, .main-wrap { max-width: 1240px; margin: 0 auto; width: 100%; }
-
-/* Simple cards & result list base (used by ResultCard) */
-.card{
-  background: var(--c-card);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-lg);
-  padding: 16px; margin: 14px 0;
-  box-shadow: var(--shadow-soft);
-}
-.result-card{
-  background: linear-gradient(180deg, #ffffff, #f6fbff);
-  border: 1px solid var(--c-line);
-  border-radius: 14px;
-  padding: 12px;
-  box-shadow: 0 8px 20px rgba(2,6,23,.06);
-}
-.result-card--compared{ border-width: 2px; border-color: var(--c-primary); }
-
-/* Layover chip (theme token) */
-.layover-badge{
+.btn {
   display: inline-flex; align-items: center; gap: 6px;
-  border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
-  background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid #94a3b8;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-/* Tabs/chips colors (unchanged behaviour, just tokens) */
-.tab { border: 1px solid var(--c-line); background: #fff; padding: 10px 14px; border-radius: 999px; font-weight: 800; }
-.tab--active { color: #fff; border: none; }
-.chip { padding: 8px 12px; border-radius: 999px; background: var(--chip-off); border: 1px solid var(--c-line); font-weight: 700; }
-.chip--on { background: var(--chip-on); color: #fff; border: none; }
+.btn--ghost { background: #f8fafc; }
+.btn--on { border: 2px solid var(--ring); background: #e0f2fe; }
 
-/* Print helpers */
-@media print {
-  .tab, .chip, .compare-tray { display: none !important; }
-  body { background: #fff; }
-  .result-card { box-shadow: none; border-color: #cbd5e1; }
+/* ------ Chips / Tabs (shared visuals) ------ */
+.chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line);
+  font-weight: 700;
+  cursor: pointer;
+}
+.chip.on {
+  background: linear-gradient(90deg, var(--chip-on-a), var(--chip-on-b));
+  color: #fff;
+  border: none;
+}
+
+.subtab {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.subtab.on {
+  background: linear-gradient(90deg, var(--chip-on-a), var(--chip-on-b));
+  color: #fff;
+  border: none;
+}
+
+/* ------ Result card framing (kept very light) ------ */
+.result-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+}
+.result-card--compared { outline: 2px solid var(--ring); }
+
+/* Section boxes for Outbound / Return */
+.result-leg {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  border-radius: 14px;
+  padding: 10px;
+}
+.result-leg + .result-leg { margin-top: 10px; }
+.result-leg-title { font-weight: 900; color: #0b3b52; margin-bottom: 6px; }
+
+/* Individual flight segment row */
+.leg-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.leg-left { display: grid; gap: 4px; }
+.leg-route { display: flex; gap: 10px; align-items: baseline; }
+.leg-airline { font-weight: 900; color: var(--ink); }
+.leg-cities { font-weight: 800; color: var(--ink); }
+.leg-arrow { opacity: .65; margin: 0 4px; }
+.leg-times { color: var(--ink-2); font-weight: 700; }
+.leg-right { font-weight: 900; color: var(--ink); }
+
+/* Layover chip between segments */
+.layover-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
+  margin: 6px 0 10px 0;
+}
+.layover-dur { opacity: .8; margin-left: 4px; }
+
+/* Hotels block (unchanged look) */
+.hotels { display: grid; gap: 12px; margin-top: 12px; }
+.hotels__title { font-weight: 800; color: var(--ink); }
+.hotel {
+  display: grid; grid-template-columns: 160px 1fr; gap: 12px;
+  border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: #fff;
+}
+.hotel__img { border-radius: 10px; overflow: hidden; display: block; background: #f1f5f9; }
+.hotel__img img { width: 160px; height: 100px; object-fit: cover; display: block; }
+.hotel__body { display: grid; gap: 6px; }
+.hotel__head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+.hotel__name { font-weight: 800; color: var(--ink); text-decoration: none; }
+.hotel__price { font-weight: 800; color: #0369a1; }
+.muted { opacity: .7; font-weight: 700; }
+
+/* Small price badge in header */
+.price-badge {
+  font-weight: 900; color: #0b3b52;
+  background: #e7f5ff; border: 1px solid #cfe3ff; border-radius: 10px; padding: 6px 10px;
 }
