@@ -3,25 +3,23 @@
 
 import React, { useMemo } from "react";
 
-/** ====== Helpers ====== **/
+/** ====== Lightweight helpers (no external deps) ====== **/
 const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
-function fmtTime(d: string | Date | undefined) {
-  if (!d) return "—";
+function fmtTime(d: string | Date) {
   const dt = typeof d === "string" ? new Date(d) : d;
   if (Number.isNaN(dt.getTime())) return "—";
   return `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
 }
-function fmtDate(d: string | Date | undefined) {
-  if (!d) return "";
+function fmtDate(d: string | Date) {
   const dt = typeof d === "string" ? new Date(d) : d;
   if (Number.isNaN(dt.getTime())) return "";
   return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 function fmtDur(mins?: number) {
-  if (mins === undefined || mins === null) return "";
+  if (!mins && mins !== 0) return "";
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
+  return h ? `${h}h ${m ? `${m}m` : ""}`.trim() : `${m}m`;
 }
 function airlineName(code?: string) {
   if (!code) return "";
@@ -42,13 +40,12 @@ function airlineName(code?: string) {
   return map[code] || code;
 }
 
-/** ====== Types (align with your existing structure) ====== */
 type Segment = {
   depTime?: string; // ISO
   arrTime?: string; // ISO
   dep?: string;     // IATA
   arr?: string;     // IATA
-  carrier?: string; // AA, UA
+  carrier?: string; // AA, UA, etc
   flightNo?: string;
   durationMins?: number;
 };
@@ -64,7 +61,7 @@ type Flight = {
   return?: Leg;
   price?: number;
   currency?: string;
-  deeplink?: string; // TrioTrip/provider link
+  deeplink?: string; // TrioTrip / provider booking link
 };
 
 type Hotel = {
@@ -98,10 +95,7 @@ type Pkg = {
 type Props = {
   pkg: Pkg;
   index: number;
-
-  /** ADDED: matches page.tsx usage to fix the build */
-  currency?: string;
-
+  /** Optional flags from the page (kept loose so we don’t break your TS) */
   pax?: number;
   showHotel?: boolean;
   hotelNights?: number;
@@ -111,7 +105,7 @@ type Props = {
   onSavedChangeGlobal?: () => void;
 };
 
-/** ====== Scoped styles (inline so nothing else changes) ====== */
+/** ====== Small UI atoms (inline styles keep it scoped) ====== **/
 const cardShell: React.CSSProperties = {
   border: "1px solid #e5e7eb",
   borderRadius: 14,
@@ -189,7 +183,7 @@ const priceBadge: React.CSSProperties = {
   color: "#0f172a",
 };
 
-/** ====== UI bits ====== */
+/** Layover element shown between segments */
 function Layover({ prev, next }: { prev?: Segment; next?: Segment }) {
   if (!prev || !next || !prev.arrTime || !next.depTime) return null;
   const prevArr = new Date(prev.arrTime);
@@ -213,6 +207,7 @@ function Layover({ prev, next }: { prev?: Segment; next?: Segment }) {
   );
 }
 
+/** Render a single segment row */
 function SegmentBox({ s }: { s: Segment }) {
   const code = s.carrier || "";
   const name = airlineName(code);
@@ -226,7 +221,9 @@ function SegmentBox({ s }: { s: Segment }) {
         <div style={{ fontWeight: 600 }}>
           {fmtTime(s.depTime)} {s.dep} → {fmtTime(s.arrTime)} {s.arr}
         </div>
-        <div style={segmentMeta}>Duration {fmtDur(s.durationMins)}</div>
+        <div style={segmentMeta}>
+          Duration {fmtDur(s.durationMins)}
+        </div>
       </div>
       <div style={{ fontSize: 12, color: "#475569", textAlign: "right" }}>
         {fmtDate(s.depTime)}
@@ -235,16 +232,21 @@ function SegmentBox({ s }: { s: Segment }) {
   );
 }
 
-function LegBox({ label, leg }: { label: "Outbound" | "Return"; leg?: Leg }) {
+/** Render a whole leg (Outbound or Return) with segments + layovers elegantly */
+function LegBox({
+  label,
+  leg,
+}: {
+  label: "Outbound" | "Return";
+  leg?: Leg;
+}) {
   const segs = leg?.segments || [];
-  const stopsText =
-    segs.length > 1 ? `${segs.length - 1} stop${segs.length - 1 > 1 ? "s" : ""}` : "nonstop";
   return (
     <div style={flightBox}>
       <div style={headerRow}>
         <div style={boxTitle}>{label}</div>
         <div style={segmentMeta}>
-          {stopsText}
+          {segs.length ? `${segs.length - 1} stop${segs.length > 2 ? "s" : segs.length === 1 ? "" : ""}` : "—"}
           {leg?.durationMins ? ` · ${fmtDur(leg.durationMins)}` : ""}
         </div>
       </div>
@@ -252,7 +254,9 @@ function LegBox({ label, leg }: { label: "Outbound" | "Return"; leg?: Leg }) {
         {segs.map((s, i) => (
           <React.Fragment key={`${label}-seg-${i}`}>
             <SegmentBox s={s} />
-            {i < segs.length - 1 && <Layover prev={segs[i]} next={segs[i + 1]} />}
+            {i < segs.length - 1 && (
+              <Layover prev={segs[i]} next={segs[i + 1]} />
+            )}
           </React.Fragment>
         ))}
         {!segs.length && (
@@ -265,6 +269,7 @@ function LegBox({ label, leg }: { label: "Outbound" | "Return"; leg?: Leg }) {
   );
 }
 
+/** Hotel line (kept simple; we don’t change your existing hotel logic) */
 function HotelLine({ h }: { h: Hotel }) {
   return (
     <div
@@ -280,61 +285,38 @@ function HotelLine({ h }: { h: Hotel }) {
       }}
     >
       <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            fontWeight: 600,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+        <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {h.name || "Hotel"}
           {h.stars ? ` · ${"★".repeat(Math.min(5, Math.max(1, h.stars)))}` : ""}
         </div>
-        <div style={{ fontSize: 12, color: "#6b7280" }}>{h.address || ""}</div>
+        <div style={{ fontSize: 12, color: "#6b7280" }}>
+          {h.address || ""}
+        </div>
       </div>
       <div style={{ textAlign: "right" }}>
         {typeof h.priceNight === "number" ? (
           <div style={{ fontWeight: 700 }}>
-            {(h.currency || "$")}
-            {h.priceNight.toFixed(0)}{" "}
-            <span style={{ fontWeight: 400, color: "#64748b" }}>/night</span>
+            {(h.currency || "$")}{h.priceNight.toFixed(0)} <span style={{ fontWeight: 400, color: "#64748b" }}>/night</span>
           </div>
         ) : null}
         {typeof h.priceTotal === "number" ? (
           <div style={{ fontSize: 12, color: "#475569" }}>
-            Total {(h.currency || "$")}
-            {h.priceTotal.toFixed(0)}
+            Total {(h.currency || "$")}{h.priceTotal.toFixed(0)}
           </div>
         ) : null}
-        <div
-          style={{
-            marginTop: 6,
-            display: "flex",
-            gap: 6,
-            justifyContent: "flex-end",
-            flexWrap: "wrap",
-          }}
-        >
+        {/* Booking links (kept as-is if present) */}
+        <div style={{ marginTop: 6, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
           {h.links?.booking && (
-            <a className="btn" href={h.links.booking} target="_blank" rel="noreferrer">
-              Booking.com
-            </a>
+            <a className="btn" href={h.links.booking} target="_blank" rel="noreferrer">Booking.com</a>
           )}
           {h.links?.expedia && (
-            <a className="btn" href={h.links.expedia} target="_blank" rel="noreferrer">
-              Expedia
-            </a>
+            <a className="btn" href={h.links.expedia} target="_blank" rel="noreferrer">Expedia</a>
           )}
           {h.links?.hotels && (
-            <a className="btn" href={h.links.hotels} target="_blank" rel="noreferrer">
-              Hotels.com
-            </a>
+            <a className="btn" href={h.links.hotels} target="_blank" rel="noreferrer">Hotels.com</a>
           )}
           {h.links?.map && (
-            <a className="btn" href={h.links.map} target="_blank" rel="noreferrer">
-              Map
-            </a>
+            <a className="btn" href={h.links.map} target="_blank" rel="noreferrer">Map</a>
           )}
         </div>
       </div>
@@ -342,50 +324,30 @@ function HotelLine({ h }: { h: Hotel }) {
   );
 }
 
-/** ====== Main ====== */
+/** ====== Main Result Card ====== **/
 export default function ResultCard(props: Props) {
   const { pkg, index } = props;
 
-  const currency = pkg?.currency || props.currency || "USD";
-  const currencySymbol =
-    currency.length === 3
-      ? (() => {
-          try {
-            // gets the symbol for the code in this locale
-            return new Intl.NumberFormat(undefined, {
-              style: "currency",
-              currency,
-              currencyDisplay: "narrowSymbol",
-              maximumFractionDigits: 0,
-            })
-              .format(0)
-              .replace(/[0-9\s.,]/g, "");
-          } catch {
-            return "$";
-          }
-        })()
-      : currency;
-
   const totalStr = useMemo(() => {
     if (!pkg?.total) return "";
+    const cur = pkg.currency || "$";
     try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency,
-        maximumFractionDigits: 0,
-      }).format(pkg.total);
+      return new Intl.NumberFormat(undefined, { style: "currency", currency: cur }).format(pkg.total);
     } catch {
-      return `${currencySymbol}${pkg.total.toFixed?.(0) ?? pkg.total}`;
+      return `${cur}${pkg.total.toFixed?.(0) ?? pkg.total}`;
     }
-  }, [pkg, currency, currencySymbol]);
+  }, [pkg]);
 
   return (
     <section style={{ ...cardShell, marginBottom: 16 }}>
-      {/* Header */}
+      {/* Header: title + total & action buttons */}
       <div style={{ ...headerRow, marginBottom: 12 }}>
-        <div style={{ fontWeight: 700 }}>{pkg.title || `Option ${index + 1}`}</div>
+        <div style={{ fontWeight: 700 }}>
+          {pkg.title || `Option ${index + 1}`}
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {totalStr && <span style={priceBadge}>{totalStr}</span>}
+          {/* Save / Compare hooks kept intact if parent passes handlers */}
           {typeof props.onToggleCompare === "function" && (
             <button
               className="btn"
@@ -405,11 +367,12 @@ export default function ResultCard(props: Props) {
         </div>
       </div>
 
-      {/* Flights */}
+      {/* Flights block */}
       {pkg.flights && (
         <div style={{ display: "grid", gap: 12 }}>
           <LegBox label="Outbound" leg={pkg.flights.outbound} />
 
+          {/* TrioTrip / provider deep link (kept) */}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             {pkg.flights.deeplink && (
               <a
@@ -428,17 +391,15 @@ export default function ResultCard(props: Props) {
         </div>
       )}
 
-      {/* Hotels */}
-      {!!(props.showHotel ?? true) &&
-        Array.isArray(pkg.hotels) &&
-        pkg.hotels.length > 0 && (
-          <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-            <div style={boxTitle}>Hotels</div>
-            {pkg.hotels.map((h, i) => (
-              <HotelLine key={h.id || `h-${i}`} h={h} />
-            ))}
-          </div>
-        )}
+      {/* Hotels block (only if present/visible) */}
+      {!!(props.showHotel ?? true) && Array.isArray(pkg.hotels) && pkg.hotels.length > 0 && (
+        <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+          <div style={boxTitle}>Hotels</div>
+          {pkg.hotels.map((h, i) => (
+            <HotelLine key={h.id || `h-${i}`} h={h} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
