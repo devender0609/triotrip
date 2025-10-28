@@ -1,26 +1,9 @@
 "use client";
 import React, { useMemo } from "react";
 
-/** Known airline homepages for a clean “Airline” button. */
-const AIRLINE_SITE: Record<string, string> = {
-  "American Airlines": "https://www.aa.com",
-  American: "https://www.aa.com",
-  "Delta Air Lines": "https://www.delta.com",
-  Delta: "https://www.delta.com",
-  "United Airlines": "https://www.united.com",
-  United: "https://www.united.com",
-  "Alaska Airlines": "https://www.alaskaair.com",
-  Alaska: "https://www.alaskaair.com",
-  Southwest: "https://www.southwest.com",
-  JetBlue: "https://www.jetblue.com",
-  Lufthansa: "https://www.lufthansa.com",
-  Emirates: "https://www.emirates.com",
-  Qatar: "https://www.qatarairways.com",
-  "British Airways": "https://www.britishairways.com",
-  "Air France": "https://wwws.airfrance.us",
-  KLM: "https://www.klm.com",
-};
-
+/* ---------------------------------------
+   Helpers
+--------------------------------------- */
 const money = (n: number, ccy: string) => {
   try {
     return new Intl.NumberFormat(undefined, {
@@ -32,39 +15,48 @@ const money = (n: number, ccy: string) => {
     return `$${Math.round(n).toLocaleString()}`;
   }
 };
-const ensureHttps = (u?: string) =>
-  !u ? "" : u.startsWith("http") ? u : `https://${u.replace(/^\/\//, "")}`;
-const hash = (s: string) => {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
-  return Math.abs(h);
-};
 
-/* --------- Small time helpers --------- */
 const fmtTime = (iso?: string) => {
   if (!iso) return "";
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
-const fmtDate = (iso?: string) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return d.toISOString().slice(0, 10);
-};
+const fmtDate = (iso?: string) => (iso ? new Date(iso).toISOString().slice(0, 10) : "");
 const mins = (a?: string, b?: string) =>
   a && b ? Math.max(0, Math.round((+new Date(b) - +new Date(a)) / 60000)) : 0;
 const fmtDur = (m: number) => (m <= 0 ? "" : `${Math.floor(m / 60)}h ${m % 60}m`);
+const ensureHttps = (u?: string) => (!u ? "" : u.startsWith("http") ? u : `https://${u.replace(/^\/\//, "")}`);
 
+/* airline site guess (kept minimal) */
+const AIRLINE_SITE: Record<string, string> = {
+  American: "https://www.aa.com",
+  "American Airlines": "https://www.aa.com",
+  Delta: "https://www.delta.com",
+  United: "https://www.united.com",
+  Alaska: "https://www.alaskaair.com",
+  Southwest: "https://www.southwest.com",
+  JetBlue: "https://www.jetblue.com",
+  Lufthansa: "https://www.lufthansa.com",
+  Emirates: "https://www.emirates.com",
+  Qatar: "https://www.qatarairways.com",
+  "British Airways": "https://www.britishairways.com",
+  "Air France": "https://wwws.airfrance.us",
+  KLM: "https://www.klm.com",
+};
+
+/* ---------------------------------------
+   Types
+--------------------------------------- */
 type Props = {
   pkg: any;
   index?: number;
   currency?: string;
   pax?: number;
+
   comparedIds?: string[];
   onToggleCompare?: (id: string) => void;
-  onSavedChangeGlobal?: (count: number) => void;
+  onSavedChangeGlobal?: (n: number) => void;
 
-  /** Hotel display controls + date context (so we can prefill links) */
   showHotel?: boolean;
   showAllHotels?: boolean;
   hotelNights?: number;
@@ -72,6 +64,91 @@ type Props = {
   hotelCheckOut?: string;
 };
 
+/* ---------------------------------------
+   Robust getters (accept many shapes seen
+   across your builds so data never “disappears”)
+--------------------------------------- */
+function getSegmentsOutbound(pkg: any): any[] {
+  return (
+    pkg?.flight?.segments_out ||
+    pkg?.flight?.outbound ||
+    pkg?.segments_out ||
+    pkg?.segmentsOut ||
+    pkg?.outbound ||
+    pkg?.segments?.out ||
+    pkg?.segments ||
+    []
+  );
+}
+function getSegmentsReturn(pkg: any): any[] {
+  return (
+    pkg?.flight?.segments_in ||
+    pkg?.flight?.segments_return ||
+    pkg?.flight?.return ||
+    pkg?.segments_in ||
+    pkg?.segmentsIn ||
+    pkg?.returnSegments ||
+    pkg?.inbound ||
+    pkg?.segments?.in ||
+    []
+  );
+}
+function getCarrierList(pkg: any, outSegs: any[], inSegs: any[]) {
+  return Array.from(
+    new Set(
+      [
+        ...(outSegs || []).map((s) => s?.carrier_name || s?.carrier),
+        ...(inSegs || []).map((s) => s?.carrier_name || s?.carrier),
+        pkg?.flight?.carrier_name || pkg?.flight?.carrier,
+      ].filter(Boolean)
+    )
+  );
+}
+
+function getOrigin(pkg: any, outSegs: any[]) {
+  return (outSegs?.[0]?.from || pkg?.origin || pkg?.from || "").toUpperCase();
+}
+function getDestination(pkg: any, outSegs: any[]) {
+  return (outSegs?.[outSegs.length - 1]?.to || pkg?.destination || pkg?.to || "").toUpperCase();
+}
+
+const readNightly = (h: any): number | undefined => {
+  const n =
+    h?.price_per_night ??
+    h?.nightly ??
+    h?.rate ??
+    h?.nightly_price ??
+    h?.night_price ??
+    h?.priceNight ??
+    h?.price_night ??
+    h?.pricePerNight ??
+    h?.amountNight ??
+    h?.amount_night;
+  const v = Number(n);
+  return Number.isFinite(v) ? v : undefined;
+};
+const readTotal = (h: any): number | undefined => {
+  const t =
+    h?.price_total ??
+    h?.priceTotal ??
+    h?.total ??
+    h?.total_price ??
+    h?.amount ??
+    h?.price ??
+    h?.cost;
+  const v = Number(t);
+  return Number.isFinite(v) ? v : undefined;
+};
+
+const photoSeed = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
+  return Math.abs(h);
+};
+
+/* ---------------------------------------
+   Component
+--------------------------------------- */
 export default function ResultCard({
   pkg,
   index = 0,
@@ -86,65 +163,62 @@ export default function ResultCard({
   hotelCheckIn,
   hotelCheckOut,
 }: Props) {
-  const id = pkg.id || `pkg-${index}`;
-  const compared = !!comparedIds?.includes(id);
+  const id = pkg?.id || `pkg-${index}`;
 
-  // Accept either shape you’ve used
-  const outSegs: any[] = pkg?.flight?.segments_out || pkg?.flight?.segments || [];
-  const inSegs: any[] = pkg?.flight?.segments_in || pkg?.flight?.segments_return || [];
+  const outSegs = getSegmentsOutbound(pkg);
+  const inSegs = getSegmentsReturn(pkg);
 
-  const carriers = Array.from(
-    new Set(
-      [
-        ...(outSegs || []).map((s: any) => s?.carrier_name || s?.carrier),
-        ...(inSegs || []).map((s: any) => s?.carrier_name || s?.carrier),
-        pkg.flight?.carrier_name || pkg.flight?.carrier,
-      ].filter(Boolean)
-    )
-  );
+  const from = getOrigin(pkg, outSegs);
+  const to = getDestination(pkg, outSegs);
+
+  const firstOut = outSegs?.[0];
+  const firstIn = inSegs?.[0];
+
+  const dateOut = fmtDate(firstOut?.depart_time || pkg?.departDate);
+  const dateRet = fmtDate(firstIn?.depart_time || pkg?.returnDate);
+
+  const carriers = getCarrierList(pkg, outSegs, inSegs);
   const airline = carriers[0];
 
-  const out0 = outSegs?.[0];
-  const in0 = inSegs?.[0];
-  const from = (out0?.from || pkg.origin || "").toUpperCase();
-  const to = (outSegs?.[outSegs.length - 1]?.to || pkg.destination || "").toUpperCase();
-  const dateOut = fmtDate(out0?.depart_time || pkg.departDate);
-  const dateRet = fmtDate(in0?.depart_time || pkg.returnDate);
-
   const price =
-    pkg.total_cost_converted ??
-    pkg.total_cost ??
-    pkg.flight?.price_usd_converted ??
-    pkg.flight?.price_usd ??
-    pkg.flight_total ??
+    pkg?.total_cost_converted ??
+    pkg?.total_cost ??
+    pkg?.flight?.price_usd_converted ??
+    pkg?.flight?.price_usd ??
+    pkg?.flight_total ??
     0;
 
-  // Prefilled booking links (Flights)
+  /* Booking links (kept) */
   const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(
-    `${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax || 1} travelers`
+    `${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax} travelers`
   )}`;
-  const ssOut = (dateOut || "").replace(/-/g, "");
-  const ssRet = (dateRet || "").replace(/-/g, "");
+
   const sky =
-    from && to && ssOut
-      ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${ssOut}/${dateRet ? `${ssRet}/` : ""}`
+    from && to && dateOut
+      ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${dateOut.replace(
+          /-/g,
+          ""
+        )}/${dateRet ? `${dateRet.replace(/-/g, "")}/` : ""}`
       : "https://www.skyscanner.com/";
+
   const airlineUrl =
     AIRLINE_SITE[airline || ""] ||
-    (airline
-      ? `https://www.google.com/search?q=${encodeURIComponent(`${airline} ${from} ${to} ${dateOut}`)}`
-      : `https://www.google.com/search?q=${encodeURIComponent(`airline booking ${from} ${to} ${dateOut}`)}`);
+    `https://www.google.com/search?q=${encodeURIComponent(`${airline || "airline"} ${from} ${to} ${dateOut}`)}`;
 
-  // **TrioTrip** internal booking deep-link (kept)
-  const trio = `/book?from=${encodeURIComponent(from)}&to=${encodeURIComponent(
-    to
-  )}&depart=${encodeURIComponent(dateOut || "")}${
-    dateRet ? `&return=${encodeURIComponent(dateRet)}` : ""
-  }&price=${encodeURIComponent(String(Number(price) || 0))}&airline=${encodeURIComponent(airline || "")}&pax=${encodeURIComponent(
-    String(pax || 1)
-  )}`;
+  /* TrioTrip internal link (works with your /book/checkout route) */
+  const trioQS = new URLSearchParams({
+    from,
+    to,
+    depart: dateOut || "",
+    ...(dateRet ? { return: dateRet } : {}),
+    price: String(Number(price) || 0),
+    airline: airline || "",
+    pax: String(pax || 1),
+  }).toString();
+  const trioCheckout = `/book/checkout?${trioQS}`; // your wired route
 
-  // Saved state
+  /* Save */
+  const compared = !!comparedIds?.includes(id);
   const saved = useMemo(() => {
     try {
       return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).includes(id);
@@ -156,62 +230,20 @@ export default function ResultCard({
   function toggleSave(e: React.MouseEvent) {
     e.stopPropagation();
     try {
-      const key = "triptrio:saved";
-      const arr = JSON.parse(localStorage.getItem(key) || "[]") as string[];
+      const k = "triptrio:saved";
+      const arr = JSON.parse(localStorage.getItem(k) || "[]") as string[];
       const next = arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
-      localStorage.setItem(key, JSON.stringify(next));
+      localStorage.setItem(k, JSON.stringify(next));
       onSavedChangeGlobal?.(next.length);
     } catch {}
   }
 
-  // ----- Hotels (price detection & links) -----
-  const hotels: any[] = Array.isArray(pkg.hotels) && pkg.hotels.length ? pkg.hotels : pkg.hotel ? [pkg.hotel] : [];
-
-  const readNightly = (h: any): number | undefined => {
-    const n =
-      h?.price_per_night ??
-      h?.nightly ??
-      h?.rate ??
-      h?.nightly_price ??
-      h?.night_price ??
-      h?.priceNight ??
-      h?.price_night ??
-      h?.pricePerNight ??
-      h?.amountNight ??
-      h?.amount_night;
-    const v = Number(n);
-    return Number.isFinite(v) ? v : undefined;
-  };
-
-  const readTotal = (h: any): number | undefined => {
-    const t =
-      h?.price_total ??
-      h?.priceTotal ??
-      h?.total ??
-      h?.total_price ??
-      h?.amount ??
-      h?.price ??
-      h?.cost;
-    const v = Number(t);
-    return Number.isFinite(v) ? v : undefined;
-  };
-
-  const photo = (h: any, i: number) => {
-    const src =
-      ensureHttps(h?.image) ||
-      ensureHttps(h?.photoUrl) ||
-      ensureHttps(h?.thumbnail) ||
-      ensureHttps(h?.images?.[0]) ||
-      "";
-    if (src) return src;
-    const seed = hash((h?.name || "hotel") + "|" + i);
-    return `https://picsum.photos/seed/${seed}/400/240`;
-  };
+  /* Hotels (leave logic intact, just robust links) */
+  const hotels: any[] = Array.isArray(pkg?.hotels) && pkg.hotels.length ? pkg.hotels : pkg?.hotel ? [pkg.hotel] : [];
 
   const hotelLinks = (h: any) => {
-    const city = h?.city || pkg?.destination || "";
-    const q = h?.name ? `${h.name}, ${city}` : city;
-
+    const city = h?.city || pkg?.destination || to || "";
+    const q = h?.name ? `${h.name}, ${city}` : city || "hotels";
     const booking = new URL("https://www.booking.com/searchresults.html");
     if (q) booking.searchParams.set("ss", q);
     if (hotelCheckIn) booking.searchParams.set("checkin", hotelCheckIn);
@@ -227,14 +259,13 @@ export default function ResultCard({
     if (hotelCheckIn) hcx.searchParams.set("checkIn", hotelCheckIn);
     if (hotelCheckOut) hcx.searchParams.set("checkOut", hotelCheckOut);
 
-    const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q || "hotels")}`;
+    const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
     return { booking: booking.toString(), exp: exp.toString(), hcx: hcx.toString(), maps };
   };
 
   const computePrices = (h: any) => {
     const nightly = readNightly(h);
     const total = readTotal(h);
-
     if (nightly != null && total == null && hotelNights && hotelNights > 0) {
       return { nightly, total: nightly * hotelNights };
     }
@@ -244,7 +275,7 @@ export default function ResultCard({
     return { nightly, total };
   };
 
-  /* ------- Flight leg renderer (rows + layovers between segments) ------- */
+  /* -------- Flight rows with a layover pill between segments -------- */
   const LegRows: React.FC<{ segs: any[] }> = ({ segs }) => {
     if (!segs?.length) return null;
     const rows: React.ReactNode[] = [];
@@ -270,14 +301,12 @@ export default function ResultCard({
           <div className="leg-right">{dur}</div>
         </div>
       );
-      // layover chip (between this arrival and next departure)
       const next = segs[i + 1];
       if (next) {
         const lay = mins(arr, next?.depart_time);
         rows.push(
-          <div key={`lay-${i}`} className="layover">
-            <span className="dot">⏱</span>
-            <span>Layover in</span>
+          <div key={`lay-${i}`} className="layover-chip">
+            ⏱ <span>Layover in</span>
             <strong>{` ${next?.from?.toUpperCase()} `}</strong>
             <span>• Next departs at</span>
             <strong>{` ${fmtTime(next?.depart_time)} `}</strong>
@@ -290,7 +319,7 @@ export default function ResultCard({
   };
 
   return (
-    <section onClick={() => onToggleCompare?.(id)} className={`card ${compared ? "card--on" : ""}`}>
+    <section onClick={() => onToggleCompare?.(id)} className={`result-card ${compared ? "result-card--compared" : ""}`}>
       <header className="hdr">
         <div className="route">
           <div className="title">Option {index + 1} • {from} — {to}</div>
@@ -300,7 +329,7 @@ export default function ResultCard({
         </div>
         <div className="actions">
           <div className="price">💵 {money(Number(price) || 0, currency)}</div>
-          <a className="btn" href={trio} target="_blank" rel="noreferrer">TrioTrip</a>
+          <a className="btn" href={trioCheckout} target="_blank" rel="noreferrer">TrioTrip</a>
           <a className="btn" href={gf} target="_blank" rel="noreferrer">Google Flights</a>
           <a className="btn" href={sky} target="_blank" rel="noreferrer">Skyscanner</a>
           <a className="btn" href={airlineUrl} target="_blank" rel="noreferrer">{airline ? "Airline" : "Airlines"}</a>
@@ -314,7 +343,6 @@ export default function ResultCard({
         </div>
       </header>
 
-      {/* Outbound box */}
       {outSegs?.length > 0 && (
         <div className="leg">
           <div className="leg-title">Outbound</div>
@@ -322,7 +350,6 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* Return box */}
       {inSegs?.length > 0 && (
         <div className="leg">
           <div className="leg-title">Return</div>
@@ -330,19 +357,24 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* Hotels */}
-      {showHotel && hotels.length > 0 && (
+      {showHotel && (Array.isArray(pkg?.hotels) ? pkg.hotels.length : pkg?.hotel) ? (
         <div className="hotels">
-          <div className="hotels__title">Hotels (top options)</div>
-          {(showAllHotels ? hotels : hotels.slice(0, 12)).map((h, i) => {
+          <div className="hotels__title">{showAllHotels ? "Hotels (all)" : "Hotels (top options)"}</div>
+          {(showAllHotels ? (pkg.hotels || []) : (pkg.hotels || []).slice(0, 12)).map((h: any, i: number) => {
             const { booking, exp, hcx, maps } = hotelLinks(h);
             const { nightly, total } = computePrices(h);
+            const img =
+              ensureHttps(h?.image) ||
+              ensureHttps(h?.photoUrl) ||
+              ensureHttps(h?.thumbnail) ||
+              ensureHttps(h?.images?.[0]) ||
+              `https://picsum.photos/seed/${photoSeed((h?.name || "hotel") + "|" + i)}/400/240`;
 
             return (
               <div key={i} className="hotel">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <a href={booking} target="_blank" rel="noreferrer" className="hotel__img">
-                  <img src={photo(h, i)} alt={h?.name || "Hotel"} />
+                  <img src={img} alt={h?.name || "Hotel"} />
                 </a>
                 <div className="hotel__body">
                   <div className="hotel__head">
@@ -355,9 +387,7 @@ export default function ResultCard({
                           {money(nightly, currency)} <span className="muted">/ night</span>
                         </span>
                       )}
-                      {total != null && (
-                        <span className="muted"> • {money(total, currency)} total</span>
-                      )}
+                      {total != null && <span className="muted"> • {money(total, currency)} total</span>}
                     </div>
                   </div>
                   <div className="hotel__links">
@@ -371,17 +401,9 @@ export default function ResultCard({
             );
           })}
         </div>
-      )}
+      ) : null}
 
       <style jsx>{`
-        .card {
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          padding: 12px;
-          background: linear-gradient(180deg, #ffffff, #f6fbff);
-          box-shadow: 0 8px 20px rgba(2, 6, 23, 0.06);
-        }
-        .card--on { border: 2px solid #0ea5e9; }
         .hdr { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
         .route .title { font-weight: 900; color: #0f172a; }
         .route .sub { color: #334155; font-weight: 600; }
@@ -394,9 +416,11 @@ export default function ResultCard({
         .btn--ghost { background: #f8fafc; }
         .btn--on { border: 2px solid #0ea5e9; background: #e0f2fe; }
 
-        /* Outbound / Return boxes */
-        .leg { margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+        /* Two clean boxes */
+        .leg { margin-top: 12px; border: 1px solid #e2e8f0; background: #f8fbff; border-radius: 14px; padding: 10px; }
+        .leg + .leg { margin-top: 10px; }
         .leg-title { font-weight: 900; color: #0b3b52; margin-bottom: 6px; }
+
         .leg-row {
           display: grid; grid-template-columns: 1fr auto; align-items: center;
           padding: 8px 10px; border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0; margin-bottom: 8px;
@@ -409,17 +433,14 @@ export default function ResultCard({
         .leg-times { color: #334155; font-weight: 700; }
         .leg-right { font-weight: 900; color: #0f172a; }
 
-        /* Elegant layover chip between segments */
-        .layover {
+        .layover-chip {
           display: inline-flex; align-items: center; gap: 6px;
           border: 1px dashed #cbd5e1; border-radius: 12px; padding: 6px 10px; font-size: 12px;
           background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(2,132,199,0.02));
           margin: 6px 0 10px 0;
         }
-        .dot { opacity: .8; }
         .lo-dur { opacity: .8; margin-left: 4px; }
 
-        /* Hotels */
         .hotels { display: grid; gap: 12px; margin-top: 12px; }
         .hotels__title { font-weight: 800; color: #0f172a; }
         .hotel {
@@ -432,7 +453,7 @@ export default function ResultCard({
         .hotel__head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
         .hotel__name { font-weight: 800; color: #0f172a; text-decoration: none; }
         .hotel__price { font-weight: 800; color: #0369a1; }
-        .muted { opacity: 0.7; font-weight: 700; }
+        .muted { opacity: .7; font-weight: 700; }
         .hotel__links { display: flex; gap: 8px; flex-wrap: wrap; }
       `}</style>
     </section>
