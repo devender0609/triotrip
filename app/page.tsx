@@ -211,11 +211,11 @@ export default function Page() {
       // attach payload to each result so deep links have context
       setResults(arr.map((res: any, i: number) => ({ id: res.id ?? `r-${i}`, ...payload, ...res })));
 
-      // show controls/tabs after first search
+      // show controls/tabs after first search (but keep panels collapsed by default)
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
-      setSubPanelOpen(true);
+      setSubPanelOpen(false); // collapsed until clicked
       setComparedIds([]);
     } catch (e: any) {
       setError(e?.message || "Search failed");
@@ -674,13 +674,22 @@ export default function Page() {
               fontWeight: 700,
             }}
           >
-            <button className={`subtab ${subTab === "explore" && subPanelOpen ? "on" : ""}`} onClick={() => clickSubTab("explore")}>
+            <button
+              className={`subtab ${subTab === "explore" && subPanelOpen ? "on" : ""}`}
+              onClick={() => clickSubTab("explore")}
+            >
               Explore
             </button>
-            <button className={`subtab ${subTab === "savor" && subPanelOpen ? "on" : ""}`} onClick={() => clickSubTab("savor")}>
+            <button
+              className={`subtab ${subTab === "savor" && subPanelOpen ? "on" : ""}`}
+              onClick={() => clickSubTab("savor")}
+            >
               Savor
             </button>
-            <button className={`subtab ${subTab === "misc" && subPanelOpen ? "on" : ""}`} onClick={() => clickSubTab("misc")}>
+            <button
+              className={`subtab ${subTab === "misc" && subPanelOpen ? "on" : ""}`}
+              onClick={() => clickSubTab("misc")}
+            >
               Miscellaneous
             </button>
             <style jsx>{`
@@ -708,10 +717,7 @@ export default function Page() {
                 padding: 12,
               }}
             >
-              <ExploreSavorTabs
-                city={destCity || "Destination"}
-                active={subTab}
-              />
+              <ExploreSavorTabs city={cityFromDisplay(destDisplay) || "Destination"} active={subTab} />
             </div>
           )}
         </>
@@ -723,19 +729,31 @@ export default function Page() {
           <button className={`chip ${sort === "best" ? "on" : ""}`} onClick={() => setSort("best")}>
             Best
           </button>
-          <button className={`chip ${sort === "cheapest" ? "on" : ""}`} onClick={() => setSort("cheapest")}>
+          <button
+            className={`chip ${sort === "cheapest" ? "on" : ""}`}
+            onClick={() => setSort("cheapest")}
+          >
             Cheapest
           </button>
-          <button className={`chip ${sort === "fastest" ? "on" : ""}`} onClick={() => setSort("fastest")}>
+          <button
+            className={`chip ${sort === "fastest" ? "on" : ""}`}
+            onClick={() => setSort("fastest")}
+          >
             Fastest
           </button>
-          <button className={`chip ${sort === "flexible" ? "on" : ""}`} onClick={() => setSort("flexible")}>
+          <button
+            className={`chip ${sort === "flexible" ? "on" : ""}`}
+            onClick={() => setSort("flexible")}
+          >
             Flexible
           </button>
 
           <span style={{ marginLeft: 8 }} />
 
-          <button className={`chip ${listTab === "top3" ? "on" : ""}`} onClick={() => setListTab("top3")}>
+          <button
+            className={`chip ${listTab === "top3" ? "on" : ""}`}
+            onClick={() => setListTab("top3")}
+          >
             Top-3
           </button>
           <button className={`chip ${listTab === "all" ? "on" : ""}`} onClick={() => setListTab("all")}>
@@ -789,12 +807,11 @@ export default function Page() {
               currency={currency}
               pax={totalPax}
               showHotel={includeHotel}
-              hotelNights={hotelNights}
+              hotelNights={includeHotel ? nightsBetween(hotelCheckIn, hotelCheckOut) : 0}
               showAllHotels={listTab === "all"} // All = unlimited per star
               comparedIds={comparedIds}
               onToggleCompare={(id) => toggleCompare(id)}
               onSavedChangeGlobal={() => {}}
-              /* ResultCard computes its own deep links */
             />
           ))}
         </div>
