@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseBrowser } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,6 +12,7 @@ export default function LoginPage() {
   async function signInGoogle() {
     try {
       setBusy(true); setErr(null); setMsg(null);
+      const supabase = getSupabaseBrowser();
       const redirectTo =
         typeof window !== "undefined"
           ? `${window.location.origin}/auth/callback`
@@ -19,10 +20,9 @@ export default function LoginPage() {
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo }
+        options: { redirectTo },
       });
       if (error) throw error;
-      // Supabase will redirect to Google; no further action here.
     } catch (e: any) {
       setErr(e?.message || "Google sign-in failed");
       setBusy(false);
@@ -33,6 +33,7 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       setBusy(true); setErr(null); setMsg(null);
+      const supabase = getSupabaseBrowser();
       const redirectTo =
         typeof window !== "undefined"
           ? `${window.location.origin}/auth/callback`
@@ -56,12 +57,8 @@ export default function LoginPage() {
       <div
         className="card"
         style={{
-          width: 460,
-          maxWidth: "100%",
-          padding: 24,
-          borderRadius: 16,
-          border: "1px solid rgba(226,232,240,1)",
-          background: "#fff",
+          width: 460, maxWidth: "100%", padding: 24, borderRadius: 16,
+          border: "1px solid rgba(226,232,240,1)", background: "#fff",
           boxShadow: "0 20px 40px rgba(2,132,199,.08)",
         }}
       >
@@ -93,26 +90,14 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{
-                height: 44,
-                padding: "0 12px",
-                borderRadius: 12,
-                border: "1px solid #e2e8f0",
-                fontSize: 15,
+                height: 44, padding: "0 12px", borderRadius: 12,
+                border: "1px solid #e2e8f0", fontSize: 15,
               }}
             />
-            <button
-              className="btn"
-              type="submit"
-              disabled={busy}
-              style={{ justifyContent: "center", height: 44 }}
-            >
+            <button className="btn" type="submit" disabled={busy} style={{ justifyContent: "center", height: 44 }}>
               {busy ? "Sending…" : "Send magic link"}
             </button>
           </form>
-
-          <p className="muted" style={{ fontSize: 12 }}>
-            You’ll be redirected to <strong>/auth/callback</strong> after authentication.
-          </p>
 
           {msg && (
             <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", padding: 10, borderRadius: 10 }}>

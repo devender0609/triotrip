@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseBrowser } from "@/lib/supabaseClient";
 
 export default function AuthCallback() {
   const [msg, setMsg] = useState("Finalizing sign-in…");
@@ -9,11 +9,13 @@ export default function AuthCallback() {
   useEffect(() => {
     (async () => {
       try {
-        // For PKCE flows, Supabase can read the code from the URL automatically:
+        const supabase = getSupabaseBrowser();
+
+        // If session already present (One Tap / redirect), we’re done.
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
 
-        // If there is no session yet, try exchanging the code explicitly:
+        // Otherwise try exchange the `code` (PKCE flow) if provided.
         if (!data.session) {
           const url = new URL(window.location.href);
           const code = url.searchParams.get("code");
