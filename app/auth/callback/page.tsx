@@ -1,46 +1,42 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function AuthCallback() {
-  const router = useRouter();
-  const [status, setStatus] = useState<'working' | 'ok' | 'error'>('working');
-  const [message, setMessage] = useState<string>('Finishing sign-in…');
+  const [msg, setMsg] = useState("Finalizing sign-in…");
 
   useEffect(() => {
-    async function run() {
+    (async () => {
       try {
-        // If the IdP sent an error, surface it (helps debug “Network error” screens)
-        const url = new URL(window.location.href);
-        const err = url.searchParams.get('error');
-        const errDesc = url.searchParams.get('error_description');
-        if (err) {
-          throw new Error(`${err}: ${errDesc || 'OAuth error'}`);
-        }
-
-        // Exchange PKCE code for a Supabase session (sets cookies)
-        const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+        // For PKCE flows, Supabase can read the code from the URL automatically:
+        const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
 
-        setStatus('ok');
-        setMessage('Signed in. Redirecting…');
+        // If there is no session yet, try exchanging the code explicitly:
+        if (!data.session) {
+          const url = new URL(window.location.href);
+          const code = url.searchParams.get("code");
+          if (code) {
+            const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+            if (exErr) throw exErr;
+          }
+        }
 
-        // Allow a tick for cookie write, then go home
-        setTimeout(() => router.replace('/'), 300);
+        setMsg("Signed in! Redirecting…");
+        const to = sessionStorage.getItem("triptrio:returnTo") || "/";
+        window.location.replace(to);
       } catch (e: any) {
-        setStatus('error');
-        setMessage(e?.message || 'Could not complete sign-in.');
+        setMsg(`Login error: ${e?.message || "unknown"}`);
       }
-    }
-    run();
-  }, [router]);
+    })();
+  }, []);
 
   return (
-    <div className="mx-auto max-w-md px-6 py-16">
-      <h1 className="text-xl font-semibold mb-4">Auth</h1>
-      <p className={status === 'error' ? 'text-rose-600' : 'text-slate-600'}>{message}</p>
+    <div style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+      <div className="card" style={{ padding: 18, borderRadius: 12 }}>
+        {msg}
+      </div>
     </div>
   );
 }

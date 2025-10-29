@@ -1,112 +1,134 @@
-﻿'use client';
+﻿"use client";
 
-import React, { useMemo, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
-
-const SITE_BASE_FALLBACK = typeof window !== 'undefined' ? window.location.origin : '';
-const tidy = (s?: string | null) => (s || '').replace(/\/+$/, '');
+import React, { useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  // Build a reliable callback URL (must match Supabase & Google OAuth)
-  const siteBase = useMemo(
-    () => tidy(process.env.NEXT_PUBLIC_SITE_BASE) || tidy(SITE_BASE_FALLBACK),
-    []
-  );
-  const callbackUrl = `${siteBase}/auth/callback`;
-
-  async function signInWithGoogle() {
-    setBusy(true);
-    setErr(null);
+  async function signInGoogle() {
     try {
+      setBusy(true); setErr(null); setMsg(null);
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined;
+
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: callbackUrl,
-          queryParams: {
-            prompt: 'select_account',
-          },
-        },
+        provider: "google",
+        options: { redirectTo }
       });
       if (error) throw error;
-      // Browser will redirect away.
+      // Supabase will redirect to Google; no further action here.
     } catch (e: any) {
-      setErr(e?.message || 'Unable to start Google sign-in.');
+      setErr(e?.message || "Google sign-in failed");
       setBusy(false);
     }
   }
 
-  async function signInWithEmail(e: React.FormEvent) {
+  async function sendMagicLink(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setErr(null);
-    setMsg(null);
     try {
+      setBusy(true); setErr(null); setMsg(null);
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined;
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: callbackUrl },
+        options: { emailRedirectTo: redirectTo },
       });
       if (error) throw error;
-      setMsg('Check your email for a magic link to sign in.');
+      setMsg("Magic link sent. Check your inbox.");
     } catch (e: any) {
-      setErr(e?.message || 'Unable to send magic link.');
+      setErr(e?.message || "Could not send magic link");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-md px-6 py-10">
-      <h1 className="text-2xl font-semibold mb-6">Login</h1>
-
-      <button
-        onClick={signInWithGoogle}
-        disabled={busy}
-        className="w-full rounded-xl border px-4 py-3 font-medium hover:bg-slate-50 disabled:opacity-60"
+    <div style={{ minHeight: "70vh", display: "grid", placeItems: "center", padding: 16 }}>
+      <div
+        className="card"
+        style={{
+          width: 460,
+          maxWidth: "100%",
+          padding: 24,
+          borderRadius: 16,
+          border: "1px solid rgba(226,232,240,1)",
+          background: "#fff",
+          boxShadow: "0 20px 40px rgba(2,132,199,.08)",
+        }}
       >
-        {busy ? 'Starting…' : 'Sign in with Google'}
-      </button>
+        <div style={{ display: "grid", gap: 10 }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#0b3b52" }}>
+            Login to <span style={{ color: "#0ea5e9" }}>TrioTrip</span>
+          </h1>
+          <p style={{ marginTop: -6, color: "#64748b", fontWeight: 600 }}>
+            Sign in to save trips and compare options later.
+          </p>
 
-      <div className="my-6 text-center text-sm text-slate-500">or</div>
+          <button
+            className="btn btn--primary"
+            onClick={signInGoogle}
+            disabled={busy}
+            style={{ justifyContent: "center", height: 44 }}
+          >
+            {busy ? "Opening Google…" : "Continue with Google"}
+          </button>
 
-      <form onSubmit={signInWithEmail} className="space-y-3">
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          className="w-full rounded-xl border px-4 py-3 outline-none focus:ring-2 focus:ring-sky-400"
-        />
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
-        >
-          {busy ? 'Sending…' : 'Send magic link'}
-        </button>
-      </form>
+          <div className="divider" style={{ height: 1, margin: "8px 0 2px" }} />
 
-      {msg && <p className="mt-4 text-sm text-emerald-600">{msg}</p>}
-      {err && <p className="mt-4 text-sm text-rose-600">{err}</p>}
+          <form onSubmit={sendMagicLink} style={{ display: "grid", gap: 8 }}>
+            <label style={{ fontWeight: 700, color: "#334155" }}>Or get a magic link</label>
+            <input
+              type="email"
+              required
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                height: 44,
+                padding: "0 12px",
+                borderRadius: 12,
+                border: "1px solid #e2e8f0",
+                fontSize: 15,
+              }}
+            />
+            <button
+              className="btn"
+              type="submit"
+              disabled={busy}
+              style={{ justifyContent: "center", height: 44 }}
+            >
+              {busy ? "Sending…" : "Send magic link"}
+            </button>
+          </form>
 
-      <p className="mt-6 text-xs text-slate-500">
-        You’ll be redirected to <code className="rounded bg-slate-100 px-1">{callbackUrl}</code> after authentication.
-      </p>
+          <p className="muted" style={{ fontSize: 12 }}>
+            You’ll be redirected to <strong>/auth/callback</strong> after authentication.
+          </p>
 
-      <div className="mt-8">
-        <button
-          onClick={() => router.replace('/')}
-          className="text-sky-600 hover:underline text-sm"
-        >
-          ← Back to home
-        </button>
+          {msg && (
+            <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", padding: 10, borderRadius: 10 }}>
+              ✅ {msg}
+            </div>
+          )}
+          {err && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: 10, borderRadius: 10, color: "#7f1d1d" }}>
+              ⚠ {err}
+            </div>
+          )}
+
+          <div style={{ textAlign: "center", marginTop: 4 }}>
+            <a className="chip" href="/" style={{ padding: "8px 12px" }}>← Back to home</a>
+          </div>
+        </div>
       </div>
     </div>
   );
