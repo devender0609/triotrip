@@ -1,145 +1,113 @@
-﻿"use client";
-export const dynamic = 'force-dynamic';
+﻿'use client';
 
+import React, { useMemo, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
 
-import React, { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { Auth } from "@supabase/auth-ui-react";
-import { ThemeSupa } from "@supabase/auth-ui-shared";
-import { getSupa } from "../../lib/auth/supabase";
-
-function LoginInner() {
-  const supa = getSupa();
-  const router = useRouter();
-  const params = useSearchParams();
-
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const nextPath = params?.get("next") || null;
-
-  useEffect(() => {
-    if (!supa) return;
-    let mounted = true;
-
-    supa.auth.getUser().then(({ data }) => {
-      if (!mounted) return;
-      const email = data?.user?.email ?? null;
-      setUserEmail(email);
-      setLoading(false);
-      if (email && nextPath) router.replace(nextPath);
-    });
-
-    const { data: sub } = supa.auth.onAuthStateChange((_evt, session) => {
-      const email = session?.user?.email ?? null;
-      setUserEmail(email);
-      if (email && nextPath) router.replace(nextPath);
-    });
-
-    return () => {
-      mounted = false;
-      sub?.subscription?.unsubscribe();
-    };
-  }, [supa, nextPath, router]);
-
-  if (!supa) {
-    return (
-      <main className="auth-wrap">
-        <div className="card">
-          <h1 className="title">Login</h1>
-          <p>
-            Supabase client not configured. Make sure
-            <code> NEXT_PUBLIC_SUPABASE_URL </code> and
-            <code> NEXT_PUBLIC_SUPABASE_ANON_KEY </code> are set in
-            <code> web/.env.local</code>.
-          </p>
-          <Link href="/" className="btn">← Back to home</Link>
-        </div>
-        <style jsx>{styles}</style>
-      </main>
-    );
-  }
-
-  async function handleSignOut() {
-    await supa.auth.signOut();
-    setUserEmail(null);
-  }
-
-  return (
-    <main className="auth-wrap">
-      <div className="card">
-        <h1 className="title">Login</h1>
-
-        {loading ? (
-          <p>Checking session…</p>
-        ) : userEmail ? (
-          <div className="signed">
-            <p>Signed in as <b>{userEmail}</b></p>
-            <div className="row">
-              <button className="btn" onClick={handleSignOut}>Sign out</button>
-              <Link href="/" className="btn primary">Go to Home</Link>
-            </div>
-          </div>
-        ) : null}
-
-        <Auth
-          supabaseClient={supa}
-          appearance={{
-            theme: ThemeSupa,
-            variables: { default: { colors: { brand: "#0ea5e9", brandAccent: "#06b6d4" } } },
-          }}
-          providers={["google"]}
-          redirectTo={typeof window !== "undefined" ? window.location.origin + "/login" : undefined}
-        />
-
-        {!userEmail && (
-          <p className="hint">
-            After signing in you’ll be redirected{nextPath ? ` to ${nextPath}` : ""}.
-          </p>
-        )}
-      </div>
-      <style jsx>{styles}</style>
-    </main>
-  );
-}
+const SITE_BASE_FALLBACK = typeof window !== 'undefined' ? window.location.origin : '';
+const tidy = (s?: string | null) => (s || '').replace(/\/+$/, '');
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  // Build a reliable callback URL (must match Supabase & Google OAuth)
+  const siteBase = useMemo(
+    () => tidy(process.env.NEXT_PUBLIC_SITE_BASE) || tidy(SITE_BASE_FALLBACK),
+    []
+  );
+  const callbackUrl = `${siteBase}/auth/callback`;
+
+  async function signInWithGoogle() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: callbackUrl,
+          queryParams: {
+            prompt: 'select_account',
+          },
+        },
+      });
+      if (error) throw error;
+      // Browser will redirect away.
+    } catch (e: any) {
+      setErr(e?.message || 'Unable to start Google sign-in.');
+      setBusy(false);
+    }
+  }
+
+  async function signInWithEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: callbackUrl },
+      });
+      if (error) throw error;
+      setMsg('Check your email for a magic link to sign in.');
+    } catch (e: any) {
+      setErr(e?.message || 'Unable to send magic link.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Suspense fallback={null}>
-      <LoginInner />
-    </Suspense>
+    <div className="mx-auto max-w-md px-6 py-10">
+      <h1 className="text-2xl font-semibold mb-6">Login</h1>
+
+      <button
+        onClick={signInWithGoogle}
+        disabled={busy}
+        className="w-full rounded-xl border px-4 py-3 font-medium hover:bg-slate-50 disabled:opacity-60"
+      >
+        {busy ? 'Starting…' : 'Sign in with Google'}
+      </button>
+
+      <div className="my-6 text-center text-sm text-slate-500">or</div>
+
+      <form onSubmit={signInWithEmail} className="space-y-3">
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="w-full rounded-xl border px-4 py-3 outline-none focus:ring-2 focus:ring-sky-400"
+        />
+        <button
+          type="submit"
+          disabled={busy}
+          className="w-full rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
+        >
+          {busy ? 'Sending…' : 'Send magic link'}
+        </button>
+      </form>
+
+      {msg && <p className="mt-4 text-sm text-emerald-600">{msg}</p>}
+      {err && <p className="mt-4 text-sm text-rose-600">{err}</p>}
+
+      <p className="mt-6 text-xs text-slate-500">
+        You’ll be redirected to <code className="rounded bg-slate-100 px-1">{callbackUrl}</code> after authentication.
+      </p>
+
+      <div className="mt-8">
+        <button
+          onClick={() => router.replace('/')}
+          className="text-sky-600 hover:underline text-sm"
+        >
+          ← Back to home
+        </button>
+      </div>
+    </div>
   );
 }
-
-const styles = `
-.auth-wrap{
-  min-height: calc(100vh - 64px);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:16px;
-  background:#f8fafc;
-}
-.card{
-  width:100%;
-  max-width:480px;
-  background:#fff;
-  border:1px solid #e5e7eb;
-  border-radius:16px;
-  padding:20px;
-  box-shadow: 0 10px 24px rgba(2,6,23,.06);
-}
-.title{
-  margin:0 0 12px 0;
-  font-weight:900;
-  font-size:22px;
-  text-align:center;
-}
-.row{display:flex; gap:8px; margin:8px 0 12px;}
-.btn{height:36px; padding:0 12px; border-radius:10px; border:1px solid #e2e8f0; background:#fff; font-weight:800; text-decoration:none; display:inline-flex; align-items:center;}
-.btn.primary{background:linear-gradient(90deg,#06b6d4,#0ea5e9); color:#fff; border:none;}
-.hint{margin-top:10px; color:#475569; text-align:center;}
-.signed p{margin:0 0 8px 0;}
-`;
-
