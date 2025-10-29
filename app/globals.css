@@ -150,6 +150,10 @@ html, body { background: var(--bg); color: var(--ink); }
 }
 .leg-left { font-weight: 700; }
 .leg-right { color: #0b3b52; }
+.leg-airline { font-weight: 800; margin-bottom: 2px; }
+.leg-cities { color: #0b3b52; font-weight: 700; }
+.leg-times { color: #334155; font-weight: 600; }
+.leg-arrow { opacity: .7; }
 
 .layover-chip {
   display: inline-flex;
@@ -203,10 +207,36 @@ html, body { background: var(--bg); color: var(--ink); }
   box-shadow: 0 8px 18px rgba(14,165,233,.25);
 }
 
-/* Hotel link row tweaks */
+/* ==========================================================================
+   Hotel row (smaller images)
+   ========================================================================== */
+.hotels { display: grid; gap: 12px; margin-top: 12px; }
+.hotels__title { font-weight: 900; color: #0b3b52; margin-bottom: 6px; }
+
+.hotel {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  padding: 10px;
+}
+
+.hotel__img { display: block; border-radius: 12px; overflow: hidden; border: 1px solid rgba(2,132,199,.10); }
+.hotel__img img {
+  display: block;
+  width: 150px;
+  height: 100px;
+  object-fit: cover;
+}
+
+.hotel__body { display: grid; gap: 8px; }
+.hotel__head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.hotel__name { font-weight: 800; }
+.hotel__price { font-weight: 800; color: #0f172a; }
+.muted { color: #64748b; font-weight: 600; }
+
 .hotel__links .btn { margin-right: 6px; }
 
-/* Subtle input focus ring (keeps your existing form intact) */
+/* Subtle input focus ring */
 input:focus, select:focus, button:focus, textarea:focus {
   outline: 2px solid rgba(14,165,233,.30);
   outline-offset: 1px;

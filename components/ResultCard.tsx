@@ -156,11 +156,9 @@ const LegRows: React.FC<{ segs: any[]; airlineFallback?: string }> = ({ segs, ai
     rows.push(
       <div key={`seg-${i}`} className="leg-row">
         <div className="leg-left">
-          <div className="leg-route">
-            <div className="leg-airline">{carrier}</div>
-            <div className="leg-cities">
-              {s?.from?.toUpperCase()} <span className="leg-arrow">→</span> {s?.to?.toUpperCase()}
-            </div>
+          <div className="leg-airline">{carrier}</div>
+          <div className="leg-cities">
+            {s?.from?.toUpperCase()} <span className="leg-arrow">→</span> {s?.to?.toUpperCase()}
           </div>
           <div className="leg-times">
             {fmtTime(dep)} — {fmtTime(arr)}
@@ -341,14 +339,14 @@ export default function ResultCard({
       </header>
 
       {/* Outbound box */}
-      <div className="result-leg">
-        <div className="result-leg-title">Outbound</div>
+      <div className="result-leg" style={{ padding: 12, marginTop: 10 }}>
+        <div className="result-leg-title" style={{ marginBottom: 8 }}>Outbound</div>
         <LegRows segs={outSegs} airlineFallback={airline} />
       </div>
 
       {/* Return box */}
-      <div className="result-leg">
-        <div className="result-leg-title">Return</div>
+      <div className="result-leg" style={{ padding: 12, marginTop: 10 }}>
+        <div className="result-leg-title" style={{ marginBottom: 8 }}>Return</div>
         <LegRows segs={inSegs} airlineFallback={airline} />
       </div>
 
