@@ -66,7 +66,7 @@ type Props = {
 
 /* ---------------------------------------
    Robust getters (accept many shapes so
-   data never “disappears”)
+   data never “disappears”
 --------------------------------------- */
 function getSegmentsOutbound(pkg: any): any[] {
   return (

@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // If already signed in, bounce back
+  // If already signed in, return user to where they came from
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -36,7 +36,6 @@ export default function LoginPage() {
         options: { redirectTo },
       });
       if (error) throw error;
-      // The browser will navigate to Google. No further action here.
     } catch (e: any) {
       setMsg(e?.message ?? "Could not start Google sign-in.");
       setBusy(false);
@@ -49,7 +48,10 @@ export default function LoginPage() {
     setMsg(null);
     try {
       const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectTo },
+      });
       if (error) throw error;
       setMsg("Check your email for the magic link.");
     } catch (err: any) {
@@ -57,10 +59,6 @@ export default function LoginPage() {
     } finally {
       setBusy(false);
     }
-  }
-
-  function goHome() {
-    window.location.href = "/";
   }
 
   return (
@@ -97,22 +95,11 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-sm text-gray-500">
-            You’ll be redirected to <code className="text-gray-700">/auth/callback</code> after authentication.
-          </p>
-
           {msg && (
             <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-amber-800">
               {msg}
             </div>
           )}
-
-          <button
-            onClick={goHome}
-            className="inline-flex w-max items-center justify-center rounded-xl border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
-          >
-            ← Back to home
-          </button>
         </div>
       </div>
     </main>

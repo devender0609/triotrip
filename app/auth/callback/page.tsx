@@ -1,45 +1,40 @@
-// app/auth/callback/page.tsx
 "use client";
 
+import * as React from "react";
 import { useEffect, useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseClient";
 
-export default function AuthCallback() {
-  const [msg, setMsg] = useState("Finalizing sign-in…");
+export default function AuthCallbackPage() {
+  const supabase = getSupabaseBrowser();
+  const [msg, setMsg] = useState("Finishing sign-in…");
 
   useEffect(() => {
+    let alive = true;
     (async () => {
       try {
-        const supabase = getSupabaseBrowser();
-
-        // If session already present (One Tap / redirect), we’re done.
+        // Causes fragment to be parsed and session to persist
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
-
-        // Otherwise try exchange the `code` (PKCE flow) if provided.
-        if (!data.session) {
-          const url = new URL(window.location.href);
-          const code = url.searchParams.get("code");
-          if (code) {
-            const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-            if (exErr) throw exErr;
-          }
+        if (alive) {
+          const ret = sessionStorage.getItem("triptrio:returnTo") || "/";
+          setMsg("Signed in! Redirecting…");
+          window.location.replace(ret);
         }
-
-        setMsg("Signed in! Redirecting…");
-        const to = sessionStorage.getItem("triptrio:returnTo") || "/";
-        window.location.replace(to);
       } catch (e: any) {
-        setMsg(`Login error: ${e?.message || "unknown"}`);
+        if (alive) setMsg(e?.message ?? "Could not complete sign-in.");
       }
     })();
-  }, []);
+    return () => {
+      alive = false;
+    };
+  }, [supabase]);
 
   return (
-    <div style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
-      <div className="card" style={{ padding: 18, borderRadius: 12 }}>
-        {msg}
+    <main className="mx-auto max-w-xl px-4 py-10">
+      <div className="rounded-2xl border border-gray-200 bg-white/70 p-6 shadow-sm">
+        <h1 className="mb-2 text-2xl font-semibold">Authentication</h1>
+        <p className="text-gray-700">{msg}</p>
       </div>
-    </div>
+    </main>
   );
 }
