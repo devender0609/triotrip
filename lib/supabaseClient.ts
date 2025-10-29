@@ -1,30 +1,32 @@
 // lib/supabaseClient.ts
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+let _browserClient: SupabaseClient | null = null;
+
 /**
- * Create the browser client only when actually called (not at import time),
- * so static generation doesn't choke when envs aren't injected yet.
+ * Lazily create a single Supabase browser client.
+ * Requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.
  */
-let _client: SupabaseClient | null = null;
-
 export function getSupabaseBrowser(): SupabaseClient {
-  if (_client) return _client;
+  if (_browserClient) return _browserClient;
 
-  // Read NEXT_PUBLIC_* only at call-time (client), not during build.
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anon) {
-    // Keep the message explicit for troubleshooting on client only.
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    // Fail fast with a clear message if envs are missing in Vercel
+    throw new Error(
+      "Missing Supabase envs. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+    );
   }
 
-  _client = createClient(url, anon, {
+  _browserClient = createClient(url, anon, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: true, // handle /auth/callback fragment
     },
   });
-  return _client;
+
+  return _browserClient;
 }
