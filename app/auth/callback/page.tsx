@@ -1,45 +1,56 @@
-"use client";
+'use client';
 
-export const revalidate = 0;                      // avoid static export
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
+import { Suspense, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { getBrowserSupabase } from '@/lib/supabaseClient';
 
-import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { getBrowserSupabase } from "@/lib/supabaseClient";
+// IMPORTANT: valid values only — number or false
+export const revalidate = 0;              // do not statically cache
+export const dynamic = 'force-dynamic';   // always run on the server at request time
+export const fetchCache = 'force-no-store';
 
-export default function AuthCallbackPage() {
+function CallbackInner() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const params = useSearchParams();
-  const [message, setMessage] = useState("Finalizing sign-in…");
 
   useEffect(() => {
-    const supabase = getBrowserSupabase();
-
-    // Supabase Auth redirect v2:
-    // This exchanges the `code` in the URL for a session.
-    supabase.auth.exchangeCodeForSession(window.location.href)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("exchangeCodeForSession error:", error);
-          setMessage("Sign-in failed. Please try again.");
+    (async () => {
+      try {
+        const code = searchParams.get('code');
+        if (!code) {
+          router.replace('/login?error=missing_code');
           return;
         }
 
-        // Optional: route to a `next` param or home
-        const next = params.get("next") || "/";
-        router.replace(next);
-      })
-      .catch((e) => {
-        console.error("Callback exception:", e);
-        setMessage("Sign-in failed. Please try again.");
-      });
-  }, [router, params]);
+        const supabase = getBrowserSupabase();
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (error) {
+          router.replace(`/login?error=${encodeURIComponent(error.message)}`);
+          return;
+        }
+
+        // ✅ Success — send user to home (or your dashboard)
+        router.replace('/');
+      } catch (e: any) {
+        router.replace(`/login?error=${encodeURIComponent(e?.message ?? 'callback_failed')}`);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Signing you in…</h1>
-      <p>{message}</p>
+    <div className="p-6 text-sm">
+      Signing you in… please wait.
     </div>
+  );
+}
+
+export default function Page() {
+  // Wrap the hook-using child with Suspense per Next.js requirement
+  return (
+    <Suspense fallback={<div className="p-6 text-sm">Loading…</div>}>
+      <CallbackInner />
+    </Suspense>
   );
 }
