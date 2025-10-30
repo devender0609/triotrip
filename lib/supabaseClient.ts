@@ -2,7 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 
-/** Primary export */
+/** Primary export used by client components/pages */
 export function createSupabaseBrowser() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -13,18 +13,9 @@ export function createSupabaseBrowser() {
     );
   }
 
-  return createBrowserClient(url, anon, {
-    cookies: {
-      get(name: string) {
-        if (typeof document === "undefined") return undefined;
-        const match = document.cookie
-          ?.split("; ")
-          ?.find((c) => c.startsWith(`${name}=`));
-        return match?.split("=")[1];
-      },
-    },
-  });
+  // No cookies option — let the SDK handle it
+  return createBrowserClient(url, anon);
 }
 
-/** Back-compat alias for existing imports elsewhere */
+/** Back-compat alias for existing imports */
 export const getBrowserSupabase = createSupabaseBrowser;
