@@ -1,5 +1,4 @@
-﻿// app/book/checkout/page.tsx
-"use client";
+﻿"use client";
 export const dynamic = "force-dynamic";
 
 import React, { Suspense, useEffect, useMemo, useState } from "react";

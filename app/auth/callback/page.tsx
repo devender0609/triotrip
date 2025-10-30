@@ -1,52 +1,41 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { getBrowserSupabase } from "@/lib/supabaseClient";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-function CallbackInner() {
-  const supabase = getBrowserSupabase();
-  const params = useSearchParams();
+export default function AuthCallbackPage() {
   const router = useRouter();
-  const [msg, setMsg] = useState("Finishing sign-in…");
+  const params = useSearchParams();
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    let canceled = false;
     (async () => {
       try {
-        // Ensure session gets written, then bounce home
-        await supabase.auth.getSession();
-        if (!canceled) {
-          setMsg("Signed in. Redirecting…");
-          router.replace("/");
+        // Supabase auto-exchanges the code in URL fragment.
+        // Trigger a getSession to finalize and cache it.
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!data.session) {
+          // Explicit exchange in case SSR stripped fragments
+          const { error: e2 } = await supabase.auth.exchangeCodeForSession(window.location.href);
+          if (e2) throw e2;
         }
+        // Back to home (or previous)
+        const next = params.get("redirect") || "/";
+        router.replace(next);
       } catch (e: any) {
-        if (!canceled) setMsg(e?.message ?? "Error finalizing sign-in.");
+        setErr(e?.message || "Sign-in failed");
       }
     })();
-    return () => {
-      canceled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router, params]);
 
-  const error = params.get("error_description") || params.get("error");
   return (
-    <div className="mx-auto max-w-md px-4 py-10">
-      <h1 className="text-xl font-semibold mb-2">Auth callback</h1>
-      <p>{error ? `Error: ${error}` : msg}</p>
-    </div>
-  );
-}
-
-export default function CallbackPage() {
-  // Wrap hook usage in Suspense to satisfy Next CSR bailout warning
-  return (
-    <Suspense fallback={<div className="mx-auto max-w-md p-10">Loading…</div>}>
-      <CallbackInner />
-    </Suspense>
+    <main style={{ maxWidth: 560, margin: "40px auto", padding: 16 }}>
+      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+        <h1 style={{ margin: 0, fontWeight: 900 }}>Signing you in…</h1>
+        {err && <p style={{ color: "#b91c1c" }}>{err}</p>}
+      </div>
+    </main>
   );
 }

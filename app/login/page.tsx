@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getBrowserSupabase } from "@/lib/supabaseClient";
+import { createSupabaseBrowser } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default function LoginPage() {
-  const supabase = getBrowserSupabase();
+  const supabase = createSupabaseBrowser();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,7 +65,7 @@ export default function LoginPage() {
             placeholder="you@example.com"
             className="input"
           />
-        <button className="btn w-full" disabled={busy}>
+          <button className="btn w-full" disabled={busy}>
             Send magic link
           </button>
         </form>
