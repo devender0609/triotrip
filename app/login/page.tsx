@@ -1,120 +1,93 @@
 ﻿"use client";
 
-import React, { useState } from "react";
-import { getSupabaseBrowser } from "@/lib/supabaseClient";
+export const revalidate = false;
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getBrowserSupabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const router = useRouter();
+  const supabase = getBrowserSupabase();
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  async function signInGoogle() {
-    try {
-      setBusy(true); setErr(null); setMsg(null);
-      const supabase = getSupabaseBrowser();
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
+  const redirectTo = useMemo(() => {
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_SITE_BASE ??
+           process.env.NEXT_PUBLIC_WEB_SERVER_BASE ??
+           "").replace(/\/+$/, "");
+    return origin ? `${origin}/auth/callback` : "/auth/callback";
+  }, []);
 
+  const signInWithGoogle = useCallback(async () => {
+    try {
+      setBusy(true);
+      setErr(null);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo },
+        options: {
+          redirectTo,
+          queryParams: { access_type: "offline", prompt: "consent" },
+        },
       });
       if (error) throw error;
     } catch (e: any) {
-      setErr(e?.message || "Google sign-in failed");
+      setErr(e?.message ?? "Unable to start Google sign-in.");
       setBusy(false);
     }
-  }
-
-  async function sendMagicLink(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      setBusy(true); setErr(null); setMsg(null);
-      const supabase = getSupabaseBrowser();
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
-
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: redirectTo },
-      });
-      if (error) throw error;
-      setMsg("Magic link sent. Check your inbox.");
-    } catch (e: any) {
-      setErr(e?.message || "Could not send magic link");
-    } finally {
-      setBusy(false);
-    }
-  }
+  }, [supabase, redirectTo]);
 
   return (
-    <div style={{ minHeight: "70vh", display: "grid", placeItems: "center", padding: 16 }}>
+    <main className="min-h-screen grid place-items-center p-6">
       <div
-        className="card"
+        className="w-full max-w-md rounded-2xl p-6 shadow-lg space-y-4"
         style={{
-          width: 460, maxWidth: "100%", padding: 24, borderRadius: 16,
-          border: "1px solid rgba(226,232,240,1)", background: "#fff",
-          boxShadow: "0 20px 40px rgba(2,132,199,.08)",
+          background:
+            "linear-gradient(135deg, rgba(26,26,46,.85), rgba(10,10,22,.85))",
+          border: "1px solid rgba(255,255,255,.08)",
         }}
       >
-        <div style={{ display: "grid", gap: 10 }}>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#0b3b52" }}>
-            Login to <span style={{ color: "#0ea5e9" }}>TrioTrip</span>
-          </h1>
-          <p style={{ marginTop: -6, color: "#64748b", fontWeight: 600 }}>
-            Sign in to save trips and compare options later.
+        <header className="space-y-1">
+          <h1 className="text-2xl font-semibold">Welcome back</h1>
+          <p className="opacity-75 text-sm">
+            Sign in to save trips, compare flights, and keep preferences.
           </p>
+        </header>
 
-          <button
-            className="btn btn--primary"
-            onClick={signInGoogle}
-            disabled={busy}
-            style={{ justifyContent: "center", height: 44 }}
-          >
-            {busy ? "Opening Google…" : "Continue with Google"}
-          </button>
-
-          <div className="divider" style={{ height: 1, margin: "8px 0 2px" }} />
-
-          <form onSubmit={sendMagicLink} style={{ display: "grid", gap: 8 }}>
-            <label style={{ fontWeight: 700, color: "#334155" }}>Or get a magic link</label>
-            <input
-              type="email"
-              required
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{
-                height: 44, padding: "0 12px", borderRadius: 12,
-                border: "1px solid #e2e8f0", fontSize: 15,
-              }}
-            />
-            <button className="btn" type="submit" disabled={busy} style={{ justifyContent: "center", height: 44 }}>
-              {busy ? "Sending…" : "Send magic link"}
-            </button>
-          </form>
-
-          {msg && (
-            <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", padding: 10, borderRadius: 10 }}>
-              ✅ {msg}
-            </div>
-          )}
-          {err && (
-            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: 10, borderRadius: 10, color: "#7f1d1d" }}>
-              ⚠ {err}
-            </div>
-          )}
-
-          <div style={{ textAlign: "center", marginTop: 4 }}>
-            <a className="chip" href="/" style={{ padding: "8px 12px" }}>← Back to home</a>
+        {err && (
+          <div className="text-sm rounded-md p-3"
+               style={{ background: "rgba(255,99,99,.12)", border: "1px solid rgba(255,99,99,.35)" }}>
+            {err}
           </div>
+        )}
+
+        <button
+          onClick={signInWithGoogle}
+          disabled={busy}
+          className="w-full rounded-xl py-3 font-medium transition
+                     hover:opacity-95 active:opacity-90
+                     focus:outline-none focus:ring-2 focus:ring-offset-2"
+          style={{
+            background:
+              "linear-gradient(90deg, rgb(99,102,241), rgb(217,70,239))",
+          }}
+        >
+          {busy ? "Connecting…" : "Continue with Google"}
+        </button>
+
+        <div className="text-xs opacity-70">
+          Trouble signing in?{" "}
+          <button className="underline" onClick={() => router.push("/")}>
+            Go home
+          </button>{" "}
+          and try again.
         </div>
       </div>
-    </div>
+    </main>
   );
 }
