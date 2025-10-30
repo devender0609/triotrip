@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import { getBrowserSupabase } from '@/lib/supabaseClient';
 
-export const revalidate = 0;               // ✅ number (ok)
+export const revalidate = 0;               // ✅ valid
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
@@ -40,7 +40,6 @@ export default function LoginPage() {
           <p className="text-xs text-gray-500 mb-4">
             Sign in to save trips and sync across devices.
           </p>
-
           <button
             onClick={signInWithGoogle}
             disabled={loading}
@@ -48,7 +47,6 @@ export default function LoginPage() {
           >
             {loading ? 'Redirecting…' : 'Continue with Google'}
           </button>
-
           {err ? <p className="mt-3 text-xs text-red-600">{err}</p> : null}
         </div>
       </div>

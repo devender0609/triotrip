@@ -4,7 +4,7 @@ import { Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getBrowserSupabase } from '@/lib/supabaseClient';
 
-// ✅ VALID: must be a number or false (NOT an object)
+// ✅ MUST be a number or false — never an object
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -27,7 +27,7 @@ function CallbackInner() {
           router.replace(`/login?error=${encodeURIComponent(error.message)}`);
           return;
         }
-        router.replace('/'); // go home (or /account)
+        router.replace('/');
       } catch (e: any) {
         router.replace(`/login?error=${encodeURIComponent(e?.message ?? 'callback_failed')}`);
       }
