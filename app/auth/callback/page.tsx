@@ -1,46 +1,52 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { getBrowserSupabase } from '@/lib/supabaseClient';
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { getBrowserSupabase } from "@/lib/supabaseClient";
 
-// prevent prerender & caching (fixes Vercel error)
-export const dynamic = 'force-dynamic';
-export const revalidate = false;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-export default function AuthCallback() {
+function CallbackInner() {
+  const supabase = getBrowserSupabase();
+  const params = useSearchParams();
   const router = useRouter();
-  const qp = useSearchParams();
+  const [msg, setMsg] = useState("Finishing sign-in…");
 
   useEffect(() => {
-    const run = async () => {
-      const supabase = getBrowserSupabase();
-
-      // If coming back from Google, exchange the code for a session
-      const url = new URL(window.location.href);
-      const hasCode = url.searchParams.get('code');
-
-      if (hasCode) {
-        const { error } = await supabase.auth.exchangeCodeForSession(url.href);
-        if (error) {
-          // go back to login with a friendly message
-          router.replace(`/login?error=${encodeURIComponent(error.message)}`);
-          return;
+    let canceled = false;
+    (async () => {
+      try {
+        // Ensure session gets written, then bounce home
+        await supabase.auth.getSession();
+        if (!canceled) {
+          setMsg("Signed in. Redirecting…");
+          router.replace("/");
         }
+      } catch (e: any) {
+        if (!canceled) setMsg(e?.message ?? "Error finalizing sign-in.");
       }
-
-      // optional: support redirect back to where the user started
-      const next = qp.get('next') || '/';
-      router.replace(next);
+    })();
+    return () => {
+      canceled = true;
     };
-    run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const error = params.get("error_description") || params.get("error");
   return (
-    <div style={{ padding: 24 }}>
-      <h2>Signing you in…</h2>
-      <p>You’ll be redirected in a moment.</p>
+    <div className="mx-auto max-w-md px-4 py-10">
+      <h1 className="text-xl font-semibold mb-2">Auth callback</h1>
+      <p>{error ? `Error: ${error}` : msg}</p>
     </div>
+  );
+}
+
+export default function CallbackPage() {
+  // Wrap hook usage in Suspense to satisfy Next CSR bailout warning
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-md p-10">Loading…</div>}>
+      <CallbackInner />
+    </Suspense>
   );
 }
