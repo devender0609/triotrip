@@ -1,39 +1,41 @@
+// app/auth/callback/page.tsx
 "use client";
 
-import * as React from "react";
 import { useEffect, useState } from "react";
-import { getSupabaseBrowser } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AuthCallbackPage() {
-  const supabase = getSupabaseBrowser();
-  const [msg, setMsg] = useState("Finishing sign-in…");
+  const router = useRouter();
+  const params = useSearchParams();
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    let alive = true;
     (async () => {
       try {
-        // Causes fragment to be parsed and session to persist
+        // Supabase auto-exchanges the code in URL fragment.
+        // Trigger a getSession to finalize and cache it.
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
-        if (alive) {
-          const ret = sessionStorage.getItem("triptrio:returnTo") || "/";
-          setMsg("Signed in! Redirecting…");
-          window.location.replace(ret);
+        if (!data.session) {
+          // Explicit exchange in case SSR stripped fragments
+          const { error: e2 } = await supabase.auth.exchangeCodeForSession(window.location.href);
+          if (e2) throw e2;
         }
+        // Back to home (or previous)
+        const next = params.get("redirect") || "/";
+        router.replace(next);
       } catch (e: any) {
-        if (alive) setMsg(e?.message ?? "Could not complete sign-in.");
+        setErr(e?.message || "Sign-in failed");
       }
     })();
-    return () => {
-      alive = false;
-    };
-  }, [supabase]);
+  }, [router, params]);
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-10">
-      <div className="rounded-2xl border border-gray-200 bg-white/70 p-6 shadow-sm">
-        <h1 className="mb-2 text-2xl font-semibold">Authentication</h1>
-        <p className="text-gray-700">{msg}</p>
+    <main style={{ maxWidth: 560, margin: "40px auto", padding: 16 }}>
+      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+        <h1 style={{ margin: 0, fontWeight: 900 }}>Signing you in…</h1>
+        {err && <p style={{ color: "#b91c1c" }}>{err}</p>}
       </div>
     </main>
   );

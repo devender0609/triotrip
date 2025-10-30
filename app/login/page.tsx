@@ -1,107 +1,120 @@
 ﻿"use client";
 
-import * as React from "react";
-import { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const supabase = getSupabaseBrowser();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-
-  // If already signed in, return user to where they came from
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!alive) return;
-      if (data.session) {
-        const ret = sessionStorage.getItem("triptrio:returnTo") || "/";
-        window.location.replace(ret);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [supabase]);
+  const [err, setErr] = useState<string | null>(null);
 
   async function signInGoogle() {
-    setBusy(true);
-    setMsg(null);
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      setBusy(true); setErr(null); setMsg(null);
+      const supabase = getSupabaseBrowser();
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },
       });
       if (error) throw error;
     } catch (e: any) {
-      setMsg(e?.message ?? "Could not start Google sign-in.");
+      setErr(e?.message || "Google sign-in failed");
       setBusy(false);
     }
   }
 
   async function sendMagicLink(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setMsg(null);
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      setBusy(true); setErr(null); setMsg(null);
+      const supabase = getSupabaseBrowser();
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined;
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo },
       });
       if (error) throw error;
-      setMsg("Check your email for the magic link.");
-    } catch (err: any) {
-      setMsg(err?.message ?? "Could not send magic link.");
+      setMsg("Magic link sent. Check your inbox.");
+    } catch (e: any) {
+      setErr(e?.message || "Could not send magic link");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-10">
-      <div className="rounded-2xl border border-gray-200 bg-white/70 p-6 shadow-sm">
-        <h1 className="mb-4 text-2xl font-semibold">Login</h1>
+    <div style={{ minHeight: "70vh", display: "grid", placeItems: "center", padding: 16 }}>
+      <div
+        className="card"
+        style={{
+          width: 460, maxWidth: "100%", padding: 24, borderRadius: 16,
+          border: "1px solid rgba(226,232,240,1)", background: "#fff",
+          boxShadow: "0 20px 40px rgba(2,132,199,.08)",
+        }}
+      >
+        <div style={{ display: "grid", gap: 10 }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#0b3b52" }}>
+            Login to <span style={{ color: "#0ea5e9" }}>TrioTrip</span>
+          </h1>
+          <p style={{ marginTop: -6, color: "#64748b", fontWeight: 600 }}>
+            Sign in to save trips and compare options later.
+          </p>
 
-        <div className="flex flex-col gap-6">
           <button
+            className="btn btn--primary"
             onClick={signInGoogle}
             disabled={busy}
-            className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-4 py-2 font-medium hover:bg-gray-50 disabled:opacity-60"
+            style={{ justifyContent: "center", height: 44 }}
           >
-            {busy ? "Opening Google…" : "Sign in with Google"}
+            {busy ? "Opening Google…" : "Continue with Google"}
           </button>
 
-          <div className="text-gray-500 text-sm">or</div>
+          <div className="divider" style={{ height: 1, margin: "8px 0 2px" }} />
 
-          <form onSubmit={sendMagicLink} className="flex items-center gap-2">
+          <form onSubmit={sendMagicLink} style={{ display: "grid", gap: 8 }}>
+            <label style={{ fontWeight: 700, color: "#334155" }}>Or get a magic link</label>
             <input
               type="email"
               required
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-sky-300"
+              style={{
+                height: 44, padding: "0 12px", borderRadius: 12,
+                border: "1px solid #e2e8f0", fontSize: 15,
+              }}
             />
-            <button
-              type="submit"
-              disabled={busy || !email}
-              className="rounded-xl bg-sky-600 px-4 py-2 font-medium text-white hover:bg-sky-700 disabled:opacity-60"
-            >
-              Send magic link
+            <button className="btn" type="submit" disabled={busy} style={{ justifyContent: "center", height: 44 }}>
+              {busy ? "Sending…" : "Send magic link"}
             </button>
           </form>
 
           {msg && (
-            <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-amber-800">
-              {msg}
+            <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", padding: 10, borderRadius: 10 }}>
+              ✅ {msg}
             </div>
           )}
+          {err && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: 10, borderRadius: 10, color: "#7f1d1d" }}>
+              ⚠ {err}
+            </div>
+          )}
+
+          <div style={{ textAlign: "center", marginTop: 4 }}>
+            <a className="chip" href="/" style={{ padding: "8px 12px" }}>← Back to home</a>
+          </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
