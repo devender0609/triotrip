@@ -1,6 +1,6 @@
 "use client";
 
-export const revalidate = false;            // ✅ app router: no static export here
+export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
@@ -12,7 +12,7 @@ export default function AuthCallbackPage() {
   const router = useRouter();
   const search = useSearchParams();
   const [status, setStatus] = useState<"working" | "ok" | "error">("working");
-  const [message, setMessage] = useState<string>("Exchanging code…");
+  const [message, setMessage] = useState("Exchanging code…");
 
   useEffect(() => {
     const run = async () => {
@@ -21,7 +21,6 @@ export default function AuthCallbackPage() {
         if (!code) {
           setStatus("error");
           setMessage("Missing authorization code.");
-          // Send back to login with a friendly message
           setTimeout(() => router.replace("/login?error=missing_code"), 600);
           return;
         }
@@ -32,24 +31,19 @@ export default function AuthCallbackPage() {
         if (error) {
           setStatus("error");
           setMessage(error.message || "Could not complete sign-in.");
-          setTimeout(
-            () => router.replace("/login?error=exchange_failed"),
-            900
-          );
+          setTimeout(() => router.replace("/login?error=exchange_failed"), 900);
           return;
         }
 
         setStatus("ok");
         setMessage("Signed in! Redirecting…");
         setTimeout(() => router.replace("/"), 300);
-      } catch (err: any) {
+      } catch (e: any) {
         setStatus("error");
-        setMessage(err?.message ?? "Unexpected error.");
+        setMessage(e?.message ?? "Unexpected error.");
         setTimeout(() => router.replace("/login?error=unexpected"), 900);
       }
     };
-
-    // Run once after mount
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -69,12 +63,9 @@ export default function AuthCallbackPage() {
         </h1>
         <p className="opacity-80">{message}</p>
         <div className="mt-4 text-sm opacity-70">
-          If this takes more than a few seconds,{" "}
-          <button
-            className="underline"
-            onClick={() => router.replace("/login")}
-          >
-            try logging in again
+          If this stalls,{" "}
+          <button className="underline" onClick={() => router.replace("/login")}>
+            try login again
           </button>
           .
         </div>
