@@ -1,52 +1,45 @@
 "use client";
 
+export const revalidate = 0;                      // avoid static export
 export const dynamic = "force-dynamic";
-export const revalidate = 0;            // ✅ must be a number or false
 export const fetchCache = "force-no-store";
 
-import { Suspense, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createSupabaseBrowser } from "@/lib/supabaseClient";
+import { getBrowserSupabase } from "@/lib/supabaseClient";
 
-function CallbackInner() {
+export default function AuthCallbackPage() {
   const router = useRouter();
-  const search = useSearchParams();
+  const params = useSearchParams();
+  const [message, setMessage] = useState("Finalizing sign-in…");
 
   useEffect(() => {
-    const run = async () => {
-      try {
-        const code = search.get("code");
-        const next = search.get("next") || "/";
+    const supabase = getBrowserSupabase();
 
-        if (!code) {
-          router.replace("/login");
+    // Supabase Auth redirect v2:
+    // This exchanges the `code` in the URL for a session.
+    supabase.auth.exchangeCodeForSession(window.location.href)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("exchangeCodeForSession error:", error);
+          setMessage("Sign-in failed. Please try again.");
           return;
         }
 
-        const sb = createSupabaseBrowser();
-        await sb.auth.exchangeCodeForSession(code);
-
+        // Optional: route to a `next` param or home
+        const next = params.get("next") || "/";
         router.replace(next);
-      } catch (e) {
-        console.error("Auth callback error:", e);
-        router.replace("/login");
-      }
-    };
-    run();
-  }, [search, router]);
+      })
+      .catch((e) => {
+        console.error("Callback exception:", e);
+        setMessage("Sign-in failed. Please try again.");
+      });
+  }, [router, params]);
 
   return (
-    <div className="mx-auto max-w-md p-8 text-center">
-      <h1 className="text-xl font-semibold mb-1">Signing you in…</h1>
-      <p className="text-sm opacity-70">Please wait while we complete authentication.</p>
+    <div style={{ padding: 24 }}>
+      <h1>Signing you in…</h1>
+      <p>{message}</p>
     </div>
-  );
-}
-
-export default function AuthCallbackPage() {
-  return (
-    <Suspense fallback={<div className="mx-auto max-w-md p-8 text-center">Preparing sign-in…</div>}>
-      <CallbackInner />
-    </Suspense>
   );
 }

@@ -1,88 +1,59 @@
 ﻿"use client";
 
+export const revalidate = 0;
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createSupabaseBrowser } from "@/lib/supabaseClient";
+import { getBrowserSupabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const supabase = getBrowserSupabase();
   const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const sb = createSupabaseBrowser();
 
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_BASE || ""}/auth/callback`;
-
-  const signInWithGoogle = async () => {
-    setBusy(true);
-    const { error } = await sb.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
+  const signInWithEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_BASE || ""}/auth/callback`,
+      },
     });
-    if (error) {
-      console.error(error);
-      setBusy(false);
-    }
+    if (error) alert(error.message);
+    else alert("Check your email for a magic link!");
   };
 
-  const sendMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo },
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_BASE || ""}/auth/callback`,
+      },
     });
-    setBusy(false);
-    if (error) {
-      console.error(error);
-      return;
-    }
-    alert("Check your email for a sign-in link.");
+    if (error) alert(error.message);
   };
 
   return (
-    <div className="mx-auto max-w-md p-8">
-      <h1 className="text-2xl font-semibold mb-6">Login</h1>
+    <div style={{ padding: 24, maxWidth: 420 }}>
+      <h1>Sign in</h1>
 
-      <button
-        onClick={signInWithGoogle}
-        disabled={busy}
-        className="w-full rounded-lg border px-4 py-2 mb-6 hover:bg-black/5"
-      >
-        {busy ? "Opening Google…" : "Sign in with Google"}
-      </button>
-
-      <div className="text-sm opacity-60 mb-2">or</div>
-
-      <form onSubmit={sendMagicLink} className="space-y-3">
-        <input
-          type="email"
-          required
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-lg border px-3 py-2"
-        />
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-lg border px-4 py-2 hover:bg-black/5"
-        >
-          Send magic link
-        </button>
+      <form onSubmit={signInWithEmail} style={{ display: "grid", gap: 12 }}>
+        <label>
+          <div>Email</div>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: "100%", padding: 10 }}
+          />
+        </label>
+        <button type="submit">Send Magic Link</button>
       </form>
 
-      <p className="mt-6 text-xs opacity-60">
-        You’ll be redirected to <code>/auth/callback</code> after authentication.
-      </p>
+      <div style={{ margin: "16px 0", textAlign: "center" }}>— or —</div>
 
-      <button
-        className="mt-6 text-sm underline"
-        onClick={() => router.push("/")}
-      >
-        ← Back to home
-      </button>
+      <button onClick={signInWithGoogle}>Continue with Google</button>
     </div>
   );
 }

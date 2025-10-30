@@ -2,15 +2,31 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 
-export function createSupabaseBrowser() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+let _client: ReturnType<typeof createBrowserClient> | null = null;
+
+export function getBrowserSupabase() {
+  if (_client) return _client;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anon) {
-    console.warn("[supabase] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    console.error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    throw new Error("Supabase env not set");
   }
-  return createBrowserClient(url, anon);
+
+  _client = createBrowserClient(url, anon, {
+    // Use modern cookies API (no custom get/set/remove needed)
+    cookieOptions: {
+      name: "sb-access-token",
+      lifetime: 60 * 60 * 24 * 7, // 7d
+      domain: undefined,
+      path: "/",
+      sameSite: "lax",
+    },
+  });
+
+  return _client;
 }
 
-// Back-compat named exports in case other files import these
-export const supabase = createSupabaseBrowser();
-export const getBrowserSupabase = createSupabaseBrowser;
+// Optional singleton for simple imports: `import { supabase } from '@/lib/supabaseClient'`
+export const supabase = getBrowserSupabase();
