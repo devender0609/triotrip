@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import { getBrowserSupabase } from '@/lib/supabaseClient';
 
-export const revalidate = 0;
+export const revalidate = 0;               // ✅ number (ok)
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
@@ -20,12 +20,10 @@ export default function LoginPage() {
         typeof window !== 'undefined'
           ? `${window.location.origin}/auth/callback`
           : '/auth/callback';
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo },
       });
-
       if (error) setErr(error.message);
     } catch (e: any) {
       setErr(e?.message ?? 'Login failed');
@@ -51,11 +49,7 @@ export default function LoginPage() {
             {loading ? 'Redirecting…' : 'Continue with Google'}
           </button>
 
-          {err ? (
-            <p className="mt-3 text-xs text-red-600">
-              {err}
-            </p>
-          ) : null}
+          {err ? <p className="mt-3 text-xs text-red-600">{err}</p> : null}
         </div>
       </div>
     </div>
