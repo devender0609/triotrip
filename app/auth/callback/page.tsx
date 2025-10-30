@@ -1,61 +1,46 @@
-"use client";
+'use client';
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabaseClient";
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { getBrowserSupabase } from '@/lib/supabaseClient';
 
-// Make sure this page is not statically prerendered
-export const dynamic = "force-dynamic";
-// IMPORTANT: revalidate must be a number or false (NOT an object)
+// prevent prerender & caching (fixes Vercel error)
+export const dynamic = 'force-dynamic';
 export const revalidate = false;
-// Prevent caching fetches on this page
-export const fetchCache = "force-no-store";
 
-function CallbackInner() {
+export default function AuthCallback() {
   const router = useRouter();
-  const params = useSearchParams();
-  const supabase = supabaseBrowser();
-
-  const [status, setStatus] = useState("Completing sign-in…");
+  const qp = useSearchParams();
 
   useEffect(() => {
-    (async () => {
-      try {
-        const code = params.get("code");
-        if (!code) {
-          setStatus("Missing 'code' in callback URL.");
-          return;
-        }
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const run = async () => {
+      const supabase = getBrowserSupabase();
+
+      // If coming back from Google, exchange the code for a session
+      const url = new URL(window.location.href);
+      const hasCode = url.searchParams.get('code');
+
+      if (hasCode) {
+        const { error } = await supabase.auth.exchangeCodeForSession(url.href);
         if (error) {
-          setStatus(`Sign-in failed: ${error.message}`);
+          // go back to login with a friendly message
+          router.replace(`/login?error=${encodeURIComponent(error.message)}`);
           return;
         }
-        setStatus("Signed in! Redirecting…");
-        router.replace("/");
-      } catch (e: any) {
-        setStatus(`Error: ${e?.message || "Network error"}`);
       }
-    })();
-  }, [params, supabase, router]);
+
+      // optional: support redirect back to where the user started
+      const next = qp.get('next') || '/';
+      router.replace(next);
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <main style={{ maxWidth: 520, margin: "56px auto", padding: 16 }}>
-      <p>{status}</p>
-    </main>
-  );
-}
-
-export default function CallbackPage() {
-  return (
-    <Suspense
-      fallback={
-        <main style={{ maxWidth: 520, margin: "56px auto", padding: 16 }}>
-          <p>Completing sign-in…</p>
-        </main>
-      }
-    >
-      <CallbackInner />
-    </Suspense>
+    <div style={{ padding: 24 }}>
+      <h2>Signing you in…</h2>
+      <p>You’ll be redirected in a moment.</p>
+    </div>
   );
 }

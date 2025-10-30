@@ -1,35 +1,24 @@
 // lib/supabaseClient.ts
-// Works in both Client components (browser) and on the server if needed.
+"use client";
 
-import { createClient as createSupabaseJsClient } from '@supabase/supabase-js';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createBrowserClient } from "@supabase/ssr";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Singleton for browser usage
-let _browser: ReturnType<typeof createSupabaseJsClient> | null = null;
-
-export function supabaseBrowser() {
-  if (!_browser) {
-    _browser = createSupabaseJsClient(url, anon, {
-      auth: { persistSession: true, autoRefreshToken: true },
-    });
+export function createSupabaseBrowser() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  if (!url || !anon) {
+    console.warn("Supabase envs missing. Check Vercel env vars.");
   }
-  return _browser;
-}
-
-// Optional: server helper (route handlers, RSC) if you need it later.
-export function supabaseServer(opts: {
-  get(name: string): string | undefined;
-  set(name: string, value: string, options: CookieOptions): void;
-  remove(name: string, options: CookieOptions): void;
-}) {
-  return createServerClient(url, anon, {
+  return createBrowserClient(url, anon, {
     cookies: {
-      get: opts.get,
-      set: opts.set,
-      remove: opts.remove,
+      get(name: string) {
+        return typeof document === "undefined"
+          ? undefined
+          : (document.cookie
+              ?.split("; ")
+              ?.find((c) => c.startsWith(`${name}=`))
+              ?.split("=")[1]);
+      },
     },
   });
 }
