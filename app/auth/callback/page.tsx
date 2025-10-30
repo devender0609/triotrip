@@ -4,8 +4,8 @@ import { Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getBrowserSupabase } from '@/lib/supabaseClient';
 
-// ✅ MUST be a number or false — never an object
-export const revalidate = 0;
+// ✅ Valid values only
+export const revalidate = false;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 

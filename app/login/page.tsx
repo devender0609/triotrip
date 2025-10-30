@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import { getBrowserSupabase } from '@/lib/supabaseClient';
 
-export const revalidate = 0;               // ✅ valid
+export const revalidate = false;           // ✅ valid
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
