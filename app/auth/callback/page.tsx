@@ -1,7 +1,7 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 0;            // ✅ must be a number or false
 export const fetchCache = "force-no-store";
 
 import { Suspense, useEffect } from "react";
@@ -10,13 +10,13 @@ import { createSupabaseBrowser } from "@/lib/supabaseClient";
 
 function CallbackInner() {
   const router = useRouter();
-  const params = useSearchParams();
+  const search = useSearchParams();
 
   useEffect(() => {
     const run = async () => {
       try {
-        const code = params.get("code");
-        const next = params.get("next") || "/";
+        const code = search.get("code");
+        const next = search.get("next") || "/";
 
         if (!code) {
           router.replace("/login");
@@ -27,17 +27,17 @@ function CallbackInner() {
         await sb.auth.exchangeCodeForSession(code);
 
         router.replace(next);
-      } catch (err) {
-        console.error("Auth callback error:", err);
+      } catch (e) {
+        console.error("Auth callback error:", e);
         router.replace("/login");
       }
     };
     run();
-  }, [params, router]);
+  }, [search, router]);
 
   return (
     <div className="mx-auto max-w-md p-8 text-center">
-      <h1 className="text-xl font-semibold mb-2">Signing you in…</h1>
+      <h1 className="text-xl font-semibold mb-1">Signing you in…</h1>
       <p className="text-sm opacity-70">Please wait while we complete authentication.</p>
     </div>
   );
@@ -45,13 +45,7 @@ function CallbackInner() {
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-md p-8 text-center">
-          <h1 className="text-xl font-semibold mb-2">Preparing sign-in…</h1>
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="mx-auto max-w-md p-8 text-center">Preparing sign-in…</div>}>
       <CallbackInner />
     </Suspense>
   );
