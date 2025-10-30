@@ -1,79 +1,88 @@
 ﻿"use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabaseClient";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 export default function LoginPage() {
-  const supabase = createSupabaseBrowser();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const sb = createSupabaseBrowser();
 
-  async function signInWithGoogle() {
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_BASE || ""}/auth/callback`;
+
+  const signInWithGoogle = async () => {
     setBusy(true);
-    setMsg(null);
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await sb.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_BASE}/auth/callback`,
-      },
+      options: { redirectTo },
     });
-    if (error) setMsg(error.message);
-    setBusy(false);
-  }
+    if (error) {
+      console.error(error);
+      setBusy(false);
+    }
+  };
 
-  async function sendMagicLink(e: React.FormEvent) {
+  const sendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setMsg(null);
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await sb.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_BASE}/auth/callback`,
-      },
+      options: { emailRedirectTo: redirectTo },
     });
-    if (error) setMsg(error.message);
-    else setMsg("Check your email for the sign-in link.");
     setBusy(false);
-  }
+    if (error) {
+      console.error(error);
+      return;
+    }
+    alert("Check your email for a sign-in link.");
+  };
 
   return (
-    <div className="mx-auto max-w-md px-4 py-10">
+    <div className="mx-auto max-w-md p-8">
       <h1 className="text-2xl font-semibold mb-6">Login</h1>
 
       <button
-        className="btn btn-primary w-full mb-4"
         onClick={signInWithGoogle}
         disabled={busy}
+        className="w-full rounded-lg border px-4 py-2 mb-6 hover:bg-black/5"
       >
         {busy ? "Opening Google…" : "Sign in with Google"}
       </button>
 
-      <div className="card p-4">
-        <form onSubmit={sendMagicLink} className="space-y-3">
-          <label className="block text-sm">Or use a magic link</label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="input"
-          />
-          <button className="btn w-full" disabled={busy}>
-            Send magic link
-          </button>
-        </form>
-        {msg && <p className="text-sm mt-3">{msg}</p>}
-        <p className="text-xs mt-4 text-muted">
-          You’ll be redirected to <code>/auth/callback</code> after sign-in.
-        </p>
-      </div>
+      <div className="text-sm opacity-60 mb-2">or</div>
+
+      <form onSubmit={sendMagicLink} className="space-y-3">
+        <input
+          type="email"
+          required
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-lg border px-3 py-2"
+        />
+        <button
+          type="submit"
+          disabled={busy}
+          className="w-full rounded-lg border px-4 py-2 hover:bg-black/5"
+        >
+          Send magic link
+        </button>
+      </form>
+
+      <p className="mt-6 text-xs opacity-60">
+        You’ll be redirected to <code>/auth/callback</code> after authentication.
+      </p>
+
+      <button
+        className="mt-6 text-sm underline"
+        onClick={() => router.push("/")}
+      >
+        ← Back to home
+      </button>
     </div>
   );
 }
