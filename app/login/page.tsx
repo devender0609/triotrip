@@ -1,95 +1,72 @@
 ﻿"use client";
 
+export const revalidate = false;            // boolean OK
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 import { useState } from "react";
 import { getSupabase } from "@/lib/supabaseClient";
 
-export const dynamic = "force-dynamic";
-export const revalidate = false;          // ✅ boolean, not object
-export const fetchCache = "force-no-store";
-
 export default function LoginPage() {
+  const [loading, setLoading] = useState<string | null>(null);
   const supabase = getSupabase();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [child, setChild] = useState(false);
-  const [age, setAge] = useState<number | "">("");
-  const [status, setStatus] = useState("");
 
-  async function onMagicLink(e: React.FormEvent) {
-    e.preventDefault();
-    setStatus("Sending magic link…");
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${location.origin}/auth/callback` },
-    });
-    setStatus(error ? `Error: ${error.message}` : "Check your email for the sign-in link.");
-  }
-
-  async function onPassword(e: React.FormEvent) {
-    e.preventDefault();
-    setStatus("Signing in…");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setStatus(error ? `Error: ${error.message}` : "Signed in. Redirecting…");
-    if (!error) location.replace("/");
+  async function signIn(provider: "google" | "github") {
+    try {
+      setLoading(provider);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/auth/callback`
+              : undefined,
+        },
+      });
+      if (error) throw error;
+    } catch (e) {
+      console.error(e);
+      alert("Login failed. Check Supabase site URL / redirect domain.");
+    } finally {
+      setLoading(null);
+    }
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: "40px auto", padding: 24, border: "1px solid #e5e7eb", borderRadius: 12 }}>
-      <h1 style={{ marginBottom: 16 }}>Sign in to TrioTrip</h1>
+    <main style={{ maxWidth: 480, margin: "40px auto", padding: 16 }}>
+      <h1 style={{ fontWeight: 900, marginBottom: 12 }}>Sign in to TrioTrip</h1>
+      <p style={{ color: "#475569", marginBottom: 24 }}>
+        Continue with your preferred provider.
+      </p>
 
-      <form onSubmit={onMagicLink} style={{ display: "grid", gap: 12 }}>
-        <label>
-          Email
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #e5e7eb" }}
-          />
-        </label>
+      <div style={{ display: "grid", gap: 12 }}>
+        <button
+          onClick={() => signIn("google")}
+          disabled={!!loading}
+          style={btn}
+          aria-busy={loading === "google"}
+        >
+          {loading === "google" ? "Redirecting…" : "Continue with Google"}
+        </button>
 
-        <label>
-          Password (optional)
-          <input
-            type="password"
-            value={password}
-            placeholder="Leave blank to use email link"
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #e5e7eb" }}
-          />
-        </label>
-
-        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input type="checkbox" checked={child} onChange={(e) => setChild(e.target.checked)} />
-          I’m a child user
-        </label>
-
-        {child && (
-          <label>
-            Age
-            <input
-              type="number"
-              min={3}
-              max={17}
-              value={age}
-              onChange={(e) => setAge(e.target.value === "" ? "" : Number(e.target.value))}
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #e5e7eb" }}
-            />
-          </label>
-        )}
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="submit" style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-            Send magic link
-          </button>
-          <button onClick={onPassword} style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-            Sign in with password
-          </button>
-        </div>
-      </form>
-
-      <div style={{ marginTop: 12, color: "#334155" }}>{status}</div>
-    </div>
+        <button
+          onClick={() => signIn("github")}
+          disabled={!!loading}
+          style={btn}
+          aria-busy={loading === "github"}
+        >
+          {loading === "github" ? "Redirecting…" : "Continue with GitHub"}
+        </button>
+      </div>
+    </main>
   );
 }
+
+const btn: React.CSSProperties = {
+  padding: "10px 14px",
+  borderRadius: 999,
+  border: "1px solid #e2e8f0",
+  background: "#fff",
+  fontWeight: 800,
+  cursor: "pointer",
+};
