@@ -1,30 +1,23 @@
-// lib/supabaseClient.ts
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+"use client";
 
-/**
- * Create the browser client only when actually called (not at import time),
- * so static generation doesn't choke when envs aren't injected yet.
- */
+import { createBrowserClient, type SupabaseClient } from "@supabase/ssr";
+
+// Keep one browser client for the whole app
 let _client: SupabaseClient | null = null;
 
-export function getSupabaseBrowser(): SupabaseClient {
-  if (_client) return _client;
-
-  // Read NEXT_PUBLIC_* only at call-time (client), not during build.
+export function getBrowserSupabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anon) {
-    // Keep the message explicit for troubleshooting on client only.
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
   }
 
-  _client = createClient(url, anon, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  });
+  if (!_client) {
+    // NOTE: don't pass cookieOptions/lifetime here — that caused your previous type errors.
+    _client = createBrowserClient(url, anon, { isSingleton: true });
+  }
   return _client;
 }
+
+export type { SupabaseClient };

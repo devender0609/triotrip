@@ -4,7 +4,7 @@ import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabaseClient";
 
-// 👇 primitives only (no objects!)
+// Primitives only (no objects)
 export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -14,7 +14,7 @@ function CallbackInner() {
   const sp = useSearchParams();
 
   useEffect(() => {
-    const run = async () => {
+    (async () => {
       try {
         const code = sp.get("code");
         if (!code) {
@@ -28,13 +28,12 @@ function CallbackInner() {
           router.replace("/login?error=auth");
           return;
         }
-        router.replace("/"); // go home (or /account)
+        router.replace("/");
       } catch (e) {
         console.error(e);
         router.replace("/login?error=auth");
       }
-    };
-    run();
+    })();
   }, [sp, router]);
 
   return (
@@ -46,7 +45,6 @@ function CallbackInner() {
 }
 
 export default function Page() {
-  // ✅ Suspense boundary is required when using useSearchParams in App Router
   return (
     <Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}>
       <CallbackInner />
