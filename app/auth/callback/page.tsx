@@ -4,34 +4,33 @@ import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabaseClient";
 
-// Primitives only (no objects)
 export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-function CallbackInner() {
+function Inner() {
   const router = useRouter();
   const sp = useSearchParams();
 
   useEffect(() => {
     (async () => {
+      const code = sp.get("code");
+      if (!code) {
+        router.replace("/login?error=missing_code");
+        return;
+      }
       try {
-        const code = sp.get("code");
-        if (!code) {
-          router.replace("/login");
-          return;
-        }
         const supabase = getBrowserSupabase();
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
-          console.error("exchangeCodeForSession error", error);
-          router.replace("/login?error=auth");
+          console.error(error);
+          router.replace("/login?error=exchange_failed");
           return;
         }
         router.replace("/");
       } catch (e) {
         console.error(e);
-        router.replace("/login?error=auth");
+        router.replace("/login?error=client_init");
       }
     })();
   }, [sp, router]);
@@ -47,7 +46,7 @@ function CallbackInner() {
 export default function Page() {
   return (
     <Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}>
-      <CallbackInner />
+      <Inner />
     </Suspense>
   );
 }
