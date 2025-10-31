@@ -1,52 +1,37 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { getBrowserSupabase } from "@/lib/supabaseClient";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { getSupabase } from "@/lib/supabaseClient";
 
-export const revalidate = false;
 export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
+export const revalidate = false;
 
-function Inner() {
-  const router = useRouter();
+export default function AuthCallbackPage() {
   const sp = useSearchParams();
+  const [msg, setMsg] = useState("Finishing sign-in…");
 
   useEffect(() => {
-    (async () => {
-      const code = sp.get("code");
-      if (!code) {
-        router.replace("/login?error=missing_code");
-        return;
-      }
+    const code = sp.get("code");
+    const next = sp.get("next") || "/";
+    const supabase = getSupabase();
+
+    async function run() {
       try {
-        const supabase = getBrowserSupabase();
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          console.error(error);
-          router.replace("/login?error=exchange_failed");
-          return;
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          setMsg("Signed in. Redirecting…");
+          window.location.replace(next);
+        } else {
+          setMsg("No code found in URL.");
         }
-        router.replace("/");
-      } catch (e) {
-        console.error(e);
-        router.replace("/login?error=client_init");
+      } catch (e: any) {
+        setMsg(`Auth error: ${e?.message || e}`);
       }
-    })();
-  }, [sp, router]);
+    }
+    run();
+  }, [sp]);
 
-  return (
-    <div style={{ padding: 24 }}>
-      <h1>Signing you in…</h1>
-      <p>Please wait a moment.</p>
-    </div>
-  );
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}>
-      <Inner />
-    </Suspense>
-  );
+  return <div style={{ padding: 24 }}>{msg}</div>;
 }

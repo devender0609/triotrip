@@ -1,20 +1,13 @@
-﻿// app/layout.tsx
-import "./globals.css";
-import type { Metadata } from "next";
-import SiteHeader from "../components/SiteHeader";
-
-export const metadata: Metadata = {
+// app/layout.tsx
+export const metadata = {
   title: "TrioTrip",
-  description: "Top-3 travel picks – smarter, clearer, bookable.",
+  description: "Compare flights & hotels beautifully",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <SiteHeader />
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
