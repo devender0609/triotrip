@@ -1,44 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getSupabaseBrowser } from "@/lib/supabaseClient";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getBrowserSupabase } from "@/lib/supabaseClient";
 
-export default function AuthCallback() {
-  const [msg, setMsg] = useState("Finalizing sign-in…");
+// 👇 primitives only (no objects!)
+export const revalidate = false;
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
+function CallbackInner() {
+  const router = useRouter();
+  const sp = useSearchParams();
 
   useEffect(() => {
-    (async () => {
+    const run = async () => {
       try {
-        const supabase = getSupabaseBrowser();
-
-        // If session already present (One Tap / redirect), we’re done.
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-
-        // Otherwise try exchange the `code` (PKCE flow) if provided.
-        if (!data.session) {
-          const url = new URL(window.location.href);
-          const code = url.searchParams.get("code");
-          if (code) {
-            const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-            if (exErr) throw exErr;
-          }
+        const code = sp.get("code");
+        if (!code) {
+          router.replace("/login");
+          return;
         }
-
-        setMsg("Signed in! Redirecting…");
-        const to = sessionStorage.getItem("triptrio:returnTo") || "/";
-        window.location.replace(to);
-      } catch (e: any) {
-        setMsg(`Login error: ${e?.message || "unknown"}`);
+        const supabase = getBrowserSupabase();
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.error("exchangeCodeForSession error", error);
+          router.replace("/login?error=auth");
+          return;
+        }
+        router.replace("/"); // go home (or /account)
+      } catch (e) {
+        console.error(e);
+        router.replace("/login?error=auth");
       }
-    })();
-  }, []);
+    };
+    run();
+  }, [sp, router]);
 
   return (
-    <div style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
-      <div className="card" style={{ padding: 18, borderRadius: 12 }}>
-        {msg}
-      </div>
+    <div style={{ padding: 24 }}>
+      <h1>Signing you in…</h1>
+      <p>Please wait a moment.</p>
     </div>
+  );
+}
+
+export default function Page() {
+  // ✅ Suspense boundary is required when using useSearchParams in App Router
+  return (
+    <Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}>
+      <CallbackInner />
+    </Suspense>
   );
 }
