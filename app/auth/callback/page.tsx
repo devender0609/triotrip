@@ -1,37 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { getSupabase } from "@/lib/supabaseClient";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getBrowserClient } from "@/lib/supabaseClient";
 
+// Make this route dynamic; do NOT export `revalidate` here
 export const dynamic = "force-dynamic";
-export const revalidate = false;
+export const fetchCache = "force-no-store";
 
 export default function AuthCallbackPage() {
-  const sp = useSearchParams();
-  const [msg, setMsg] = useState("Finishing sign-in…");
+  const router = useRouter();
+  const params = useSearchParams();
 
   useEffect(() => {
-    const code = sp.get("code");
-    const next = sp.get("next") || "/";
-    const supabase = getSupabase();
-
-    async function run() {
+    const run = async () => {
       try {
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          setMsg("Signed in. Redirecting…");
-          window.location.replace(next);
-        } else {
-          setMsg("No code found in URL.");
+        const error = params.get("error_description") || params.get("error");
+        if (error) {
+          console.error("Auth error:", error);
+          router.replace("/login?error=" + encodeURIComponent(error));
+          return;
         }
-      } catch (e: any) {
-        setMsg(`Auth error: ${e?.message || e}`);
-      }
-    }
-    run();
-  }, [sp]);
 
-  return <div style={{ padding: 24 }}>{msg}</div>;
+        const code = params.get("code");
+        if (!code) {
+          // No code in callback; just go home
+          router.replace("/");
+          return;
+        }
+
+        const supabase = getBrowserClient();
+        // PKCE exchange for session
+        await supabase.auth.exchangeCodeForSession(code);
+
+        // success → home
+        router.replace("/");
+      } catch (e) {
+        console.error("Callback handling failed:", e);
+        router.replace("/login?error=callback_failed");
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div style={{ padding: 24, fontWeight: 700 }}>
+      Signing you in…
+    </div>
+  );
 }
