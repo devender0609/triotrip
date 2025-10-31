@@ -4,7 +4,7 @@ import { useState } from "react";
 import { getSupabase } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
-export const revalidate = false;
+export const revalidate = false;          // ✅ boolean, not object
 export const fetchCache = "force-no-store";
 
 export default function LoginPage() {
@@ -18,7 +18,10 @@ export default function LoginPage() {
   async function onMagicLink(e: React.FormEvent) {
     e.preventDefault();
     setStatus("Sending magic link…");
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}/auth/callback` } });
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+    });
     setStatus(error ? `Error: ${error.message}` : "Check your email for the sign-in link.");
   }
 
