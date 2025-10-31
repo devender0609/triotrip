@@ -9,15 +9,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabase } from "@/lib/supabaseClient";
 
 export default function AuthCallbackPage() {
-  const [msg, setMsg] = useState("Finalizing sign-in…");
   const router = useRouter();
-  const params = useSearchParams(); // wrapped by client component so no SSR
+  const params = useSearchParams();
+  const [msg, setMsg] = useState("Finalizing sign-in…");
 
   useEffect(() => {
     const supabase = getSupabase();
     (async () => {
       try {
-        // Handles code exchange for PKCE
         const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
         if (error) throw error;
         setMsg("Signed in! Redirecting…");
@@ -27,8 +26,6 @@ export default function AuthCallbackPage() {
         setMsg("Could not complete sign-in. Check redirect URLs in Supabase.");
       }
     })();
-    // params is used to ensure hook subscribes to querystring changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, params]);
 
   return (

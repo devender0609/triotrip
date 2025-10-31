@@ -1,6 +1,7 @@
 ﻿"use client";
 
-export const revalidate = false;            // boolean OK
+// You can keep these, but they must be primitives — NOT objects.
+export const revalidate = false;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
@@ -26,7 +27,7 @@ export default function LoginPage() {
       if (error) throw error;
     } catch (e) {
       console.error(e);
-      alert("Login failed. Check Supabase site URL / redirect domain.");
+      alert("Login failed. Check Supabase redirect URLs & Vercel env vars.");
     } finally {
       setLoading(null);
     }
@@ -35,33 +36,17 @@ export default function LoginPage() {
   return (
     <main style={{ maxWidth: 480, margin: "40px auto", padding: 16 }}>
       <h1 style={{ fontWeight: 900, marginBottom: 12 }}>Sign in to TrioTrip</h1>
-      <p style={{ color: "#475569", marginBottom: 24 }}>
-        Continue with your preferred provider.
-      </p>
-
       <div style={{ display: "grid", gap: 12 }}>
-        <button
-          onClick={() => signIn("google")}
-          disabled={!!loading}
-          style={btn}
-          aria-busy={loading === "google"}
-        >
+        <button onClick={() => signIn("google")} disabled={!!loading} style={btn}>
           {loading === "google" ? "Redirecting…" : "Continue with Google"}
         </button>
-
-        <button
-          onClick={() => signIn("github")}
-          disabled={!!loading}
-          style={btn}
-          aria-busy={loading === "github"}
-        >
+        <button onClick={() => signIn("github")} disabled={!!loading} style={btn}>
           {loading === "github" ? "Redirecting…" : "Continue with GitHub"}
         </button>
       </div>
     </main>
   );
 }
-
 const btn: React.CSSProperties = {
   padding: "10px 14px",
   borderRadius: 999,
