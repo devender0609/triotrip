@@ -1,0 +1,101 @@
+{
+  "providers": [
+    {
+      "id": "google_maps",
+      "label": "Google Maps",
+      "global": true,
+      "categories": [
+        "explore.top_sights",
+        "explore.parks_views",
+        "explore.museums",
+        "explore.family",
+        "explore.nightlife",
+        "savor.best_restaurants",
+        "savor.local_eats",
+        "savor.cafes_coffee",
+        "savor.street_food",
+        "savor.desserts",
+        "misc.pharmacies",
+        "misc.car_rental",
+        "misc.weather",
+        "guides.wikivoyage",
+        "guides.wikipedia"
+      ],
+      "link": "maps"
+    },
+
+    {
+      "id": "tripadvisor",
+      "label": "Tripadvisor",
+      "global": true,
+      "categories": [
+        "explore.top_sights",
+        "explore.museums",
+        "explore.family",
+        "explore.nightlife"
+      ],
+      "link": "tripadvisor"
+    },
+
+    {
+      "id": "timeout",
+      "label": "Time Out",
+      "cities": ["London", "Paris", "New York", "Barcelona", "Sydney", "Dubai", "Singapore"],
+      "categories": ["explore.top_sights", "explore.nightlife"],
+      "link": "timeout"
+    },
+
+    {
+      "id": "yelp",
+      "label": "Yelp",
+      "countries": ["US", "CA", "GB", "AU", "NZ", "SG"],
+      "categories": [
+        "savor.best_restaurants",
+        "savor.local_eats",
+        "savor.cafes_coffee",
+        "savor.street_food",
+        "savor.desserts"
+      ],
+      "link": "yelp"
+    },
+    {
+      "id": "opentable",
+      "label": "OpenTable",
+      "countries": ["US", "CA", "GB", "IE", "AU", "MX", "DE", "JP", "NL", "IT", "ES"],
+      "categories": ["savor.best_restaurants"],
+      "link": "opentable"
+    },
+    {
+      "id": "zomato",
+      "label": "Zomato",
+      "countries": ["IN", "AE", "QA", "SA", "EG", "ID", "PH"],
+      "categories": [
+        "savor.best_restaurants",
+        "savor.local_eats",
+        "savor.cafes_coffee",
+        "savor.street_food",
+        "savor.regional_dining"
+      ],
+      "link": "zomato"
+    },
+    {
+      "id": "eazydiner",
+      "label": "EazyDiner",
+      "countries": ["IN", "AE"],
+      "categories": ["savor.best_restaurants", "savor.regional_dining"],
+      "link": "eazydiner"
+    },
+    {
+      "id": "thefork",
+      "label": "TheFork",
+      "countries": ["FR", "ES", "IT", "PT", "BE", "NL", "AU", "SE"],
+      "categories": ["savor.best_restaurants"],
+      "link": "thefork"
+    },
+
+    { "id": "wikivoyage", "label": "Wikivoyage", "global": true, "categories": ["guides.wikivoyage"], "link": "wikivoyage" },
+    { "id": "wikipedia",  "label": "Wikipedia",  "global": true, "categories": ["guides.wikipedia"],  "link": "wikipedia" },
+    { "id": "xe",         "label": "XE currency","global": true, "categories": ["misc.know"],         "link": "xe" },
+    { "id": "state_dept", "label": "US State Dept","countries": ["US"], "categories": ["misc.know"], "link": "state_dept" }
+  ]
+}

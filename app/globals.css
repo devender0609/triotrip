@@ -1,0 +1,248 @@
+/* ==========================================================================
+   Global base + colorful themes
+   This file is safe to drop in; keeps your current layout and components.
+   ========================================================================== */
+
+/* --- Reset-ish bits you already expect --- */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: #0f172a; /* slate-900 */
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Keep links tidy by default */
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ==========================================================================
+   Theme tokens
+   Default is light; additional themes set via .theme-ocean / .theme-sunset / .theme-forest
+   ========================================================================== */
+:root {
+  --bg: #f7fbff;                 /* page background */
+  --ink: #0f172a;                /* main text */
+  --muted: #5b6b7c;              /* supporting text */
+  --line: #e2e8f0;               /* borders/dividers */
+
+  --a1: #06b6d4;                 /* primary accent 1 (cyan) */
+  --a2: #0ea5e9;                 /* primary accent 2 (sky) */
+  --a3: #22d3ee;                 /* highlight */
+
+  --card-bg: #ffffff;            /* cards */
+  --card-grad-1: rgba(14,165,233,.06);
+  --card-grad-2: rgba(2,132,199,.04);
+}
+
+html, body { background: var(--bg); color: var(--ink); }
+
+/* Ocean (blue/cyan) */
+.theme-ocean {
+  --bg: linear-gradient(180deg, #eef9ff 0%, #f5fbff 60%, #f8fcff 100%);
+  --a1: #06b6d4; --a2: #0ea5e9; --a3: #22d3ee;
+  --card-grad-1: rgba(14,165,233,.08);
+  --card-grad-2: rgba(2,132,199,.05);
+}
+
+/* Sunset (peach → pink → violet) */
+.theme-sunset {
+  --bg: linear-gradient(180deg,#fff3ec 0%,#fff0f6 55%,#f6f0ff 100%);
+  --a1: #fb923c; --a2: #f472b6; --a3: #8b5cf6;
+  --card-grad-1: rgba(244,114,182,.12);
+  --card-grad-2: rgba(251,146,60,.08);
+}
+
+/* Forest (teal/emerald) */
+.theme-forest {
+  --bg: linear-gradient(180deg,#f0fff7 0%,#f3fff9 60%,#f7fffb 100%);
+  --a1: #10b981; --a2: #14b8a6; --a3: #34d399;
+  --card-grad-1: rgba(20,184,166,.12);
+  --card-grad-2: rgba(16,185,129,.10);
+}
+
+/* ==========================================================================
+   Elegant “chips” (your tabs/buttons like Explore/Savor/Misc, Best/Cheapest…)
+   ========================================================================== */
+.chip, .subtab, .pill, .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(2,132,199,.18);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 600;
+  box-shadow: 0 1px 0 rgba(15,23,42,.06), 0 6px 18px rgba(2,132,199,.06);
+  transition: transform .12s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
+  cursor: pointer;
+}
+.chip:hover, .subtab:hover, .pill:hover, .tag:hover { transform: translateY(-1px); }
+.chip.on, .subtab.on, .pill.on, .tag.on {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(90deg, var(--a1), var(--a2));
+  box-shadow: 0 10px 22px rgba(14,165,233,.25);
+}
+
+/* Make your “active” nav tabs obviously active even if they don’t add .on */
+.tabs .active, .subtabs .active {
+  color: #fff !important;
+  background: linear-gradient(90deg, var(--a1), var(--a2)) !important;
+  border-color: transparent !important;
+  box-shadow: 0 10px 22px rgba(14,165,233,.25) !important;
+}
+
+/* ==========================================================================
+   Cards (search results, sections, hotel rows, etc.)
+   ========================================================================== */
+.card,
+.result-card,
+.result-leg,
+.hotel,
+.section-card {
+  background:
+    radial-gradient(1200px 420px at 110% -20%, var(--card-grad-1), transparent),
+    radial-gradient(1200px 420px at -10% 120%, var(--card-grad-2), transparent),
+    var(--card-bg);
+  border: 1px solid rgba(2,132,199,.12);
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(15,23,42,.04), 0 8px 24px rgba(2,132,199,.06);
+}
+
+.card--hover:hover,
+.result-card:hover,
+.hotel:hover {
+  transform: translateY(-2px);
+  transition: transform .12s ease;
+}
+
+/* Section headings inside cards */
+.card__title, .result-leg-title {
+  font-weight: 800;
+  letter-spacing: .2px;
+  color: #0b3b52;
+}
+
+/* Thin divider lines */
+.hr, .divider {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(2,132,199,.08), rgba(2,132,199,.02));
+}
+
+/* ==========================================================================
+   Flight leg rows + layover chip
+   ========================================================================== */
+.leg-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, #fff, #fbfdff);
+  border: 1px solid rgba(2,132,199,.10);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+.leg-left { font-weight: 700; }
+.leg-right { color: #0b3b52; }
+.leg-airline { font-weight: 800; margin-bottom: 2px; }
+.leg-cities { color: #0b3b52; font-weight: 700; }
+.leg-times { color: #334155; font-weight: 600; }
+.leg-arrow { opacity: .7; }
+
+.layover-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+  color: #0b3b52;
+  border: 1px dashed rgba(14,165,233,.45);
+  background: linear-gradient(90deg, rgba(14,165,233,.12), rgba(2,132,199,.06));
+  box-shadow: 0 0 0 2px rgba(14,165,233,.06) inset;
+}
+
+/* ==========================================================================
+   Buttons (Google Flights / Skyscanner / Airline / Save / Compare)
+   ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(2,132,199,.22);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-weight: 700;
+  box-shadow: 0 1px 0 rgba(2,132,199,.08), 0 8px 16px rgba(2,132,199,.08);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn--primary {
+  background: linear-gradient(90deg, var(--a1), var(--a2));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 10px 22px rgba(14,165,233,.25);
+}
+
+/* Price badge */
+.price-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 800;
+  color: #fff;
+  border: none;
+  background: linear-gradient(90deg, var(--a1), var(--a3));
+  box-shadow: 0 8px 18px rgba(14,165,233,.25);
+}
+
+/* ==========================================================================
+   Hotel row (smaller images)
+   ========================================================================== */
+.hotels { display: grid; gap: 12px; margin-top: 12px; }
+.hotels__title { font-weight: 900; color: #0b3b52; margin-bottom: 6px; }
+
+.hotel {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  padding: 10px;
+}
+
+.hotel__img { display: block; border-radius: 12px; overflow: hidden; border: 1px solid rgba(2,132,199,.10); }
+.hotel__img img {
+  display: block;
+  width: 150px;
+  height: 100px;
+  object-fit: cover;
+}
+
+.hotel__body { display: grid; gap: 8px; }
+.hotel__head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.hotel__name { font-weight: 800; }
+.hotel__price { font-weight: 800; color: #0f172a; }
+.muted { color: #64748b; font-weight: 600; }
+
+.hotel__links .btn { margin-right: 6px; }
+
+/* Subtle input focus ring */
+input:focus, select:focus, button:focus, textarea:focus {
+  outline: 2px solid rgba(14,165,233,.30);
+  outline-offset: 1px;
+  border-radius: 8px;
+}
+
+/* Keep tables tidy if any appear */
+table { border-collapse: collapse; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
