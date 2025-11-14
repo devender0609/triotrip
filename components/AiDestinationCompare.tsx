@@ -4,6 +4,20 @@
 import { useState } from "react";
 import { aiCompareDestinations } from "@/lib/api";
 
+const AI_ENABLED =
+  process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
+  process.env.NEXT_PUBLIC_AI_ENABLED === "1";
+
+type Comparison = {
+  name: string;
+  approx_cost_level: string;
+  weather_summary: string;
+  best_for: string;
+  pros: string[];
+  cons: string[];
+  overall_vibe: string;
+};
+
 export function AiDestinationCompare() {
   const [input, setInput] = useState("Bali, Thailand, Hawaii");
   const [month, setMonth] = useState("December");
@@ -11,7 +25,30 @@ export function AiDestinationCompare() {
   const [home, setHome] = useState("Austin, TX");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<any[] | null>(null);
+  const [data, setData] = useState<Comparison[] | null>(null);
+
+  if (!AI_ENABLED) {
+    // Soft message if AI is turned off
+    return (
+      <section
+        style={{
+          marginTop: 24,
+          padding: 16,
+          borderRadius: 16,
+          border: "1px solid #e2e8f0",
+          background: "#f8fafc",
+        }}
+      >
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+          AI Destination Compare (temporarily disabled)
+        </h2>
+        <p style={{ fontSize: 14, color: "#475569" }}>
+          Once AI is enabled again, you&apos;ll be able to compare destinations
+          side-by-side here.
+        </p>
+      </section>
+    );
+  }
 
   async function handleCompare(e: React.FormEvent) {
     e.preventDefault();
@@ -35,162 +72,299 @@ export function AiDestinationCompare() {
         home,
         days,
       });
-      setData(res.comparisons);
+      setData(res.comparisons as any);
     } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
   }
 
+  const MONTH_OPTIONS = [
+    "Any time",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
   return (
     <section
       style={{
+        marginTop: 24,
+        background: "#0f172a",
+        color: "white",
         borderRadius: 16,
-        border: "1px solid #e5e7eb",
-        background: "#f9fafb",
-        padding: 16,
+        padding: 20,
         display: "grid",
-        gap: 10,
+        gap: 12,
       }}
     >
-      <h2 style={{ fontSize: 18, fontWeight: 700 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 700 }}>
         Compare destinations with AI 🌍
       </h2>
+      <p style={{ fontSize: 14, opacity: 0.85 }}>
+        Not sure where to go? Enter a few places and we&apos;ll compare them
+        for cost, weather, and vibe.
+      </p>
 
+      {/* Form */}
       <form
         onSubmit={handleCompare}
-        style={{ display: "grid", gap: 8, gridTemplateColumns: "2fr 1fr 1fr 1fr" }}
+        style={{
+          display: "grid",
+          gap: 8,
+          gridTemplateColumns: "2fr 1fr 1fr 1.5fr",
+          alignItems: "center",
+        }}
       >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Bali, Thailand, Hawaii"
-          style={{
-            padding: 8,
-            borderRadius: 10,
-            border: "1px solid #d1d5db",
-            fontSize: 14,
-          }}
-        />
-        <input
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          placeholder="Month"
-          style={{
-            padding: 8,
-            borderRadius: 10,
-            border: "1px solid #d1d5db",
-            fontSize: 14,
-          }}
-        />
-        <input
-          type="number"
-          value={days}
-          onChange={(e) => setDays(parseInt(e.target.value || "7"))}
-          style={{
-            padding: 8,
-            borderRadius: 10,
-            border: "1px solid #d1d5db",
-            fontSize: 14,
-          }}
-        />
-        <input
-          value={home}
-          onChange={(e) => setHome(e.target.value)}
-          placeholder="Home city"
-          style={{
-            padding: 8,
-            borderRadius: 10,
-            border: "1px solid #d1d5db",
-            fontSize: 14,
-          }}
-        />
+        {/* Destinations */}
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Destinations (comma-separated)
+          </label>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Bali, Thailand, Hawaii"
+            style={{
+              width: "100%",
+              padding: 10,
+              borderRadius: 12,
+              border: "1px solid #1e293b",
+              fontSize: 14,
+              color: "#0f172a",
+            }}
+          />
+        </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            gridColumn: "1 / -1",
-            padding: "8px 12px",
-            borderRadius: 999,
-            border: "none",
-            fontWeight: 600,
-            marginTop: 4,
-            background:
-              "linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%)",
-            color: "white",
-            cursor: loading ? "default" : "pointer",
-          }}
-        >
-          {loading ? "Comparing..." : "Compare destinations"}
-        </button>
+        {/* Month */}
+        <div>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Month
+          </label>
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            style={{
+              width: "100%",
+              padding: 9,
+              borderRadius: 12,
+              border: "1px solid #1e293b",
+              fontSize: 14,
+              color: "#0f172a",
+            }}
+          >
+            {MONTH_OPTIONS.map((m) => (
+              <option key={m} value={m === "Any time" ? "" : m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Days */}
+        <div>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Days
+          </label>
+          <input
+            type="number"
+            min={2}
+            max={30}
+            value={days}
+            onChange={(e) =>
+              setDays(Math.max(2, Math.min(30, Number(e.target.value || 7))))
+            }
+            style={{
+              width: "100%",
+              padding: 9,
+              borderRadius: 12,
+              border: "1px solid #1e293b",
+              fontSize: 14,
+              color: "#0f172a",
+            }}
+          />
+        </div>
+
+        {/* Home city */}
+        <div>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Home city / airport
+          </label>
+          <input
+            value={home}
+            onChange={(e) => setHome(e.target.value)}
+            placeholder="Austin, TX or AUS"
+            style={{
+              width: "100%",
+              padding: 9,
+              borderRadius: 12,
+              border: "1px solid #1e293b",
+              fontSize: 14,
+              color: "#0f172a",
+            }}
+          />
+        </div>
+
+        {/* Button full-width */}
+        <div style={{ gridColumn: "1 / -1", marginTop: 4 }}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%",
+              borderRadius: 999,
+              padding: "9px 14px",
+              border: "none",
+              fontWeight: 600,
+              fontSize: 15,
+              cursor: loading ? "default" : "pointer",
+              background:
+                "linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%)",
+              color: "white",
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? "Comparing destinations…" : "Compare these places"}
+          </button>
+        </div>
       </form>
 
+      {/* Error */}
       {error && (
-        <div style={{ color: "#b91c1c", fontSize: 13 }}>❌ {error}</div>
+        <p style={{ color: "#fecaca", fontSize: 13 }}>❌ {error}</p>
       )}
 
+      {/* Results */}
       {data && (
         <div
           style={{
             marginTop: 8,
             display: "grid",
-            gap: 8,
+            gap: 12,
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           }}
         >
-          {data.map((d: any) => (
-            <div
-              key={d.name}
-              style={{
-                borderRadius: 14,
-                background: "white",
-                border: "1px solid #e5e7eb",
-                padding: 10,
-                fontSize: 13,
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 700,
-                  marginBottom: 4,
-                  display: "flex",
-                  justifyContent: "space-between",
-                }}
-              >
-                <span>{d.name}</span>
-                <span>{d.approx_cost_level}</span>
-              </div>
-              <div style={{ marginBottom: 4 }}>
-                <strong>Best for:</strong> {d.best_for}
-              </div>
-              <div style={{ marginBottom: 4 }}>
-                <strong>Weather:</strong> {d.weather_summary}
-              </div>
-              <div>
-                <strong>Pros:</strong>
-                <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-                  {(d.pros || []).map((p: string, i: number) => (
-                    <li key={i}>{p}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <strong>Cons:</strong>
-                <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-                  {(d.cons || []).map((c: string, i: number) => (
-                    <li key={i}>{c}</li>
-                  ))}
-                </ul>
-              </div>
-              <div style={{ marginTop: 4, fontStyle: "italic" }}>
-                {d.overall_vibe}
-              </div>
-            </div>
+          {data.map((d, idx) => (
+            <DestinationCard key={idx} d={d} />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+// Card component (nice and fancy)
+function DestinationCard({ d }: { d: Comparison }) {
+  const costLabel =
+    d.approx_cost_level === "$"
+      ? "Very budget-friendly"
+      : d.approx_cost_level === "$$"
+      ? "Moderate"
+      : d.approx_cost_level === "$$$"
+      ? "Pricey"
+      : d.approx_cost_level === "$$$$"
+      ? "Luxury"
+      : "Varies";
+
+  return (
+    <div
+      style={{
+        borderRadius: 16,
+        background: "#020617",
+        border: "1px solid #1e293b",
+        padding: 14,
+        fontSize: 13,
+        display: "grid",
+        gap: 6,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 2,
+        }}
+      >
+        <h3 style={{ fontSize: 15, fontWeight: 700 }}>{d.name}</h3>
+        <span
+          style={{
+            fontSize: 11,
+            padding: "2px 8px",
+            borderRadius: 999,
+            border: "1px solid #38bdf8",
+          }}
+        >
+          {d.approx_cost_level} · {costLabel}
+        </span>
+      </div>
+
+      <div>
+        <strong>Best for:</strong> {d.best_for}
+      </div>
+      <div>
+        <strong>Weather:</strong> {d.weather_summary}
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <strong>Pros:</strong>
+        <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+          {(d.pros || []).map((p, i) => (
+            <li key={i}>{p}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <strong>Cons:</strong>
+        <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+          {(d.cons || []).map((c, i) => (
+            <li key={i}>{c}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div style={{ marginTop: 6, fontStyle: "italic", color: "#cbd5f5" }}>
+        {d.overall_vibe}
+      </div>
+    </div>
   );
 }

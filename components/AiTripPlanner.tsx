@@ -1,4 +1,3 @@
-// components/AiTripPlanner.tsx
 "use client";
 
 import { useState } from "react";
@@ -9,136 +8,218 @@ const AI_ENABLED =
   process.env.NEXT_PUBLIC_AI_ENABLED === "1";
 
 export function AiTripPlanner() {
+  const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // If AI is toggled OFF, show a friendly card and no form
   if (!AI_ENABLED) {
     return (
-      <section
-        style={{
-          background: "#f1f5f9",
-          borderRadius: 16,
-          padding: 16,
-          border: "1px solid #e2e8f0",
-        }}
-      >
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-          AI Trip Planner temporarily unavailable
-        </h2>
-        <p style={{ fontSize: 14, color: "#475569" }}>
-          Our AI assistant is currently turned off or at its usage limit. You
-          can still use the normal search below to find great trips.
-        </p>
+      <section style={{ padding: 16 }}>
+        <h2>AI Planner unavailable</h2>
+        <p>You can still use the manual search below.</p>
       </section>
     );
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      setError(null);
-      setResult(null);
+  // ---- Mode Toggle ----------------------------------
+  const ModeToggle = () => (
+    <div style={{ display: "flex", marginBottom: 16, gap: 8 }}>
+      <button
+        onClick={() => setMode("ai")}
+        style={{
+          flex: 1,
+          padding: 10,
+          borderRadius: 12,
+          border: "1px solid #1e293b",
+          background: mode === "ai" ? "#334155" : "#1e293b",
+          color: "white",
+          fontWeight: 600,
+        }}
+      >
+        ✨ AI Trip Planner
+      </button>
 
+      <button
+        onClick={() => setMode("manual")}
+        style={{
+          flex: 1,
+          padding: 10,
+          borderRadius: 12,
+          border: "1px solid #1e293b",
+          background: mode === "manual" ? "#334155" : "#1e293b",
+          color: "white",
+          fontWeight: 600,
+        }}
+      >
+        🔎 Manual Search
+      </button>
+    </div>
+  );
+
+  // ---- Format AI itinerary ---------------------------
+  const Itinerary = ({ itinerary }: { itinerary: any[] }) => {
+    return (
+      <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700 }}>📅 Suggested Itinerary</h3>
+
+        {itinerary.map((day, idx) => (
+          <div
+            key={idx}
+            style={{
+              background: "#020617",
+              padding: 16,
+              borderRadius: 12,
+              border: "1px solid #1e293b",
+            }}
+          >
+            <h4 style={{ fontSize: 16, marginBottom: 8 }}>
+              🗓 Day {day.day} — {new Date(day.date).toLocaleDateString()}
+            </h4>
+
+            <ul style={{ paddingLeft: 16 }}>
+              {day.activities.map((act: string, i: number) => (
+                <li key={i} style={{ marginBottom: 4 }}>
+                  • {act}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // ---- Format AI Top 3 ----------------------------------
+  const Top3 = ({ planning }: any) => {
+    if (!planning?.top3) return null;
+
+    const items = planning.top3;
+
+    return (
+      <div style={{ marginTop: 16 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700 }}>🏆 Top 3 Options</h3>
+
+        <div style={{ display: "grid", gap: 12, marginTop: 8 }}>
+          {Object.entries(items).map(([label, item]: any, idx) => (
+            <div
+              key={idx}
+              style={{
+                background: "#0f172a",
+                padding: 16,
+                borderRadius: 12,
+                border: "1px solid #1e293b",
+              }}
+            >
+              <h4 style={{ fontSize: 16, marginBottom: 6 }}>
+                {label === "best_overall" && "🥇 Best Overall"}
+                {label === "best_budget" && "💸 Best Budget"}
+                {label === "best_comfort" && "😌 Most Comfortable"}
+              </h4>
+
+              <p style={{ color: "#94a3b8", fontSize: 14 }}>{item.reason}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // ---- AI form submit ----------------------------------
+  async function handleSubmit(e: any) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
       const data = await aiPlanTrip(query);
-      // If the backend returns { ok: false }, we still just store it;
-      // actual errors (quota, disabled, etc.) are handled via thrown errors.
       setResult(data);
     } catch (err: any) {
-      setError(err.message || "Something went wrong with AI.");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   }
 
+  // ---- Render --------------------------------------------
   return (
     <section
       style={{
         background: "#0f172a",
         color: "white",
         borderRadius: 16,
-        padding: 16,
-        display: "grid",
-        gap: 10,
+        padding: 20,
+        marginTop: 20,
       }}
     >
-      <h2 style={{ fontSize: 20, fontWeight: 700 }}>
-        Plan my trip with AI ✈️
-      </h2>
-      <p style={{ fontSize: 14, opacity: 0.9 }}>
-        Type one sentence and let Triotrip AI suggest your best 3 trips and a
-        sample itinerary.
-      </p>
+      <ModeToggle />
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 8 }}>
-        <textarea
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Example: 5 days in Tokyo in March from Austin, under $2500, kid-friendly with good vegetarian food…"
-          rows={3}
-          style={{
-            padding: 10,
-            borderRadius: 12,
-            border: "1px solid #1e293b",
-            fontSize: 14,
-            resize: "vertical",
-            color: "#0f172a",
-          }}
-        />
-        <button
-          type="submit"
-          disabled={loading || !query.trim()}
-          style={{
-            borderRadius: 999,
-            padding: "8px 16px",
-            border: "none",
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: loading ? "default" : "pointer",
-            background:
-              "linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%)",
-            color: "white",
-            opacity: loading || !query.trim() ? 0.7 : 1,
-          }}
-        >
-          {loading ? "Planning your trip…" : "Generate AI Trip"}
-        </button>
-      </form>
-
-      {error && (
-        <p style={{ color: "#fecaca", fontSize: 13 }}>
-          ❌ {error}
-        </p>
+      {mode === "manual" && (
+        <div style={{ padding: 20 }}>
+          <h3>Manual Search Coming Soon…</h3>
+        </div>
       )}
 
-      {result?.planning && (
-        <div
-          style={{
-            marginTop: 8,
-            padding: 10,
-            borderRadius: 12,
-            background: "#020617",
-            maxHeight: 260,
-            overflow: "auto",
-            fontSize: 13,
-            lineHeight: 1.5,
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>Top 3 options</div>
-          <pre style={{ whiteSpace: "pre-wrap" }}>
-            {JSON.stringify(result.planning.top3 ?? [], null, 2)}
-          </pre>
+      {mode === "ai" && (
+        <>
+          <h2 style={{ fontSize: 22, fontWeight: 700 }}>
+            Plan my trip with AI ✈️
+          </h2>
+          <p style={{ opacity: 0.8, marginBottom: 12 }}>
+            Tell us your trip idea. We'll generate itineraries & recommendations.
+          </p>
 
-          <div style={{ fontWeight: 700, marginTop: 8, marginBottom: 4 }}>
-            Suggested itinerary
-          </div>
-          <pre style={{ whiteSpace: "pre-wrap" }}>
-            {JSON.stringify(result.planning.itinerary ?? [], null, 2)}
-          </pre>
-        </div>
+          <form onSubmit={handleSubmit} style={{ display: "grid", gap: 8 }}>
+            <textarea
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Example: 2-day trip from Austin to Boston, Dec 1–3, 2025"
+              rows={3}
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid #1e293b",
+                fontSize: 14,
+                resize: "vertical",
+                color: "#0f172a",
+              }}
+            />
+
+            <button
+              type="submit"
+              disabled={loading || !query.trim()}
+              style={{
+                borderRadius: 999,
+                padding: "10px 16px",
+                border: "none",
+                fontWeight: 600,
+                fontSize: 15,
+                cursor: loading ? "default" : "pointer",
+                background:
+                  "linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%)",
+                color: "white",
+                opacity: loading || !query.trim() ? 0.7 : 1,
+              }}
+            >
+              {loading ? "Thinking…" : "Generate AI Trip"}
+            </button>
+          </form>
+
+          {error && (
+            <p style={{ color: "#fecaca", fontSize: 14, marginTop: 10 }}>
+              ❌ {error}
+            </p>
+          )}
+
+          {result?.planning && (
+            <>
+              <Top3 planning={result.planning} />
+              <Itinerary itinerary={result.planning.itinerary ?? []} />
+            </>
+          )}
+        </>
       )}
     </section>
   );
