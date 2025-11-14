@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { aiPlanTrip } from "@/lib/api";
+import ResultCard from "./ResultCard";
 
 const AI_ENABLED =
   process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
@@ -13,25 +14,6 @@ type Top3Item = {
   reason?: string;
 };
 
-type FlightOption = {
-  label: string;
-  from?: string;
-  to?: string;
-  airline?: string;
-  approx_price?: number;
-  currency?: string;
-  notes?: string;
-};
-
-type HotelOption = {
-  name: string;
-  area?: string;
-  approx_price_per_night?: number;
-  currency?: string;
-  vibe?: string;
-  why?: string;
-};
-
 type PlanningPayload = {
   top3?: {
     best_overall?: Top3Item;
@@ -39,14 +21,22 @@ type PlanningPayload = {
     best_comfort?: Top3Item;
   };
   itinerary?: any[];
-  flights?: FlightOption[];
-  hotels?: HotelOption[];
 };
+
+function nightsBetween(a?: string, b?: string) {
+  if (!a || !b) return 0;
+  const A = new Date(a).getTime();
+  const B = new Date(b).getTime();
+  if (!Number.isFinite(A) || !Number.isFinite(B)) return 0;
+  return Math.max(0, Math.round((B - A) / 86400000));
+}
 
 export function AiTripPlanner() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<PlanningPayload | null>(null);
+  const [planning, setPlanning] = useState<PlanningPayload | null>(null);
+  const [packages, setPackages] = useState<any[] | null>(null);
+  const [searchParams, setSearchParams] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (!AI_ENABLED) {
@@ -58,18 +48,18 @@ export function AiTripPlanner() {
     );
   }
 
-  // ---------- TOP 3 UI ----------
+  // ---------- TOP 3 ----------
   const Top3 = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
     if (!t) return null;
 
-    const items: { key: keyof PlanningPayload["top3"]; label: string }[] = [
+    const defs: { key: keyof PlanningPayload["top3"]; label: string }[] = [
       { key: "best_overall", label: "🥇 Best overall" },
       { key: "best_budget", label: "💸 Best budget" },
       { key: "best_comfort", label: "😌 Most comfortable" },
     ];
 
-    const realItems = items
+    const items = defs
       .map((def) => {
         const value = t[def.key];
         if (!value || (!value.title && !value.reason)) return null;
@@ -77,13 +67,13 @@ export function AiTripPlanner() {
       })
       .filter(Boolean) as { key: any; label: string; value: Top3Item }[];
 
-    if (realItems.length === 0) return null; // <-- no empty cards or extra space
+    if (items.length === 0) return null;
 
     return (
       <div style={{ marginTop: 16 }}>
         <h3 style={{ fontSize: 18, fontWeight: 700 }}>🏆 Top 3 Options</h3>
         <div style={{ display: "grid", gap: 12, marginTop: 8 }}>
-          {realItems.map(({ key, label, value }) => (
+          {items.map(({ key, label, value }) => (
             <div
               key={key}
               style={{
@@ -104,7 +94,6 @@ export function AiTripPlanner() {
                   {value.title}
                 </div>
               )}
-              {/* Only show reason if it exists – no “Chosen by AI” filler */}
               {value.reason && (
                 <p style={{ color: "#94a3b8", fontSize: 14 }}>{value.reason}</p>
               )}
@@ -115,7 +104,7 @@ export function AiTripPlanner() {
     );
   };
 
-  // ---------- ITINERARY UI ----------
+  // ---------- ITINERARY ----------
   const Itinerary = ({ itinerary }: { itinerary: any[] }) => {
     if (!itinerary || itinerary.length === 0) return null;
 
@@ -135,12 +124,10 @@ export function AiTripPlanner() {
             typeof rawDay === "string" &&
             /^\d{4}-\d{2}-\d{2}/.test(rawDay)
           ) {
-            // some models might put date into "day"
             dateLabel = new Date(rawDay).toLocaleDateString();
           }
 
           if (typeof rawDate === "string" && rawDate.trim()) {
-            // preferred date field
             dateLabel = new Date(rawDate).toLocaleDateString();
           }
 
@@ -172,96 +159,41 @@ export function AiTripPlanner() {
     );
   };
 
-  // ---------- FLIGHT OPTIONS UI ----------
-  const FlightOptions = ({ flights }: { flights?: FlightOption[] }) => {
-    if (!flights || flights.length === 0) return null;
-    return (
-      <div style={{ marginTop: 16 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 700 }}>✈ Flight options</h3>
-        <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
-          {flights.map((f, i) => (
-            <div
-              key={i}
-              style={{
-                background: "#020617",
-                borderRadius: 12,
-                border: "1px solid #1e293b",
-                padding: 12,
-                fontSize: 13,
-              }}
-            >
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                {f.label}
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {f.from && f.to && (
-                  <span>
-                    {f.from} → {f.to}
-                  </span>
-                )}
-                {f.airline && <span>• {f.airline}</span>}
-                {typeof f.approx_price === "number" && (
-                  <span>
-                    • approx{" "}
-                    {(f.currency || "USD") +
-                      " " +
-                      Math.round(f.approx_price)}
-                  </span>
-                )}
-              </div>
-              {f.notes && (
-                <div style={{ marginTop: 4, color: "#cbd5f5" }}>{f.notes}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
+  // ---------- REAL RESULTS USING ResultCard ----------
+  const RealOptions = () => {
+    if (!packages || packages.length === 0) return null;
 
-  // ---------- HOTEL OPTIONS UI ----------
-  const HotelOptions = ({ hotels }: { hotels?: HotelOption[] }) => {
-    if (!hotels || hotels.length === 0) return null;
+    const currency = searchParams?.currency || "USD";
+    const pax =
+      (searchParams?.passengersAdults || 1) +
+      (searchParams?.passengersChildren || 0) +
+      (searchParams?.passengersInfants || 0);
+    const includeHotel = !!searchParams?.includeHotel;
+    const nights =
+      includeHotel && searchParams?.departDate && searchParams?.returnDate
+        ? nightsBetween(searchParams.departDate, searchParams.returnDate)
+        : 0;
+
     return (
       <div style={{ marginTop: 16 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 700 }}>🏨 Hotel suggestions</h3>
+        <h3 style={{ fontSize: 18, fontWeight: 700 }}>
+          ✈ Real flight options (same as manual search)
+        </h3>
         <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
-          {hotels.map((h, i) => (
-            <div
-              key={i}
-              style={{
-                background: "#020617",
-                borderRadius: 12,
-                border: "1px solid #1e293b",
-                padding: 12,
-                fontSize: 13,
-              }}
-            >
-              <div style={{ fontWeight: 600, marginBottom: 2 }}>{h.name}</div>
-              <div style={{ fontSize: 12, opacity: 0.9 }}>
-                {h.area && <span>{h.area}</span>}
-                {typeof h.approx_price_per_night === "number" && (
-                  <span>
-                    {" "}
-                    • ~
-                    {(h.currency || "USD") +
-                      " " +
-                      Math.round(h.approx_price_per_night)}
-                    /night
-                  </span>
-                )}
-              </div>
-              {h.vibe && (
-                <div style={{ marginTop: 4 }}>
-                  <strong>Vibe:</strong> {h.vibe}
-                </div>
-              )}
-              {h.why && (
-                <div style={{ marginTop: 2 }}>
-                  <strong>Why:</strong> {h.why}
-                </div>
-              )}
-            </div>
+          {packages.slice(0, 3).map((pkg, i) => (
+            <ResultCard
+              key={pkg.id || i}
+              pkg={pkg}
+              index={i}
+              currency={currency}
+              pax={pax}
+              showHotel={includeHotel}
+              hotelNights={nights}
+              showAllHotels={false}
+              comparedIds={[]}
+              onToggleCompare={() => {}}
+              onSavedChangeGlobal={() => {}}
+            />
           ))}
         </div>
       </div>
@@ -274,9 +206,20 @@ export function AiTripPlanner() {
     try {
       setLoading(true);
       setError(null);
-      setResult(null);
-      const data = await aiPlanTrip(query);
-      setResult(data.planning as PlanningPayload);
+      setPlanning(null);
+      setPackages(null);
+      setSearchParams(null);
+
+      const data: any = await aiPlanTrip(query);
+
+      if (!data?.ok) {
+        setError("AI planner failed. Please try again or be more specific.");
+        return;
+      }
+
+      setPlanning(data.planning || null);
+      setPackages(data.searchResult?.results || null);
+      setSearchParams(data.searchParams || null);
     } catch (err: any) {
       setError(err.message || "Something went wrong with AI.");
     } finally {
@@ -300,15 +243,16 @@ export function AiTripPlanner() {
         Plan my trip with AI ✈️
       </h2>
       <p style={{ opacity: 0.8, marginBottom: 4 }}>
-        Tell us your trip idea in one sentence. We&apos;ll propose top options, a
-        day-by-day itinerary, and suggested flights &amp; hotels.
+        Tell us your trip idea in one sentence. We&apos;ll interpret it,
+        generate an itinerary, and show real flight options using the same data
+        as manual search.
       </p>
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 8 }}>
         <textarea
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Example: 5 days from Austin to Las Vegas by flight, Jan 10–15 2026, mid-budget, shows and nightlife."
+          placeholder="Example: 5 days from Austin to Las Vegas, Jan 10–15 2026, mid-budget, nightlife and shows."
           rows={3}
           style={{
             padding: 12,
@@ -346,12 +290,11 @@ export function AiTripPlanner() {
         </p>
       )}
 
-      {result && (
+      {planning && (
         <>
-          <Top3 planning={result} />
-          <FlightOptions flights={result.flights} />
-          <HotelOptions hotels={result.hotels} />
-          <Itinerary itinerary={result.itinerary ?? []} />
+          <Top3 planning={planning} />
+          <RealOptions />
+          <Itinerary itinerary={planning.itinerary ?? []} />
         </>
       )}
     </section>

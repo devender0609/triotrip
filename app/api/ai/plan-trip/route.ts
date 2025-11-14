@@ -1,6 +1,7 @@
 // app/api/ai/plan-trip/route.ts
 import { NextResponse } from "next/server";
 import { runChat } from "@/lib/aiClient";
+import { amadeusGet } from "@/lib/amadeusClient";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,17 @@ const AI_ENABLED =
 type PlanRequest = {
   query: string;
 };
+
+function parseIsoDurationToMinutes(dur: string | undefined): number {
+  if (!dur || !dur.startsWith("PT")) return 0;
+  let hours = 0;
+  let minutes = 0;
+  const hMatch = dur.match(/(\d+)H/);
+  if (hMatch) hours = parseInt(hMatch[1], 10);
+  const mMatch = dur.match(/(\d+)M/);
+  if (mMatch) minutes = parseInt(mMatch[1], 10);
+  return hours * 60 + minutes;
+}
 
 export async function POST(req: Request) {
   if (!AI_ENABLED) {
@@ -26,88 +38,206 @@ export async function POST(req: Request) {
 
   try {
     const body = (await req.json()) as PlanRequest;
-    const query = body.query || "";
+    const query = (body.query || "").trim();
 
-    if (!query.trim()) {
+    if (!query) {
       return NextResponse.json(
         { ok: false, error: "query is required" },
         { status: 400 }
       );
     }
 
+    // 1) Ask AI to understand the sentence & build itinerary & top3.
     const prompt = `
-You are an expert travel planner. The user gives a short free-text query describing a trip.
-Understand origin, destination, dates, length of stay, budget, and preferences.
+You are an expert travel planner. The user gives a short free-text description of a trip.
 
 User query:
 "${query}"
 
-Return a SINGLE JSON object with this shape:
+First, infer structured search parameters.
+Then, outline a suggested itinerary and 3 high-level plan options.
+
+Return ONE JSON object ONLY in this exact shape:
 
 {
-  "top3": {
-    "best_overall": {
-      "title": "short title for the best overall plan",
-      "reason": "why this is the best overall"
-    },
-    "best_budget": {
-      "title": "short title for budget plan",
-      "reason": "why this is best for saving money"
-    },
-    "best_comfort": {
-      "title": "short title for comfort plan",
-      "reason": "why this is most comfortable / relaxed"
-    }
+  "search": {
+    "origin": "IATA code for origin, e.g. AUS",
+    "destination": "IATA code for destination, e.g. LAS",
+    "departDate": "YYYY-MM-DD",
+    "returnDate": "YYYY-MM-DD or empty string if one-way",
+    "roundTrip": true,
+    "adults": 1,
+    "children": 0,
+    "infants": 0,
+    "cabin": "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST",
+    "includeHotel": true,
+    "currency": "USD"
   },
-  "flights": [
-    {
-      "label": "short description, e.g. 'Non-stop AUS → LAS, afternoon departure'",
-      "from": "IATA origin code like AUS",
-      "to": "IATA destination code like LAS",
-      "airline": "suggested airline or 'multiple airlines'",
-      "approx_price": 1234,
-      "currency": "USD",
-      "notes": "very short tip such as 'usually cheapest on weekdays'"
-    }
-  ],
-  "hotels": [
-    {
-      "name": "hotel name",
-      "area": "neighborhood / area",
-      "approx_price_per_night": 200,
-      "currency": "USD",
-      "vibe": "short phrase, e.g. 'party / casino' or 'quiet & family friendly'",
-      "why": "1 sentence why this fits the trip description"
-    }
-  ],
-  "itinerary": [
-    {
-      "day": 1,
-      "date": "YYYY-MM-DD if you can infer it, otherwise leave as an empty string",
-      "activities": [
-        "bullet-style activity line for morning / afternoon / evening"
-      ]
-    }
-  ]
+  "planning": {
+    "top3": {
+      "best_overall": {
+        "title": "short title",
+        "reason": "1–2 sentence explanation"
+      },
+      "best_budget": {
+        "title": "short title",
+        "reason": "1–2 sentence explanation"
+      },
+      "best_comfort": {
+        "title": "short title",
+        "reason": "1–2 sentence explanation"
+      }
+    },
+    "itinerary": [
+      {
+        "day": 1,
+        "date": "YYYY-MM-DD or empty string if unknown",
+        "activities": [
+          "bullet-style activity for morning",
+          "activity afternoon",
+          "activity evening"
+        ]
+      }
+    ]
+  }
 }
 
 Rules:
-- Always return valid JSON ONLY, no extra commentary or markdown.
-- If you cannot infer exact dates, you can leave "date" as "" but still keep the correct day order.
-- Try to align flights & hotels with the itinerary and user preferences (budget vs luxury, nightlife vs quiet, etc.).
+- If the user clearly gives dates (like "Jan 10–15 2026"), convert them to ISO (2026-01-10, 2026-01-15).
+- If return date is not given, set "roundTrip": false and "returnDate": "".
+- If cabin is not specified, default to "ECONOMY".
+- If currency not specified, default to "USD".
+- Always output valid JSON, no comments or markdown.
 `.trim();
 
     const raw = await runChat(prompt);
     let parsed: any;
     try {
       parsed = JSON.parse(raw);
-    } catch {
-      parsed = { raw };
+    } catch (e) {
+      console.error("plan-trip parse error:", e, raw);
+      return NextResponse.json(
+        { ok: false, error: "AI could not parse the trip description." },
+        { status: 500 }
+      );
     }
 
+    const search = parsed?.search || {};
+    const planning = parsed?.planning || {};
+
+    const origin = search.origin;
+    const destination = search.destination;
+    const departDate = search.departDate;
+    const returnDate = search.returnDate || "";
+    const roundTrip = !!search.roundTrip;
+    const adults = search.adults || 1;
+    const children = search.children || 0;
+    const infants = search.infants || 0;
+    const cabin =
+      search.cabin || "ECONOMY";
+    const currency = search.currency || "USD";
+
+    if (!origin || !destination || !departDate) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "AI could not confidently infer origin, destination, and departure date from your sentence. Please be more specific.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 2) Call Amadeus in the SAME way as manual search to get real offers.
+    const params: any = {
+      originLocationCode: origin,
+      destinationLocationCode: destination,
+      departureDate: departDate,
+      adults,
+      max: 20,
+      currencyCode: currency,
+      travelClass: cabin,
+    };
+    if (roundTrip && returnDate) {
+      params.returnDate = returnDate;
+    }
+
+    const json: any = await amadeusGet(
+      "/v2/shopping/flight-offers",
+      params
+    );
+    const offers: any[] = json.data || [];
+
+    const results = offers.slice(0, 10).map((offer, idx) => {
+      const priceTotal = Number(offer.price?.total || 0);
+      const itineraries = offer.itineraries || [];
+
+      const outItin = itineraries[0] || {};
+      const retItin = itineraries[1] || null;
+
+      const segmentsOut = (outItin.segments || []).map((s: any) => ({
+        from: s.departure?.iataCode,
+        to: s.arrival?.iataCode,
+        departureTime: s.departure?.at,
+        arrivalTime: s.arrival?.at,
+        carrierCode: s.carrierCode,
+        flightNumber: s.number,
+        duration_minutes: parseIsoDurationToMinutes(s.duration),
+      }));
+
+      const segmentsReturn = retItin
+        ? (retItin.segments || []).map((s: any) => ({
+            from: s.departure?.iataCode,
+            to: s.arrival?.iataCode,
+            departureTime: s.departure?.at,
+            arrivalTime: s.arrival?.at,
+            carrierCode: s.carrierCode,
+            flightNumber: s.number,
+            duration_minutes: parseIsoDurationToMinutes(s.duration),
+          }))
+        : [];
+
+      const mainCarrier =
+        segmentsOut[0]?.carrierCode || offer.validatingAirlineCodes?.[0];
+
+      const flight = {
+        price_usd: priceTotal,
+        currency,
+        mainCarrier,
+        segments_out: segmentsOut,
+        segments_return: segmentsReturn,
+      };
+
+      const pkg = {
+        id: offer.id || `ai-amadeus-${idx}`,
+        flight,
+        flight_total: priceTotal,
+        hotel_total: 0, // will be non-zero once hotel API is wired
+        total_cost: priceTotal,
+        provider: "amadeus",
+      };
+
+      return pkg;
+    });
+
+    // 3) Return AI planning + real flight packages (same shape as manual).
     return NextResponse.json({
       ok: true,
-      planning: parsed,
+      searchParams: {
+        origin,
+        destination,
+        departDate,
+        returnDate,
+        roundTrip,
+        passengersAdults: adults,
+        passengersChildren: children,
+        passengersInfants: infants,
+        cabin,
+        includeHotel: !!search.includeHotel,
+        currency,
+      },
+      planning,
+      searchResult: { results },
     });
   } catch (err: any) {
     console.error("AI plan-trip error:", err);
