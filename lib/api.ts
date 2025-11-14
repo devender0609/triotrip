@@ -78,3 +78,42 @@ export async function removeFavorite(id: string) {
 
 /** (Optional utility if you need it elsewhere) */
 export const getJSON = fetchJSON;
+
+// lib/api.ts (add at bottom)
+export async function aiPlanTrip(query: string) {
+  return fetchJSON<{
+    ok: boolean;
+    payload: any;
+    searchResult: any;
+    planning: any;
+  }>("/api/ai/plan-trip", {
+    method: "POST",
+    body: JSON.stringify({ query }),
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function aiCompareDestinations(input: {
+  destinations: string[];
+  month?: string;
+  home?: string;
+  days?: number;
+}) {
+  return fetchJSON<{
+    ok: boolean;
+    comparisons: {
+      name: string;
+      approx_cost_level: string;
+      weather_summary: string;
+      best_for: string;
+      pros: string[];
+      cons: string[];
+      overall_vibe: string;
+    }[];
+  }>("/api/ai/compare", {
+    method: "POST",
+    body: JSON.stringify(input),
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
