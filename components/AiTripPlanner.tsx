@@ -42,12 +42,11 @@ export function AiTripPlanner() {
       setLoading(true);
       setError(null);
       setResult(null);
+
       const data = await aiPlanTrip(query);
-      if (!data.ok) {
-        setError(data.error || "AI planner failed.");
-      } else {
-        setResult(data);
-      }
+      // If the backend returns { ok: false }, we still just store it;
+      // actual errors (quota, disabled, etc.) are handled via thrown errors.
+      setResult(data);
     } catch (err: any) {
       setError(err.message || "Something went wrong with AI.");
     } finally {
