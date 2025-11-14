@@ -9,10 +9,10 @@ const AI_ENABLED =
   process.env.NEXT_PUBLIC_AI_ENABLED === "1";
 
 type AirportRec = {
-  role: string;   // e.g. "primary_hub", "cheapest_option"
-  name: string;   // "Ngurah Rai International Airport"
-  code: string;   // "DPS"
-  reason: string; // short explanation
+  role: string; // e.g. "primary_hub"
+  name: string;
+  code: string;
+  reason: string;
 };
 
 type Comparison = {
@@ -23,7 +23,19 @@ type Comparison = {
   pros: string[];
   cons: string[];
   overall_vibe: string;
+  dining_and_local_eats?: string;
+  hotels_and_areas?: string;
+  entertainment_and_nightlife?: string;
+  family_friendly?: string;
+  kids_activities?: string;
+  safety_tips?: string;
+  currency?: string;
+  typical_daily_budget?: string;
   airports?: AirportRec[];
+};
+
+type CompareResponse = {
+  comparisons: Comparison[];
 };
 
 export function AiDestinationCompare() {
@@ -73,12 +85,12 @@ export function AiDestinationCompare() {
       setLoading(true);
       setError(null);
       setData(null);
-      const res = await aiCompareDestinations({
+      const res = (await aiCompareDestinations({
         destinations,
         month: month || undefined,
         home,
         days,
-      });
+      })) as CompareResponse;
       setData(res.comparisons as any);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
@@ -120,7 +132,8 @@ export function AiDestinationCompare() {
       </h2>
       <p style={{ fontSize: 14, opacity: 0.85 }}>
         Not sure where to go? Enter a few places and we&apos;ll compare them for
-        cost, weather, vibe, and even which airports are best to fly into.
+        cost, weather, food, hotels, nightlife, family-friendliness, safety, and
+        the best airports to use.
       </p>
 
       {/* Form */}
@@ -286,7 +299,7 @@ export function AiDestinationCompare() {
             marginTop: 8,
             display: "grid",
             gap: 12,
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
           }}
         >
           {data.map((d, idx) => (
@@ -309,17 +322,49 @@ function labelForRole(role: string): string {
   return "Recommended";
 }
 
+function costLabel(level: string): string {
+  switch (level) {
+    case "$":
+      return "Very budget-friendly";
+    case "$$":
+      return "Moderate";
+    case "$$$":
+      return "Pricey";
+    case "$$$$":
+      return "Luxury";
+    default:
+      return "Varies";
+  }
+}
+
+function SectionRow({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string;
+}) {
+  if (!value) return null;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
+          opacity: 0.9,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 13, marginTop: 2 }}>{value}</div>
+    </div>
+  );
+}
+
 function DestinationCard({ d }: { d: Comparison }) {
-  const costLabel =
-    d.approx_cost_level === "$"
-      ? "Very budget-friendly"
-      : d.approx_cost_level === "$$"
-      ? "Moderate"
-      : d.approx_cost_level === "$$$"
-      ? "Pricey"
-      : d.approx_cost_level === "$$$$"
-      ? "Luxury"
-      : "Varies";
+  const cLabel = costLabel(d.approx_cost_level);
 
   return (
     <div
@@ -339,6 +384,7 @@ function DestinationCard({ d }: { d: Comparison }) {
           justifyContent: "space-between",
           alignItems: "baseline",
           marginBottom: 2,
+          gap: 8,
         }}
       >
         <h3 style={{ fontSize: 15, fontWeight: 700 }}>{d.name}</h3>
@@ -348,16 +394,17 @@ function DestinationCard({ d }: { d: Comparison }) {
             padding: "2px 8px",
             borderRadius: 999,
             border: "1px solid #38bdf8",
+            whiteSpace: "nowrap",
           }}
         >
-          {d.approx_cost_level} · {costLabel}
+          {d.approx_cost_level} · {cLabel}
         </span>
       </div>
 
-      <div>
+      <div style={{ fontSize: 13 }}>
         <strong>Best for:</strong> {d.best_for}
       </div>
-      <div>
+      <div style={{ fontSize: 13 }}>
         <strong>Weather:</strong> {d.weather_summary}
       </div>
 
@@ -379,9 +426,47 @@ function DestinationCard({ d }: { d: Comparison }) {
         </ul>
       </div>
 
+      {/* New detailed sections */}
+      <SectionRow
+        label="Dining & local eats"
+        value={d.dining_and_local_eats}
+      />
+      <SectionRow
+        label="Hotels & areas to stay"
+        value={d.hotels_and_areas}
+      />
+      <SectionRow
+        label="Entertainment & nightlife"
+        value={d.entertainment_and_nightlife}
+      />
+      <SectionRow
+        label="Family-friendly"
+        value={d.family_friendly}
+      />
+      <SectionRow
+        label="Activities for kids"
+        value={d.kids_activities}
+      />
+      <SectionRow label="Safety tips" value={d.safety_tips} />
+      <SectionRow label="Currency" value={d.currency} />
+      <SectionRow
+        label="Typical daily budget"
+        value={d.typical_daily_budget}
+      />
+
       {d.airports && d.airports.length > 0 && (
-        <div style={{ marginTop: 6 }}>
-          <strong>✈ Suggested airports:</strong>
+        <div style={{ marginTop: 8 }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.3,
+              opacity: 0.9,
+            }}
+          >
+            Suggested airports
+          </div>
           <div
             style={{
               display: "grid",
@@ -404,6 +489,7 @@ function DestinationCard({ d }: { d: Comparison }) {
                     display: "flex",
                     justifyContent: "space-between",
                     fontSize: 12,
+                    gap: 8,
                   }}
                 >
                   <span>
@@ -411,7 +497,7 @@ function DestinationCard({ d }: { d: Comparison }) {
                       {a.name} ({a.code})
                     </strong>
                   </span>
-                  <span style={{ opacity: 0.8 }}>
+                  <span style={{ opacity: 0.85 }}>
                     {labelForRole(a.role)}
                   </span>
                 </div>

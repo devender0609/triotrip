@@ -48,23 +48,38 @@ You are a travel expert. Compare these destinations for a ${days}-day trip in ${
 Destinations:
 ${destinations.map((d, i) => `${i + 1}. ${d}`).join("\n")}
 
-For EACH destination, provide:
+For EACH destination, provide a JSON object with:
+
+- name: the destination name
 - approx_cost_level: "$", "$$", "$$$", or "$$$$"
 - weather_summary: short description for that month
-- best_for: 1 short phrase
-- pros: array of 2-4 short bullet-style strings
-- cons: array of 2-4 short bullet-style strings
+- best_for: 1 short phrase (e.g. "romantic beach trips", "budget backpackers", "family city breaks")
+- pros: array of 2–4 short bullet-style strings
+- cons: array of 2–4 short bullet-style strings
 - overall_vibe: 1 short sentence
 
-AND also suggest important airports for that destination. For airports, include:
-- role: one of "primary_hub", "cheapest_option", "most_convenient", "busiest_or_happening", "safest_reputation"
-- name: airport name
-- code: IATA code (like "DPS", "BKK", "HNL")
-- reason: very short explanation why you chose this airport for that role
+PLUS the following **experience fields** that must be relevant to that destination:
 
-Some roles can be covered by the same airport if appropriate. Aim for 2–4 airports per destination.
+- dining_and_local_eats: short paragraph about typical food scene, street food vs fine dining, local specialties
+- hotels_and_areas: short paragraph on good areas to stay, typical hotel types (resort, boutique, budget), what each area is good for
+- entertainment_and_nightlife: short paragraph about nightlife, shows, bars, clubs, live music, or if it's quiet
+- family_friendly: short paragraph about family-friendly aspects, calmer areas, easy walks, etc.
+- kids_activities: short paragraph about specific activities for children (parks, attractions, museums, beaches, etc.)
+- safety_tips: short paragraph with practical safety advice specific to that place (tourist scams, night areas, transport, etc.)
+- currency: local currency code and name, like "THB - Thai Baht"
+- typical_daily_budget: short phrase describing rough per-person daily budget (excluding flights), like "Budget: 50–80 USD/day" or "Comfort: 120–180 USD/day"
 
-STRICTLY return JSON ONLY in this format:
+Also include suggested airports:
+
+- airports: array of 2–4 key airports for that destination
+  - role: one of "primary_hub", "cheapest_option", "most_convenient", "busiest_or_happening", "safest_reputation"
+  - name: airport name
+  - code: IATA code (e.g. "DPS", "BKK", "HNL")
+  - reason: very short explanation why this airport fits that role
+
+Some roles can be covered by the same airport if appropriate.
+
+STRICTLY return JSON ONLY in this format (no markdown, no comments):
 
 [
   {
@@ -75,6 +90,14 @@ STRICTLY return JSON ONLY in this format:
     "pros": ["...", "..."],
     "cons": ["...", "..."],
     "overall_vibe": "short sentence",
+    "dining_and_local_eats": "short paragraph",
+    "hotels_and_areas": "short paragraph",
+    "entertainment_and_nightlife": "short paragraph",
+    "family_friendly": "short paragraph",
+    "kids_activities": "short paragraph",
+    "safety_tips": "short paragraph",
+    "currency": "e.g. THB - Thai Baht",
+    "typical_daily_budget": "short phrase like 'Budget: 60–90 USD/day'",
     "airports": [
       {
         "role": "primary_hub",
