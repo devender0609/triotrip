@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import ResultCard from "@/components/ResultCard";
+import React, { useState } from "react";
+import ResultCard from "./ResultCard";
 import { aiPlanTrip } from "@/lib/api";
 
 const AI_ENABLED =
@@ -42,7 +42,6 @@ function nightsBetween(a?: string, b?: string) {
   return Math.max(0, Math.round((B - A) / 86400000));
 }
 
-// Simple deep link to Google Flights using inferred search params
 function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | undefined {
   if (!searchParams) return undefined;
 
@@ -68,7 +67,117 @@ function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | und
   return `https://www.google.com/travel/flights?q=${q}`;
 }
 
-export default function AiTripPlanner() {
+// simple inline styles to match app/page.tsx vibe
+const sSection: React.CSSProperties = {
+  marginTop: 20,
+  padding: 16,
+  borderRadius: 16,
+  border: "1px solid #e2e8f0",
+  background: "#f8fafc",
+};
+
+const sTitle: React.CSSProperties = {
+  fontSize: 20,
+  fontWeight: 600,
+  marginBottom: 4,
+};
+
+const sSubtitle: React.CSSProperties = {
+  fontSize: 13,
+  color: "#475569",
+  marginBottom: 12,
+};
+
+const sTextarea: React.CSSProperties = {
+  width: "100%",
+  minHeight: 70,
+  borderRadius: 10,
+  border: "1px solid #cbd5f5",
+  padding: "8px 10px",
+  fontSize: 13,
+  resize: "vertical",
+};
+
+const sButtonPrimary: React.CSSProperties = {
+  width: "100%",
+  marginTop: 8,
+  borderRadius: 999,
+  padding: "8px 14px",
+  fontSize: 13,
+  fontWeight: 600,
+  color: "white",
+  border: "none",
+  cursor: "pointer",
+  background:
+    "linear-gradient(90deg, #38bdf8, #6366f1, #ec4899)",
+};
+
+const sTagStrip: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "4px 10px",
+  borderRadius: 999,
+  fontSize: 11,
+  border: "1px solid #cbd5f5",
+  background: "white",
+};
+
+const sTop3Grid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+  gap: 10,
+  marginTop: 8,
+};
+
+const sTop3Card: React.CSSProperties = {
+  borderRadius: 12,
+  border: "1px solid #e2e8f0",
+  background: "white",
+  padding: 10,
+  fontSize: 12,
+};
+
+const sFlightHeader: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginTop: 18,
+  marginBottom: 6,
+};
+
+const sToggleWrap: React.CSSProperties = {
+  display: "inline-flex",
+  borderRadius: 999,
+  border: "1px solid #cbd5f5",
+  overflow: "hidden",
+};
+
+const sToggleBtnBase: React.CSSProperties = {
+  fontSize: 11,
+  padding: "4px 10px",
+  border: "none",
+  cursor: "pointer",
+  background: "transparent",
+};
+
+const sResultsGrid: React.CSSProperties = {
+  display: "grid",
+  gap: 10,
+  marginTop: 4,
+};
+
+const sSectionTitleRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  fontSize: 15,
+  fontWeight: 600,
+};
+
+const sEmoji: React.CSSProperties = { fontSize: 16 };
+
+export function AiTripPlanner() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [planning, setPlanning] = useState<PlanningPayload | null>(null);
@@ -77,11 +186,8 @@ export default function AiTripPlanner() {
   const [error, setError] = useState<string | null>(null);
   const [optionsView, setOptionsView] = useState<OptionsView>("top3");
 
-  if (!AI_ENABLED) {
-    return null;
-  }
+  if (!AI_ENABLED) return null;
 
-  // --- TOP 3 CARD STRIP (compact) ---
   const Top3Strip = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
     if (!t) return null;
@@ -103,37 +209,48 @@ export default function AiTripPlanner() {
     if (!items.length) return null;
 
     return (
-      <section className="space-y-2">
-        <h3 className="text-base font-semibold flex items-center gap-2">
-          <span>🏆 Top 3 options</span>
-        </h3>
-        <div className="grid gap-3 md:grid-cols-3">
+      <div style={{ marginTop: 16 }}>
+        <div style={sSectionTitleRow}>
+          <span style={sEmoji}>🏆</span>
+          <span>Top 3 options</span>
+        </div>
+        <div style={sTop3Grid}>
           {items.map(({ key, label, value }) => (
-            <article
-              key={key}
-              className="rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs space-y-1"
-            >
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+            <div key={key} style={sTop3Card}>
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  color: "#64748b",
+                  fontWeight: 600,
+                  marginBottom: 2,
+                }}
+              >
                 {label}
               </div>
               {value.title && (
-                <div className="text-[13px] font-semibold text-slate-50">
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    marginBottom: 2,
+                  }}
+                >
                   {value.title}
                 </div>
               )}
               {value.reason && (
-                <p className="text-[12px] text-slate-400 leading-snug">
+                <div style={{ color: "#64748b", lineHeight: 1.4 }}>
                   {value.reason}
-                </p>
+                </div>
               )}
-            </article>
+            </div>
           ))}
         </div>
-      </section>
+      </div>
     );
   };
 
-  // --- FLIGHT OPTIONS USING ResultCard (same as manual) ---
   const FlightOptions = () => {
     if (!results || !results.length) return null;
 
@@ -147,42 +264,44 @@ export default function AiTripPlanner() {
       includeHotel && searchParams?.departDate && searchParams?.returnDate
         ? nightsBetween(searchParams.departDate, searchParams.returnDate)
         : 0;
-
     const visible = optionsView === "top3" ? results.slice(0, 3) : results;
 
     return (
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-base font-semibold flex items-center gap-2">
-            <span>✈ Flight options</span>
-          </h3>
-          <div className="inline-flex items-center rounded-full border border-slate-800 bg-slate-950/80 text-[11px]">
+      <>
+        <div style={sFlightHeader}>
+          <div style={sSectionTitleRow}>
+            <span style={sEmoji}>✈</span>
+            <span>Flight options</span>
+          </div>
+          <div style={sToggleWrap}>
             <button
               type="button"
+              style={{
+                ...sToggleBtnBase,
+                background:
+                  optionsView === "top3" ? "#38bdf8" : "transparent",
+                color: optionsView === "top3" ? "white" : "#0f172a",
+              }}
               onClick={() => setOptionsView("top3")}
-              className={`px-3 py-1 rounded-full font-semibold ${
-                optionsView === "top3"
-                  ? "bg-sky-500 text-slate-950"
-                  : "text-slate-200"
-              }`}
             >
               Top 3 options
             </button>
             <button
               type="button"
+              style={{
+                ...sToggleBtnBase,
+                background:
+                  optionsView === "all" ? "#38bdf8" : "transparent",
+                color: optionsView === "all" ? "white" : "#0f172a",
+              }}
               onClick={() => setOptionsView("all")}
-              className={`px-3 py-1 rounded-full font-semibold ${
-                optionsView === "all"
-                  ? "bg-sky-500 text-slate-950"
-                  : "text-slate-200"
-              }`}
             >
               All options
             </button>
           </div>
         </div>
 
-        <div className="grid gap-3">
+        <div style={sResultsGrid}>
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
             return (
@@ -195,47 +314,40 @@ export default function AiTripPlanner() {
                 showHotel={includeHotel}
                 hotelNights={nights}
                 showAllHotels={false}
-                comparedIds={[]}
+                comparedIds={[]} // no compare in AI section
                 onToggleCompare={() => {}}
                 onSavedChangeGlobal={() => {}}
-                hideActions={true} // hide Save / Compare in AI section
+                hideActions={true}
                 bookUrl={bookUrl}
               />
             );
           })}
         </div>
-      </section>
+      </>
     );
   };
 
-  // --- HOTEL SUGGESTIONS (AI, but styled as small cards) ---
   const HotelSuggestions = ({ hotels }: { hotels?: HotelOption[] }) => {
     if (!hotels || !hotels.length) return null;
 
     return (
-      <section className="space-y-2">
-        <h3 className="text-base font-semibold flex items-center gap-2">
-          <span>🏨 Hotel suggestions (AI)</span>
-        </h3>
-        <div className="grid gap-3 md:grid-cols-2">
+      <div style={{ marginTop: 18 }}>
+        <div style={sSectionTitleRow}>
+          <span style={sEmoji}>🏨</span>
+          <span>Hotel suggestions (AI)</span>
+        </div>
+        <div style={sTop3Grid}>
           {hotels.map((h, i) => (
-            <article
-              key={i}
-              className="rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs space-y-1"
-            >
-              <div className="text-[13px] font-semibold text-slate-50">
-                {h.name}
-              </div>
+            <div key={i} style={sTop3Card}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{h.name}</div>
               {h.area && (
-                <div className="text-slate-300">
-                  <span className="font-semibold">Area: </span>
-                  {h.area}
+                <div style={{ fontSize: 12, color: "#475569" }}>
+                  <b>Area:</b> {h.area}
                 </div>
               )}
               {(typeof h.approx_price_per_night === "number" || h.currency) && (
-                <div className="text-slate-300">
-                  <span className="font-semibold">Approx: </span>
-                  {h.currency || "USD"}{" "}
+                <div style={{ fontSize: 12, color: "#475569" }}>
+                  <b>Approx:</b> {h.currency || "USD"}{" "}
                   {typeof h.approx_price_per_night === "number"
                     ? Math.round(h.approx_price_per_night)
                     : ""}{" "}
@@ -243,34 +355,32 @@ export default function AiTripPlanner() {
                 </div>
               )}
               {h.vibe && (
-                <div>
-                  <span className="font-semibold">Vibe: </span>
-                  {h.vibe}
+                <div style={{ fontSize: 12, color: "#475569" }}>
+                  <b>Vibe:</b> {h.vibe}
                 </div>
               )}
               {h.why && (
-                <p className="text-slate-400 leading-snug">
-                  <span className="font-semibold">Why: </span>
-                  {h.why}
-                </p>
+                <div style={{ fontSize: 12, color: "#475569" }}>
+                  <b>Why:</b> {h.why}
+                </div>
               )}
-            </article>
+            </div>
           ))}
         </div>
-      </section>
+      </div>
     );
   };
 
-  // --- ITINERARY (kept compact) ---
   const Itinerary = ({ itinerary }: { itinerary: any[] }) => {
     if (!itinerary || !itinerary.length) return null;
 
     return (
-      <section className="space-y-2">
-        <h3 className="text-base font-semibold flex items-center gap-2">
-          <span>📅 Suggested itinerary</span>
-        </h3>
-        <div className="grid gap-3 md:grid-cols-2">
+      <div style={{ marginTop: 18 }}>
+        <div style={sSectionTitleRow}>
+          <span style={sEmoji}>📅</span>
+          <span>Suggested itinerary</span>
+        </div>
+        <div style={sTop3Grid}>
           {itinerary.map((day, idx) => {
             const rawDay = day.day;
             const rawDate = day.date;
@@ -278,15 +388,7 @@ export default function AiTripPlanner() {
             let dayLabel = "";
             let dateLabel = "";
 
-            if (typeof rawDay === "number") {
-              dayLabel = `Day ${rawDay}`;
-            } else if (
-              typeof rawDay === "string" &&
-              /^\d{4}-\d{2}-\d{2}/.test(rawDay)
-            ) {
-              dateLabel = new Date(rawDay).toLocaleDateString();
-            }
-
+            if (typeof rawDay === "number") dayLabel = `Day ${rawDay}`;
             if (typeof rawDate === "string" && rawDate.trim()) {
               dateLabel = new Date(rawDate).toLocaleDateString();
             }
@@ -295,27 +397,25 @@ export default function AiTripPlanner() {
             const header = dateLabel ? `${dayLabel} — ${dateLabel}` : dayLabel;
 
             return (
-              <article
-                key={idx}
-                className="rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs space-y-1"
-              >
-                <h4 className="text-[13px] font-semibold flex items-center gap-1">
-                  🗓 {header}
-                </h4>
-                <ul className="list-disc pl-4 space-y-1">
-                  {(day.activities || []).map((act: string, i: number) => (
-                    <li key={i}>{act}</li>
+              <div key={idx} style={sTop3Card}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>
+                  {header}
+                </div>
+                <ul style={{ paddingLeft: 16, margin: 0 }}>
+                  {(day.activities || []).map((a: string, i: number) => (
+                    <li key={i} style={{ fontSize: 12 }}>
+                      {a}
+                    </li>
                   ))}
                 </ul>
-              </article>
+              </div>
             );
           })}
         </div>
-      </section>
+      </div>
     );
   };
 
-  // --- SUBMIT HANDLER ---
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -343,44 +443,49 @@ export default function AiTripPlanner() {
   }
 
   return (
-    <section className="mt-4 rounded-2xl bg-slate-900/90 border border-slate-800 p-4 sm:p-6 text-slate-50 space-y-4">
-      <h2 className="text-xl font-semibold">Plan my trip with AI ✈️</h2>
-      <p className="text-sm text-slate-300">
+    <section style={sSection}>
+      <h2 style={sTitle}>Plan my trip with AI ✈️</h2>
+      <p style={sSubtitle}>
         Describe your trip in one sentence. We&apos;ll infer dates, cities,
-        cabin, and travelers, then show flights and hotel ideas in the same
+        cabin, and travellers, then show flights and hotel ideas in the same
         clean layout as your manual search.
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit}>
         <textarea
+          style={sTextarea}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Example: 5 days New Delhi to Mumbai, flight Jan 2–6 2026, budget-friendly hotels, entertainment."
-          rows={3}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
         />
-
         <button
           type="submit"
           disabled={loading || !query.trim()}
-          className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-slate-50 shadow-md disabled:opacity-60"
+          style={{
+            ...sButtonPrimary,
+            opacity: loading || !query.trim() ? 0.6 : 1,
+          }}
         >
           {loading ? "Thinking…" : "Generate AI trip"}
         </button>
       </form>
 
       {error && (
-        <p className="text-sm text-rose-300">❌ {error}</p>
+        <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c" }}>
+          ❌ {error}
+        </div>
       )}
 
       {planning && (
-        <div className="space-y-6 pt-2">
+        <>
           <Top3Strip planning={planning} />
           <FlightOptions />
           <HotelSuggestions hotels={planning.hotels} />
           <Itinerary itinerary={planning.itinerary ?? []} />
-        </div>
+        </>
       )}
     </section>
   );
 }
+
+export default AiTripPlanner;
