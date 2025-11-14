@@ -1,3 +1,4 @@
+// app/api/ai/plan-trip/route.ts
 import { NextResponse } from "next/server";
 import { runChat } from "@/lib/aiClient";
 
@@ -7,92 +8,114 @@ const AI_ENABLED =
   process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_AI_ENABLED === "1";
 
+type PlanRequest = {
+  query: string;
+};
+
 export async function POST(req: Request) {
   if (!AI_ENABLED) {
     return NextResponse.json(
       {
         ok: false,
-        error: "AI trip planner is currently disabled. Please use the normal search.",
+        error:
+          "AI trip planner is disabled. You can still use the normal search.",
       },
       { status: 503 }
     );
   }
 
   try {
-    const body = await req.json();
-    const { query } = body as { query: string };
+    const body = (await req.json()) as PlanRequest;
+    const query = body.query || "";
 
-    if (!query || !query.trim()) {
+    if (!query.trim()) {
       return NextResponse.json(
-        { ok: false, error: "Missing query" },
+        { ok: false, error: "query is required" },
         { status: 400 }
       );
     }
 
-    // 1) Convert free text to structured search payload
-    const system = `
-You convert natural language trip requests into a strict JSON object:
+    const prompt = `
+You are an expert travel planner. The user gives a short free-text query describing a trip.
+Understand origin, destination, dates, length of stay, budget, and preferences.
+
+User query:
+"${query}"
+
+Return a SINGLE JSON object with this shape:
+
 {
-  "origin": "AUS",
-  "destination": "CDG",
-  "depart": "2025-04-05",
-  "returnDate": "2025-04-10",
-  "travelers": 2,
-  "mode": "best",
-  "budgetMax": 2000
-}
-Only output valid JSON, no comments, no extra text.
-`.trim();
-
-    const raw = await runChat(query, system);
-
-    let payload: any;
-    try {
-      payload = JSON.parse(raw);
-    } catch {
-      return NextResponse.json(
-        { ok: false, error: "AI parsing error", raw },
-        { status: 500 }
-      );
+  "top3": {
+    "best_overall": {
+      "title": "short title for the best overall plan",
+      "reason": "why this is the best overall"
+    },
+    "best_budget": {
+      "title": "short title for budget plan",
+      "reason": "why this is best for saving money"
+    },
+    "best_comfort": {
+      "title": "short title for comfort plan",
+      "reason": "why this is most comfortable / relaxed"
     }
-
-    // TODO: replace this with your real search helper if you have one
-    // For now assume you call /api/search from frontend, or implement a server-side call here.
-
-    const planningPrompt = `
-User query: ${query}
-Search payload: ${JSON.stringify(payload, null, 2)}
-
-You don't know real-time prices here. Just propose a structure for:
-- 3 named trip options (top 3),
-- a day-by-day itinerary for one of them,
-- a short note.
-
-Return JSON:
-{
-  "top3": [...],
-  "itinerary": [...],
-  "notes": "string"
+  },
+  "flights": [
+    {
+      "label": "short description, e.g. 'Non-stop AUS → LAS, afternoon departure'",
+      "from": "IATA origin code like AUS",
+      "to": "IATA destination code like LAS",
+      "airline": "suggested airline or 'multiple airlines'",
+      "approx_price": 1234,
+      "currency": "USD",
+      "notes": "very short tip such as 'usually cheapest on weekdays'"
+    }
+  ],
+  "hotels": [
+    {
+      "name": "hotel name",
+      "area": "neighborhood / area",
+      "approx_price_per_night": 200,
+      "currency": "USD",
+      "vibe": "short phrase, e.g. 'party / casino' or 'quiet & family friendly'",
+      "why": "1 sentence why this fits the trip description"
+    }
+  ],
+  "itinerary": [
+    {
+      "day": 1,
+      "date": "YYYY-MM-DD if you can infer it, otherwise leave as an empty string",
+      "activities": [
+        "bullet-style activity line for morning / afternoon / evening"
+      ]
+    }
+  ]
 }
+
+Rules:
+- Always return valid JSON ONLY, no extra commentary or markdown.
+- If you cannot infer exact dates, you can leave "date" as "" but still keep the correct day order.
+- Try to align flights & hotels with the itinerary and user preferences (budget vs luxury, nightlife vs quiet, etc.).
 `.trim();
 
-    const planningRaw = await runChat(planningPrompt);
-    let planning: any;
+    const raw = await runChat(prompt);
+    let parsed: any;
     try {
-      planning = JSON.parse(planningRaw);
+      parsed = JSON.parse(raw);
     } catch {
-      planning = { raw: planningRaw };
+      parsed = { raw };
     }
 
     return NextResponse.json({
       ok: true,
-      payload,
-      planning,
+      planning: parsed,
     });
-  } catch (e: any) {
-    console.error(e);
+  } catch (err: any) {
+    console.error("AI plan-trip error:", err);
     return NextResponse.json(
-      { ok: false, error: e?.message || "Unknown error" },
+      {
+        ok: false,
+        error: err?.message || "AI plan-trip error",
+      },
       { status: 500 }
     );
   }
