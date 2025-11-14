@@ -6,7 +6,7 @@ const AMADEUS_ENV = process.env.AMADEUS_ENV || "test";
 
 if (!AMADEUS_CLIENT_ID || !AMADEUS_CLIENT_SECRET) {
   console.warn(
-    "[amadeusClient] Missing AMADEUS_CLIENT_ID or AMADEUS_CLIENT_SECRET"
+    "[amadeusClient] Missing AMADEUS_CLIENT_ID or AMADEUS_CLIENT_SECRET in environment."
   );
 }
 
@@ -20,12 +20,15 @@ const API_BASE =
     ? "https://api.amadeus.com"
     : "https://test.api.amadeus.com";
 
-/**
- * Cached OAuth token so we don't request a new one on every call.
- */
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
 
 async function getAccessToken(): Promise<string> {
+  if (!AMADEUS_CLIENT_ID || !AMADEUS_CLIENT_SECRET) {
+    throw new Error(
+      "Amadeus credentials are missing. Please set AMADEUS_CLIENT_ID and AMADEUS_CLIENT_SECRET."
+    );
+  }
+
   const now = Date.now();
   if (cachedToken && cachedToken.expiresAt > now + 30_000) {
     return cachedToken.accessToken;
@@ -33,8 +36,8 @@ async function getAccessToken(): Promise<string> {
 
   const body = new URLSearchParams({
     grant_type: "client_credentials",
-    client_id: AMADEUS_CLIENT_ID || "",
-    client_secret: AMADEUS_CLIENT_SECRET || "",
+    client_id: AMADEUS_CLIENT_ID,
+    client_secret: AMADEUS_CLIENT_SECRET,
   });
 
   const res = await fetch(TOKEN_URL, {
@@ -46,7 +49,9 @@ async function getAccessToken(): Promise<string> {
   if (!res.ok) {
     const text = await res.text();
     console.error("Amadeus token error:", res.status, text);
-    throw new Error("Failed to get Amadeus token");
+    throw new Error(
+      `Amadeus token error ${res.status}. Check AMADEUS_CLIENT_ID / AMADEUS_CLIENT_SECRET and that you're using the correct (test) environment.`
+    );
   }
 
   const json: any = await res.json();
@@ -57,13 +62,9 @@ async function getAccessToken(): Promise<string> {
     accessToken,
     expiresAt: now + (expiresInSec || 1800) * 1000,
   };
-
   return accessToken;
 }
 
-/**
- * Simple helper for GET calls to Amadeus.
- */
 export async function amadeusGet(
   path: string,
   params: Record<string, any>
