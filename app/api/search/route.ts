@@ -4,6 +4,8 @@ import { amadeusGet } from "@/lib/amadeusClient";
 
 export const dynamic = "force-dynamic";
 
+type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
+
 type SearchBody = {
   origin: string;
   destination: string;
@@ -13,14 +15,13 @@ type SearchBody = {
   passengersAdults: number;
   passengersChildren: number;
   passengersInfants: number;
-  cabin: "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
+  cabin: Cabin;
   includeHotel?: boolean;
   currency?: string;
 };
 
 function parseIsoDurationToMinutes(dur: string | undefined): number {
   if (!dur || !dur.startsWith("PT")) return 0;
-  // Simple parser for things like "PT3H45M"
   let hours = 0;
   let minutes = 0;
   const hMatch = dur.match(/(\d+)H/);
@@ -31,7 +32,7 @@ function parseIsoDurationToMinutes(dur: string | undefined): number {
 }
 
 export async function POST(req: Request) {
-  try:
+  try {
     const body = (await req.json()) as SearchBody;
 
     const {
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
     const childCount = passengersChildren || 0;
     const infantCount = passengersInfants || 0;
     const totalPax = adults + childCount + infantCount;
+
     if (totalPax <= 0) {
       return NextResponse.json(
         { error: "At least one passenger is required" },
@@ -65,12 +67,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Call Amadeus Flight Offers
+    // Call Amadeus Flight Offers (test or prod depending on AMADEUS_ENV)
     const params: any = {
       originLocationCode: origin,
       destinationLocationCode: destination,
       departureDate: departDate,
-      adults: adults,
+      adults,
       max: 20,
       currencyCode: currency,
       travelClass: cabin,
@@ -120,7 +122,7 @@ export async function POST(req: Request) {
         segmentsOut[0]?.carrierCode || offer.validatingAirlineCodes?.[0];
 
       const flight = {
-        price_usd: priceTotal, // your UI treats this as base for sorting
+        price_usd: priceTotal,
         currency,
         mainCarrier,
         segments_out: segmentsOut,
@@ -131,7 +133,7 @@ export async function POST(req: Request) {
         id: offer.id || `amadeus-${idx}`,
         flight,
         flight_total: priceTotal,
-        hotel_total: 0, // we’ll fill this when hotel API is wired
+        hotel_total: 0, // later when we add hotels
         total_cost: priceTotal,
         provider: "amadeus",
       };
