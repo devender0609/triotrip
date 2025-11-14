@@ -13,36 +13,16 @@ type Top3Item = {
   reason?: string;
 };
 
-type HotelOption = {
-  name: string;
-  area?: string;
-  approx_price_per_night?: number;
-  currency?: string;
-  vibe?: string;
-  why?: string;
-};
-
 type PlanningPayload = {
   top3?: {
     best_overall?: Top3Item;
     best_budget?: Top3Item;
     best_comfort?: Top3Item;
   };
-  itinerary?: any[];
-  hotels?: HotelOption[];
 };
 
 type OptionsView = "top3" | "all";
 
-function nightsBetween(a?: string, b?: string) {
-  if (!a || !b) return 0;
-  const A = new Date(a).getTime();
-  const B = new Date(b).getTime();
-  if (!Number.isFinite(A) || !Number.isFinite(B)) return 0;
-  return Math.max(0, Math.round((B - A) / 86400000));
-}
-
-// Build a simple Google Flights link using inferred search params
 function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | undefined {
   if (!searchParams) return undefined;
 
@@ -77,9 +57,7 @@ export function AiTripPlanner() {
   const [error, setError] = useState<string | null>(null);
   const [optionsView, setOptionsView] = useState<OptionsView>("top3");
 
-  if (!AI_ENABLED) {
-    return null;
-  }
+  if (!AI_ENABLED) return null;
 
   const Top3Strip = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
@@ -139,10 +117,6 @@ export function AiTripPlanner() {
       (searchParams?.passengersChildren || 0) +
       (searchParams?.passengersInfants || 0);
     const includeHotel = !!searchParams?.includeHotel;
-    const nights =
-      includeHotel && searchParams?.departDate && searchParams?.returnDate
-        ? nightsBetween(searchParams.departDate, searchParams.returnDate)
-        : 0;
 
     const visible = optionsView === "top3" ? results.slice(0, 3) : results;
 
@@ -178,6 +152,7 @@ export function AiTripPlanner() {
           </div>
         </div>
 
+        {/* THIS is where we use your elegant ResultCard */}
         <div className="grid gap-3">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
@@ -189,110 +164,13 @@ export function AiTripPlanner() {
                 currency={currency}
                 pax={pax}
                 showHotel={includeHotel}
-                hotelNights={nights}
+                hotelNights={pkg.hotelNights ?? 0}
                 showAllHotels={optionsView === "all"}
                 comparedIds={[]}
                 onToggleCompare={() => {}}
                 onSavedChangeGlobal={() => {}}
                 bookUrl={bookUrl}
               />
-            );
-          })}
-        </div>
-      </section>
-    );
-  };
-
-  const HotelSuggestions = ({ hotels }: { hotels?: HotelOption[] }) => {
-    if (!hotels || !hotels.length) return null;
-
-    return (
-      <section className="mt-6 space-y-2">
-        <h3 className="text-base font-semibold flex items-center gap-2">
-          <span>🏨 Hotel suggestions (AI)</span>
-        </h3>
-        <div className="grid gap-3 md:grid-cols-2">
-          {hotels.map((h, i) => (
-            <article
-              key={i}
-              className="rounded-xl border border-slate-200 bg-white p-3 text-xs space-y-1 shadow-sm"
-            >
-              <div className="text-[13px] font-semibold text-slate-900">
-                {h.name}
-              </div>
-              {h.area && (
-                <div className="text-slate-700">
-                  <span className="font-semibold">Area: </span>
-                  {h.area}
-                </div>
-              )}
-              {(typeof h.approx_price_per_night === "number" || h.currency) && (
-                <div className="text-slate-700">
-                  <span className="font-semibold">Approx: </span>
-                  {h.currency || "USD"}{" "}
-                  {typeof h.approx_price_per_night === "number"
-                    ? Math.round(h.approx_price_per_night)
-                    : ""}{" "}
-                  / night
-                </div>
-              )}
-              {h.vibe && (
-                <div className="text-slate-700">
-                  <span className="font-semibold">Vibe: </span>
-                  {h.vibe}
-                </div>
-              )}
-              {h.why && (
-                <p className="text-slate-700">
-                  <span className="font-semibold">Why: </span>
-                  {h.why}
-                </p>
-              )}
-            </article>
-          ))}
-        </div>
-      </section>
-    );
-  };
-
-  const Itinerary = ({ itinerary }: { itinerary: any[] }) => {
-    if (!itinerary || !itinerary.length) return null;
-
-    return (
-      <section className="mt-6 space-y-2">
-        <h3 className="text-base font-semibold flex items-center gap-2">
-          <span>📅 Suggested itinerary</span>
-        </h3>
-        <div className="grid gap-3 md:grid-cols-2">
-          {itinerary.map((day, idx) => {
-            const rawDay = day.day;
-            const rawDate = day.date;
-
-            let dayLabel = "";
-            let dateLabel = "";
-
-            if (typeof rawDay === "number") dayLabel = `Day ${rawDay}`;
-            if (typeof rawDate === "string" && rawDate.trim()) {
-              dateLabel = new Date(rawDate).toLocaleDateString();
-            }
-
-            if (!dayLabel) dayLabel = `Day ${idx + 1}`;
-            const header = dateLabel ? `${dayLabel} — ${dateLabel}` : dayLabel;
-
-            return (
-              <article
-                key={idx}
-                className="rounded-xl border border-slate-200 bg-white p-3 text-xs space-y-1 shadow-sm"
-              >
-                <h4 className="font-semibold text-[13px] flex items-center gap-1">
-                  🗓 {header}
-                </h4>
-                <ul className="list-disc pl-4 space-y-1">
-                  {(day.activities || []).map((act: string, i: number) => (
-                    <li key={i}>{act}</li>
-                  ))}
-                </ul>
-              </article>
             );
           })}
         </div>
@@ -332,15 +210,15 @@ export function AiTripPlanner() {
       <h2 className="text-xl font-semibold">Plan my trip with AI ✈️</h2>
       <p className="text-sm text-slate-600">
         Describe your trip in one sentence. We&apos;ll infer dates, cities,
-        cabin, and travellers, then show flights and hotel ideas in a clean,
-        card-based layout.
+        cabin, and travellers, then show flights in the same card layout as
+        your manual search.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <textarea
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Example: 5 days from Austin to Las Vegas in November, flight + nice hotel, budget-friendly but fun."
+          placeholder="Example: Austin to Boston, flight + hotel, Dec 1–6, 2025, nice hotel."
           rows={2}
           className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
         />
@@ -355,17 +233,11 @@ export function AiTripPlanner() {
 
       {error && <p className="text-sm text-rose-500">❌ {error}</p>}
 
-      {planning && (
-        <>
-          <Top3Strip planning={planning} />
-          <FlightOptions />
-          <HotelSuggestions hotels={planning.hotels} />
-          <Itinerary itinerary={planning.itinerary ?? []} />
-        </>
-      )}
+      {planning && <Top3Strip planning={planning} />}
+      {results && <FlightOptions />}
     </section>
   );
 }
 
-// 👈 default export so `import AiTripPlanner from "../components/AiTripPlanner"` works
+/** default export so `import AiTripPlanner from "../components/AiTripPlanner"` works */
 export default AiTripPlanner;
