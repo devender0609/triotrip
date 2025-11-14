@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import ResultCard from "@/components/ResultCard";
 import { aiPlanTrip } from "@/lib/api";
-import ResultCard from "./ResultCard";
 
 const AI_ENABLED =
   process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
@@ -32,6 +32,8 @@ type PlanningPayload = {
   hotels?: HotelOption[];
 };
 
+type OptionsView = "top3" | "all";
+
 function nightsBetween(a?: string, b?: string) {
   if (!a || !b) return 0;
   const A = new Date(a).getTime();
@@ -40,7 +42,7 @@ function nightsBetween(a?: string, b?: string) {
   return Math.max(0, Math.round((B - A) / 86400000));
 }
 
-// Build a simple Google Flights link using search parameters + first flight
+// Simple deep link to Google Flights using inferred search params
 function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | undefined {
   if (!searchParams) return undefined;
 
@@ -48,6 +50,7 @@ function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | und
   const destination = searchParams.destination;
   const departDate = searchParams.departDate;
   const returnDate = searchParams.returnDate;
+
   if (!origin || !destination || !departDate) return undefined;
 
   const d1 = departDate;
@@ -57,45 +60,29 @@ function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | und
     (searchParams.passengersChildren || 0) +
     (searchParams.passengersInfants || 0);
 
-  // Very simple but effective deep link
-  const qParts = [
-    "Flights",
-    "from",
-    origin,
-    "to",
-    destination,
-    "on",
-    d1,
-  ];
-  if (d2) {
-    qParts.push("through", d2);
-  }
-  qParts.push("for", `${pax}`, "travellers");
+  const parts = ["Flights", "from", origin, "to", destination, "on", d1];
+  if (d2) parts.push("through", d2);
+  parts.push("for", `${pax}`, "travellers");
 
-  const q = encodeURIComponent(qParts.join(" "));
+  const q = encodeURIComponent(parts.join(" "));
   return `https://www.google.com/travel/flights?q=${q}`;
 }
 
-export function AiTripPlanner() {
+export default function AiTripPlanner() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [planning, setPlanning] = useState<PlanningPayload | null>(null);
-  const [packages, setPackages] = useState<any[] | null>(null);
+  const [results, setResults] = useState<any[] | null>(null);
   const [searchParams, setSearchParams] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [optionsView, setOptionsView] = useState<"top3" | "all">("top3");
+  const [optionsView, setOptionsView] = useState<OptionsView>("top3");
 
   if (!AI_ENABLED) {
-    return (
-      <section style={{ padding: 16 }}>
-        <h2>AI Planner unavailable</h2>
-        <p>You can still use the manual search below.</p>
-      </section>
-    );
+    return null;
   }
 
-  // ---------- TOP 3 (compressed layout) ----------
-  const Top3 = ({ planning }: { planning: PlanningPayload }) => {
+  // --- TOP 3 CARD STRIP (compact) ---
+  const Top3Strip = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
     if (!t) return null;
 
@@ -113,156 +100,42 @@ export function AiTripPlanner() {
       })
       .filter(Boolean) as { key: any; label: string; value: Top3Item }[];
 
-    if (items.length === 0) return null;
+    if (!items.length) return null;
 
     return (
-      <div style={{ marginTop: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700 }}>🏆 Top 3 options</h3>
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gap: 8,
-            marginTop: 8,
-            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-          }}
-        >
+      <section className="space-y-2">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <span>🏆 Top 3 options</span>
+        </h3>
+        <div className="grid gap-3 md:grid-cols-3">
           {items.map(({ key, label, value }) => (
-            <div
+            <article
               key={key}
-              style={{
-                background: "#020617",
-                padding: 10,
-                borderRadius: 10,
-                border: "1px solid #1e293b",
-                fontSize: 12,
-                display: "grid",
-                gap: 4,
-              }}
+              className="rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs space-y-1"
             >
-              <div style={{ fontWeight: 700, fontSize: 12 }}>{label}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                {label}
+              </div>
               {value.title && (
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{value.title}</div>
+                <div className="text-[13px] font-semibold text-slate-50">
+                  {value.title}
+                </div>
               )}
               {value.reason && (
-                <div style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.3 }}>
+                <p className="text-[12px] text-slate-400 leading-snug">
                   {value.reason}
-                </div>
+                </p>
               )}
-            </div>
+            </article>
           ))}
         </div>
-      </div>
+      </section>
     );
   };
 
-  // ---------- ITINERARY ----------
-  const Itinerary = ({ itinerary }: { itinerary: any[] }) => {
-    if (!itinerary || itinerary.length === 0) return null;
-
-    return (
-      <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700 }}>📅 Suggested itinerary</h3>
-        {itinerary.map((day, idx) => {
-          const rawDay = day.day;
-          const rawDate = day.date;
-
-          let dayLabel = "";
-          let dateLabel = "";
-
-          if (typeof rawDay === "number") {
-            dayLabel = `Day ${rawDay}`;
-          } else if (
-            typeof rawDay === "string" &&
-            /^\d{4}-\d{2}-\d{2}/.test(rawDay)
-          ) {
-            dateLabel = new Date(rawDay).toLocaleDateString();
-          }
-
-          if (typeof rawDate === "string" && rawDate.trim()) {
-            dateLabel = new Date(rawDate).toLocaleDateString();
-          }
-
-          if (!dayLabel) dayLabel = `Day ${idx + 1}`;
-          const header = dateLabel ? `${dayLabel} — ${dateLabel}` : dayLabel;
-
-          return (
-            <div
-              key={idx}
-              style={{
-                background: "#020617",
-                padding: 14,
-                borderRadius: 12,
-                border: "1px solid #1e293b",
-              }}
-            >
-              <h4 style={{ fontSize: 14, marginBottom: 6 }}>🗓 {header}</h4>
-              <ul style={{ paddingLeft: 16, margin: 0 }}>
-                {(day.activities || []).map((act: string, i: number) => (
-                  <li key={i} style={{ marginBottom: 3 }}>
-                    {act}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // ---------- HOTEL OPTIONS (AI–generated, city-relevant) ----------
-  const HotelOptions = ({ hotels }: { hotels?: HotelOption[] }) => {
-    if (!hotels || hotels.length === 0) return null;
-    return (
-      <div style={{ marginTop: 16 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700 }}>🏨 Hotel suggestions (AI)</h3>
-        <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-          {hotels.map((h, i) => (
-            <div
-              key={i}
-              style={{
-                background: "#020617",
-                borderRadius: 12,
-                border: "1px solid #1e293b",
-                padding: 10,
-                fontSize: 12,
-                display: "grid",
-                gap: 2,
-              }}
-            >
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{h.name}</div>
-              {h.area && <div style={{ opacity: 0.9 }}>{h.area}</div>}
-              {(typeof h.approx_price_per_night === "number" || h.currency) && (
-                <div style={{ opacity: 0.9 }}>
-                  ~{h.currency || "USD"}{" "}
-                  {typeof h.approx_price_per_night === "number"
-                    ? Math.round(h.approx_price_per_night)
-                    : ""}{" "}
-                  per night
-                </div>
-              )}
-              {h.vibe && (
-                <div>
-                  <strong>Vibe:</strong> {h.vibe}
-                </div>
-              )}
-              {h.why && (
-                <div>
-                  <strong>Why:</strong> {h.why}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  // ---------- FLIGHT OPTIONS USING ResultCard + tabs ----------
+  // --- FLIGHT OPTIONS USING ResultCard (same as manual) ---
   const FlightOptions = () => {
-    if (!packages || packages.length === 0) return null;
+    if (!results || !results.length) return null;
 
     const currency = searchParams?.currency || "USD";
     const pax =
@@ -275,69 +148,42 @@ export function AiTripPlanner() {
         ? nightsBetween(searchParams.departDate, searchParams.returnDate)
         : 0;
 
-    const visiblePkgs =
-      optionsView === "top3" ? packages.slice(0, 3) : packages;
+    const visible = optionsView === "top3" ? results.slice(0, 3) : results;
 
     return (
-      <div style={{ marginTop: 16 }}>
-        {/* Tabs row */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 8,
-          }}
-        >
-          <h3 style={{ fontSize: 16, fontWeight: 700 }}>✈ Flight options</h3>
-          <div
-            style={{
-              display: "inline-flex",
-              background: "#020617",
-              borderRadius: 999,
-              padding: 2,
-              border: "1px solid #1e293b",
-              fontSize: 12,
-            }}
-          >
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-base font-semibold flex items-center gap-2">
+            <span>✈ Flight options</span>
+          </h3>
+          <div className="inline-flex items-center rounded-full border border-slate-800 bg-slate-950/80 text-[11px]">
             <button
               type="button"
               onClick={() => setOptionsView("top3")}
-              style={{
-                borderRadius: 999,
-                padding: "4px 10px",
-                border: "none",
-                cursor: "pointer",
-                background:
-                  optionsView === "top3" ? "#38bdf8" : "transparent",
-                color: optionsView === "top3" ? "#0f172a" : "#e2e8f0",
-                fontWeight: 600,
-              }}
+              className={`px-3 py-1 rounded-full font-semibold ${
+                optionsView === "top3"
+                  ? "bg-sky-500 text-slate-950"
+                  : "text-slate-200"
+              }`}
             >
               Top 3 options
             </button>
             <button
               type="button"
               onClick={() => setOptionsView("all")}
-              style={{
-                borderRadius: 999,
-                padding: "4px 10px",
-                border: "none",
-                cursor: "pointer",
-                background:
-                  optionsView === "all" ? "#38bdf8" : "transparent",
-                color: optionsView === "all" ? "#0f172a" : "#e2e8f0",
-                fontWeight: 600,
-              }}
+              className={`px-3 py-1 rounded-full font-semibold ${
+                optionsView === "all"
+                  ? "bg-sky-500 text-slate-950"
+                  : "text-slate-200"
+              }`}
             >
               All options
             </button>
           </div>
         </div>
 
-        <div style={{ display: "grid", gap: 10 }}>
-          {visiblePkgs.map((pkg, i) => {
+        <div className="grid gap-3">
+          {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
             return (
               <ResultCard
@@ -358,30 +204,136 @@ export function AiTripPlanner() {
             );
           })}
         </div>
-      </div>
+      </section>
     );
   };
 
-  // ---------- SUBMIT ----------
+  // --- HOTEL SUGGESTIONS (AI, but styled as small cards) ---
+  const HotelSuggestions = ({ hotels }: { hotels?: HotelOption[] }) => {
+    if (!hotels || !hotels.length) return null;
+
+    return (
+      <section className="space-y-2">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <span>🏨 Hotel suggestions (AI)</span>
+        </h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          {hotels.map((h, i) => (
+            <article
+              key={i}
+              className="rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs space-y-1"
+            >
+              <div className="text-[13px] font-semibold text-slate-50">
+                {h.name}
+              </div>
+              {h.area && (
+                <div className="text-slate-300">
+                  <span className="font-semibold">Area: </span>
+                  {h.area}
+                </div>
+              )}
+              {(typeof h.approx_price_per_night === "number" || h.currency) && (
+                <div className="text-slate-300">
+                  <span className="font-semibold">Approx: </span>
+                  {h.currency || "USD"}{" "}
+                  {typeof h.approx_price_per_night === "number"
+                    ? Math.round(h.approx_price_per_night)
+                    : ""}{" "}
+                  / night
+                </div>
+              )}
+              {h.vibe && (
+                <div>
+                  <span className="font-semibold">Vibe: </span>
+                  {h.vibe}
+                </div>
+              )}
+              {h.why && (
+                <p className="text-slate-400 leading-snug">
+                  <span className="font-semibold">Why: </span>
+                  {h.why}
+                </p>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  };
+
+  // --- ITINERARY (kept compact) ---
+  const Itinerary = ({ itinerary }: { itinerary: any[] }) => {
+    if (!itinerary || !itinerary.length) return null;
+
+    return (
+      <section className="space-y-2">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <span>📅 Suggested itinerary</span>
+        </h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          {itinerary.map((day, idx) => {
+            const rawDay = day.day;
+            const rawDate = day.date;
+
+            let dayLabel = "";
+            let dateLabel = "";
+
+            if (typeof rawDay === "number") {
+              dayLabel = `Day ${rawDay}`;
+            } else if (
+              typeof rawDay === "string" &&
+              /^\d{4}-\d{2}-\d{2}/.test(rawDay)
+            ) {
+              dateLabel = new Date(rawDay).toLocaleDateString();
+            }
+
+            if (typeof rawDate === "string" && rawDate.trim()) {
+              dateLabel = new Date(rawDate).toLocaleDateString();
+            }
+
+            if (!dayLabel) dayLabel = `Day ${idx + 1}`;
+            const header = dateLabel ? `${dayLabel} — ${dateLabel}` : dayLabel;
+
+            return (
+              <article
+                key={idx}
+                className="rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs space-y-1"
+              >
+                <h4 className="text-[13px] font-semibold flex items-center gap-1">
+                  🗓 {header}
+                </h4>
+                <ul className="list-disc pl-4 space-y-1">
+                  {(day.activities || []).map((act: string, i: number) => (
+                    <li key={i}>{act}</li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
+  // --- SUBMIT HANDLER ---
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
       setLoading(true);
       setError(null);
       setPlanning(null);
-      setPackages(null);
+      setResults(null);
       setSearchParams(null);
       setOptionsView("top3");
 
       const data: any = await aiPlanTrip(query);
-
       if (!data?.ok) {
         setError("AI planner failed. Please try again or be more specific.");
         return;
       }
 
       setPlanning(data.planning || null);
-      setPackages(data.searchResult?.results || null);
+      setResults(data.searchResult?.results || null);
       setSearchParams(data.searchParams || null);
     } catch (err: any) {
       setError(err.message || "Something went wrong with AI.");
@@ -391,74 +343,43 @@ export function AiTripPlanner() {
   }
 
   return (
-    <section
-      style={{
-        background: "#0f172a",
-        color: "white",
-        borderRadius: 16,
-        padding: 20,
-        marginTop: 20,
-        display: "grid",
-        gap: 10,
-      }}
-    >
-      <h2 style={{ fontSize: 22, fontWeight: 700 }}>
-        Plan my trip with AI ✈️
-      </h2>
-      <p style={{ opacity: 0.8, marginBottom: 4, fontSize: 14 }}>
-        Describe your trip in one sentence. We&apos;ll interpret it, suggest an
-        itinerary, recommend hotels, and show real flight options you can book.
+    <section className="mt-4 rounded-2xl bg-slate-900/90 border border-slate-800 p-4 sm:p-6 text-slate-50 space-y-4">
+      <h2 className="text-xl font-semibold">Plan my trip with AI ✈️</h2>
+      <p className="text-sm text-slate-300">
+        Describe your trip in one sentence. We&apos;ll infer dates, cities,
+        cabin, and travelers, then show flights and hotel ideas in the same
+        clean layout as your manual search.
       </p>
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 8 }}>
+      <form onSubmit={handleSubmit} className="space-y-3">
         <textarea
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Example: 5 days from Austin to Las Vegas, Jan 10–15 2026, mid-budget, shows and nightlife."
+          placeholder="Example: 5 days New Delhi to Mumbai, flight Jan 2–6 2026, budget-friendly hotels, entertainment."
           rows={3}
-          style={{
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid #1e293b",
-            fontSize: 14,
-            resize: "vertical",
-            color: "#0f172a",
-          }}
+          className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
         />
 
         <button
           type="submit"
           disabled={loading || !query.trim()}
-          style={{
-            borderRadius: 999,
-            padding: "10px 16px",
-            border: "none",
-            fontWeight: 600,
-            fontSize: 15,
-            cursor: loading ? "default" : "pointer",
-            background:
-              "linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%)",
-            color: "white",
-            opacity: loading || !query.trim() ? 0.7 : 1,
-          }}
+          className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-slate-50 shadow-md disabled:opacity-60"
         >
           {loading ? "Thinking…" : "Generate AI trip"}
         </button>
       </form>
 
       {error && (
-        <p style={{ color: "#fecaca", fontSize: 14, marginTop: 4 }}>
-          ❌ {error}
-        </p>
+        <p className="text-sm text-rose-300">❌ {error}</p>
       )}
 
       {planning && (
-        <>
-          <Top3 planning={planning} />
+        <div className="space-y-6 pt-2">
+          <Top3Strip planning={planning} />
           <FlightOptions />
-          <HotelOptions hotels={planning.hotels} />
+          <HotelSuggestions hotels={planning.hotels} />
           <Itinerary itinerary={planning.itinerary ?? []} />
-        </>
+        </div>
       )}
     </section>
   );
