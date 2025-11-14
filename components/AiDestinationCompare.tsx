@@ -8,6 +8,13 @@ const AI_ENABLED =
   process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_AI_ENABLED === "1";
 
+type AirportRec = {
+  role: string;   // e.g. "primary_hub", "cheapest_option"
+  name: string;   // "Ngurah Rai International Airport"
+  code: string;   // "DPS"
+  reason: string; // short explanation
+};
+
 type Comparison = {
   name: string;
   approx_cost_level: string;
@@ -16,6 +23,7 @@ type Comparison = {
   pros: string[];
   cons: string[];
   overall_vibe: string;
+  airports?: AirportRec[];
 };
 
 export function AiDestinationCompare() {
@@ -28,7 +36,6 @@ export function AiDestinationCompare() {
   const [data, setData] = useState<Comparison[] | null>(null);
 
   if (!AI_ENABLED) {
-    // Soft message if AI is turned off
     return (
       <section
         style={{
@@ -68,7 +75,7 @@ export function AiDestinationCompare() {
       setData(null);
       const res = await aiCompareDestinations({
         destinations,
-        month,
+        month: month || undefined,
         home,
         days,
       });
@@ -112,8 +119,8 @@ export function AiDestinationCompare() {
         Compare destinations with AI 🌍
       </h2>
       <p style={{ fontSize: 14, opacity: 0.85 }}>
-        Not sure where to go? Enter a few places and we&apos;ll compare them
-        for cost, weather, and vibe.
+        Not sure where to go? Enter a few places and we&apos;ll compare them for
+        cost, weather, vibe, and even which airports are best to fly into.
       </p>
 
       {/* Form */}
@@ -291,7 +298,17 @@ export function AiDestinationCompare() {
   );
 }
 
-// Card component (nice and fancy)
+function labelForRole(role: string): string {
+  const r = role.toLowerCase();
+  if (r.includes("primary")) return "Primary hub";
+  if (r.includes("cheapest")) return "Cheapest to fly";
+  if (r.includes("convenient")) return "Most convenient";
+  if (r.includes("happening") || r.includes("busiest"))
+    return "Most happening / busiest";
+  if (r.includes("safest")) return "Safest reputation";
+  return "Recommended";
+}
+
 function DestinationCard({ d }: { d: Comparison }) {
   const costLabel =
     d.approx_cost_level === "$"
@@ -361,6 +378,51 @@ function DestinationCard({ d }: { d: Comparison }) {
           ))}
         </ul>
       </div>
+
+      {d.airports && d.airports.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <strong>✈ Suggested airports:</strong>
+          <div
+            style={{
+              display: "grid",
+              gap: 6,
+              marginTop: 4,
+            }}
+          >
+            {d.airports.map((a, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: 8,
+                  borderRadius: 10,
+                  border: "1px solid #1e293b",
+                  background: "#020617",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 12,
+                  }}
+                >
+                  <span>
+                    <strong>
+                      {a.name} ({a.code})
+                    </strong>
+                  </span>
+                  <span style={{ opacity: 0.8 }}>
+                    {labelForRole(a.role)}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, marginTop: 2 }}>
+                  {a.reason}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: 6, fontStyle: "italic", color: "#cbd5f5" }}>
         {d.overall_vibe}

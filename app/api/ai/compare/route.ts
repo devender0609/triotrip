@@ -1,3 +1,4 @@
+// app/api/ai/compare/route.ts
 import { NextResponse } from "next/server";
 import { runChat } from "@/lib/aiClient";
 
@@ -55,6 +56,14 @@ For EACH destination, provide:
 - cons: array of 2-4 short bullet-style strings
 - overall_vibe: 1 short sentence
 
+AND also suggest important airports for that destination. For airports, include:
+- role: one of "primary_hub", "cheapest_option", "most_convenient", "busiest_or_happening", "safest_reputation"
+- name: airport name
+- code: IATA code (like "DPS", "BKK", "HNL")
+- reason: very short explanation why you chose this airport for that role
+
+Some roles can be covered by the same airport if appropriate. Aim for 2–4 airports per destination.
+
 STRICTLY return JSON ONLY in this format:
 
 [
@@ -65,7 +74,15 @@ STRICTLY return JSON ONLY in this format:
     "best_for": "short string",
     "pros": ["...", "..."],
     "cons": ["...", "..."],
-    "overall_vibe": "short sentence"
+    "overall_vibe": "short sentence",
+    "airports": [
+      {
+        "role": "primary_hub",
+        "name": "Example Airport",
+        "code": "XXX",
+        "reason": "short reason"
+      }
+    ]
   }
 ]
 `.trim();

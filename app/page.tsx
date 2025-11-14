@@ -55,8 +55,8 @@ const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
 export default function Page() {
-  // Global mode: AI vs Manual
-  const [mode, setMode] = useState<"ai" | "manual">("manual");
+  // Global mode: "none" (just tabs), "ai", or "manual"
+  const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
 
   // Places & dates (manual search)
   const [originCode, setOriginCode] = useState("");
@@ -157,7 +157,7 @@ export default function Page() {
   useEffect(() => {
     setChildAges((prev) => {
       const copy = prev.slice(0, children);
-      while (copy.length < children) copy.push(8); // default to 8y
+      while (copy.length < children) copy.push(8); // default 8y
       return copy;
     });
   }, [children]);
@@ -179,7 +179,7 @@ export default function Page() {
     setLoading(true);
     setError(null);
     setResults(null);
-    setAiTop3(null); // reset AI labels on new search
+    setAiTop3(null);
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
@@ -258,11 +258,8 @@ export default function Page() {
           body: JSON.stringify({ results }),
         });
         const data = await res.json();
-        if (data.ok) {
-          setAiTop3(data.top3 || null);
-        } else {
-          console.warn("AI top3 error:", data.error);
-        }
+        if (data.ok) setAiTop3(data.top3 || null);
+        else console.warn("AI top3 error:", data.error);
       } catch (e) {
         console.error("AI top3 fetch failed:", e);
       } finally {
@@ -352,7 +349,7 @@ export default function Page() {
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
-      {/* Global mode toggle */}
+      {/* GLOBAL TABS */}
       <div
         style={{
           display: "flex",
@@ -363,7 +360,7 @@ export default function Page() {
       >
         <button
           type="button"
-          onClick={() => setMode("ai")}
+          onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
           style={{
             flex: 1,
             padding: 10,
@@ -383,7 +380,7 @@ export default function Page() {
         </button>
         <button
           type="button"
-          onClick={() => setMode("manual")}
+          onClick={() => setMode((m) => (m === "manual" ? "none" : "manual"))}
           style={{
             flex: 1,
             padding: 10,
@@ -400,7 +397,7 @@ export default function Page() {
         </button>
       </div>
 
-      {/* AI MODE: show AI tools only */}
+      {/* AI MODE */}
       {mode === "ai" && (
         <>
           <AiTripPlanner />
@@ -408,7 +405,7 @@ export default function Page() {
         </>
       )}
 
-      {/* MANUAL MODE: show classic search + results */}
+      {/* MANUAL MODE */}
       {mode === "manual" && (
         <>
           {/* SEARCH FORM */}
@@ -609,7 +606,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Child ages (only when children > 0) */}
+            {/* Child ages */}
             {children > 0 && (
               <div style={{ display: "grid", gap: 12 }}>
                 <div style={{ fontWeight: 700, color: "#334155" }}>
@@ -875,7 +872,7 @@ export default function Page() {
             )}
           </form>
 
-          {/* SUB-TABS (after search) */}
+          {/* SUB-TABS */}
           {showControls && (
             <>
               <div
@@ -1013,7 +1010,7 @@ export default function Page() {
             </div>
           )}
 
-          {/* AI TOP-3 SUMMARY (manual search helper) */}
+          {/* AI TOP-3 SUMMARY */}
           {aiTop3 && results && results.length > 0 && (
             <div
               style={{
@@ -1106,7 +1103,7 @@ export default function Page() {
             </div>
           )}
 
-          {/* COMPARE */}
+          {/* COMPARE PANEL */}
           {comparedIds.length >= 2 && (
             <ComparePanel
               items={(shown || []).filter((r: any) =>
