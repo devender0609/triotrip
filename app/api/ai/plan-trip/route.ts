@@ -1,20 +1,35 @@
-// app/api/ai/plan-trip/route.ts
 import { NextResponse } from "next/server";
 import { runChat } from "@/lib/aiClient";
-import { searchTrips } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 
+const AI_ENABLED =
+  process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
+  process.env.NEXT_PUBLIC_AI_ENABLED === "1";
+
 export async function POST(req: Request) {
+  if (!AI_ENABLED) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "AI trip planner is currently disabled. Please use the normal search.",
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = await req.json();
     const { query } = body as { query: string };
 
     if (!query || !query.trim()) {
-      return NextResponse.json({ error: "Missing query" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "Missing query" },
+        { status: 400 }
+      );
     }
 
-    // 1) Ask AI to convert free text → structured search payload
+    // 1) Convert free text to structured search payload
     const system = `
 You convert natural language trip requests into a strict JSON object:
 {
@@ -36,26 +51,24 @@ Only output valid JSON, no comments, no extra text.
       payload = JSON.parse(raw);
     } catch {
       return NextResponse.json(
-        { error: "AI parsing error", raw },
+        { ok: false, error: "AI parsing error", raw },
         { status: 500 }
       );
     }
 
-    // 2) Call your existing search API (lib/search.ts)
-    const searchResult = await searchTrips(payload);
+    // TODO: replace this with your real search helper if you have one
+    // For now assume you call /api/search from frontend, or implement a server-side call here.
 
-    // 3) Ask AI to plan a human-friendly itinerary + explanations
     const planningPrompt = `
 User query: ${query}
 Search payload: ${JSON.stringify(payload, null, 2)}
-Search result (truncated to first 5 options): ${JSON.stringify(searchResult.results.slice(0, 5), null, 2)}
 
-Using this info, do:
-1. Choose the 3 best bundles (cheapest, fastest, and best-overall).
-2. Create a day-by-day itinerary.
-3. Give a short explanation of why each of the 3 options is good.
+You don't know real-time prices here. Just propose a structure for:
+- 3 named trip options (top 3),
+- a day-by-day itinerary for one of them,
+- a short note.
 
-Reply as JSON:
+Return JSON:
 {
   "top3": [...],
   "itinerary": [...],
@@ -74,13 +87,12 @@ Reply as JSON:
     return NextResponse.json({
       ok: true,
       payload,
-      searchResult,
       planning,
     });
   } catch (e: any) {
     console.error(e);
     return NextResponse.json(
-      { error: e?.message || "Unknown error" },
+      { ok: false, error: e?.message || "Unknown error" },
       { status: 500 }
     );
   }

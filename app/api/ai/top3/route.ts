@@ -1,16 +1,28 @@
-// app/api/ai/top3/route.ts
 import { NextResponse } from "next/server";
 import { runChat } from "@/lib/aiClient";
 
 export const dynamic = "force-dynamic";
 
+const AI_ENABLED =
+  process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
+  process.env.NEXT_PUBLIC_AI_ENABLED === "1";
+
 export async function POST(req: Request) {
-  const { results } = await req.json();
+  if (!AI_ENABLED) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "AI Top-3 labeling is disabled. Showing normal results only.",
+      },
+      { status: 503 }
+    );
+  }
 
-  // Safeguard
-  const truncated = (results || []).slice(0, 20); // keep token usage sane
+  try {
+    const { results } = await req.json();
+    const truncated = (results || []).slice(0, 20);
 
-  const prompt = `
+    const prompt = `
 You are picking exactly 3 options from this list of trip results.
 Each result has id, price_usd (or similar), duration_minutes, and possibly a hotel.
 
@@ -32,15 +44,14 @@ Return JSON:
 }
 
 Results: ${JSON.stringify(truncated, null, 2)}
-  `.trim();
+`.trim();
 
-  try {
     const raw = await runChat(prompt);
     let parsed: any;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      parsed = { raw }; // fallback if AI didn't give valid JSON
+      parsed = { raw };
     }
 
     return NextResponse.json({ ok: true, top3: parsed });

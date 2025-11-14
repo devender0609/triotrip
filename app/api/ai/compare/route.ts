@@ -1,23 +1,37 @@
-// app/api/ai/compare/route.ts
 import { NextResponse } from "next/server";
 import { runChat } from "@/lib/aiClient";
 
 export const dynamic = "force-dynamic";
 
+const AI_ENABLED =
+  process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
+  process.env.NEXT_PUBLIC_AI_ENABLED === "1";
+
 type CompareRequest = {
-  destinations: string[]; // e.g. ["Bali", "Thailand", "Hawaii"]
-  month?: string;         // e.g. "December"
-  home?: string;          // e.g. "Austin, TX" or "AUS"
-  days?: number;          // e.g. 7
+  destinations: string[];
+  month?: string;
+  home?: string;
+  days?: number;
 };
 
 export async function POST(req: Request) {
+  if (!AI_ENABLED) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "AI destination comparison is disabled. You can still search destinations normally.",
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = (await req.json()) as CompareRequest;
 
     const destinations = body.destinations || [];
     const month = body.month || "anytime";
-    const home = body.home || "home city";
+    const home = body.home || "your home city";
     const days = body.days || 7;
 
     if (!destinations.length) {
@@ -34,9 +48,9 @@ Destinations:
 ${destinations.map((d, i) => `${i + 1}. ${d}`).join("\n")}
 
 For EACH destination, provide:
-- approximate_cost_level: "$", "$$", "$$$", or "$$$$"
+- approx_cost_level: "$", "$$", "$$$", or "$$$$"
 - weather_summary: short description for that month
-- best_for: 1 short phrase (e.g. "beaches and temples")
+- best_for: 1 short phrase
 - pros: array of 2-4 short bullet-style strings
 - cons: array of 2-4 short bullet-style strings
 - overall_vibe: 1 short sentence
@@ -61,7 +75,6 @@ STRICTLY return JSON ONLY in this format:
     try {
       parsed = JSON.parse(raw);
     } catch {
-      // If the model didn't give valid JSON, still return raw string for debugging
       parsed = { raw };
     }
 

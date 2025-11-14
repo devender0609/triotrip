@@ -4,11 +4,37 @@
 import { useState } from "react";
 import { aiPlanTrip } from "@/lib/api";
 
+const AI_ENABLED =
+  process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
+  process.env.NEXT_PUBLIC_AI_ENABLED === "1";
+
 export function AiTripPlanner() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // If AI is toggled OFF, show a friendly card and no form
+  if (!AI_ENABLED) {
+    return (
+      <section
+        style={{
+          background: "#f1f5f9",
+          borderRadius: 16,
+          padding: 16,
+          border: "1px solid #e2e8f0",
+        }}
+      >
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+          AI Trip Planner temporarily unavailable
+        </h2>
+        <p style={{ fontSize: 14, color: "#475569" }}>
+          Our AI assistant is currently turned off or at its usage limit. You
+          can still use the normal search below to find great trips.
+        </p>
+      </section>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,9 +43,13 @@ export function AiTripPlanner() {
       setError(null);
       setResult(null);
       const data = await aiPlanTrip(query);
-      setResult(data);
+      if (!data.ok) {
+        setError(data.error || "AI planner failed.");
+      } else {
+        setResult(data);
+      }
     } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      setError(err.message || "Something went wrong with AI.");
     } finally {
       setLoading(false);
     }
@@ -40,8 +70,8 @@ export function AiTripPlanner() {
         Plan my trip with AI ✈️
       </h2>
       <p style={{ fontSize: 14, opacity: 0.9 }}>
-        Type one sentence and let Triotrip AI find your best 3 trips and a
-        full itinerary.
+        Type one sentence and let Triotrip AI suggest your best 3 trips and a
+        sample itinerary.
       </p>
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 8 }}>
