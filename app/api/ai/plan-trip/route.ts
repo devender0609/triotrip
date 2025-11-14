@@ -1,4 +1,3 @@
-// app/api/ai/plan-trip/route.ts
 import { NextResponse } from "next/server";
 import { runChat } from "@/lib/aiClient";
 import { amadeusGet } from "@/lib/amadeusClient";
@@ -47,22 +46,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1) Ask AI to understand the sentence & build itinerary & top3.
+    // 1) Ask AI to understand the sentence & build itinerary, top3, and hotel recs.
     const prompt = `
 You are an expert travel planner. The user gives a short free-text description of a trip.
 
 User query:
 "${query}"
 
-First, infer structured search parameters.
-Then, outline a suggested itinerary and 3 high-level plan options.
-
+Infer structured search parameters, then outline a suggested itinerary, 3 high-level plan options, and hotel suggestions.
 Return ONE JSON object ONLY in this exact shape:
 
 {
   "search": {
-    "origin": "IATA code for origin, e.g. AUS",
-    "destination": "IATA code for destination, e.g. LAS",
+    "origin": "IATA origin code, e.g. AUS",
+    "destination": "IATA destination code, e.g. LAS",
     "departDate": "YYYY-MM-DD",
     "returnDate": "YYYY-MM-DD or empty string if one-way",
     "roundTrip": true,
@@ -98,16 +95,27 @@ Return ONE JSON object ONLY in this exact shape:
           "activity evening"
         ]
       }
+    ],
+    "hotels": [
+      {
+        "name": "Hotel or area name tailored to this trip",
+        "area": "Neighborhood or general location (e.g. 'near the Strip', 'Seminyak beach side')",
+        "approx_price_per_night": 180,
+        "currency": "USD",
+        "vibe": "short phrase like 'party', 'romantic', 'family-friendly'",
+        "why": "1–2 sentences explaining why this hotel/area fits the trip"
+      }
     ]
   }
 }
 
 Rules:
-- If the user clearly gives dates (like "Jan 10–15 2026"), convert them to ISO (2026-01-10, 2026-01-15).
+- If the user clearly gives dates (like "Jan 10–15 2026"), convert them to ISO (2026-01-10 and 2026-01-15).
 - If return date is not given, set "roundTrip": false and "returnDate": "".
 - If cabin is not specified, default to "ECONOMY".
 - If currency not specified, default to "USD".
-- Always output valid JSON, no comments or markdown.
+- Hotels must be appropriate for the destination, budget level, and any preferences (family, nightlife, etc.).
+- Always output valid JSON only, with no comments or markdown.
 `.trim();
 
     const raw = await runChat(prompt);
@@ -133,8 +141,7 @@ Rules:
     const adults = search.adults || 1;
     const children = search.children || 0;
     const infants = search.infants || 0;
-    const cabin =
-      search.cabin || "ECONOMY";
+    const cabin = search.cabin || "ECONOMY";
     const currency = search.currency || "USD";
 
     if (!origin || !destination || !departDate) {
@@ -148,7 +155,7 @@ Rules:
       );
     }
 
-    // 2) Call Amadeus in the SAME way as manual search to get real offers.
+    // 2) Call Amadeus to get real flight offers (same base as manual search).
     const params: any = {
       originLocationCode: origin,
       destinationLocationCode: destination,
@@ -162,10 +169,7 @@ Rules:
       params.returnDate = returnDate;
     }
 
-    const json: any = await amadeusGet(
-      "/v2/shopping/flight-offers",
-      params
-    );
+    const json: any = await amadeusGet("/v2/shopping/flight-offers", params);
     const offers: any[] = json.data || [];
 
     const results = offers.slice(0, 10).map((offer, idx) => {
@@ -212,7 +216,7 @@ Rules:
         id: offer.id || `ai-amadeus-${idx}`,
         flight,
         flight_total: priceTotal,
-        hotel_total: 0, // will be non-zero once hotel API is wired
+        hotel_total: 0,
         total_cost: priceTotal,
         provider: "amadeus",
       };
@@ -220,7 +224,6 @@ Rules:
       return pkg;
     });
 
-    // 3) Return AI planning + real flight packages (same shape as manual).
     return NextResponse.json({
       ok: true,
       searchParams: {

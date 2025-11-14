@@ -1,401 +1,316 @@
-"use client";
-import React, { useMemo } from "react";
+import React from "react";
 
-/* ---------------------------------------
-   Helpers
---------------------------------------- */
-const money = (n: number, ccy: string) => {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: ccy || "USD",
-      maximumFractionDigits: 0,
-    }).format(Math.round(n));
-  } catch {
-    return `$${Math.round(n).toLocaleString()}`;
-  }
+type Segment = {
+  from?: string;
+  to?: string;
+  departureTime?: string;
+  arrivalTime?: string;
+  carrierCode?: string;
+  flightNumber?: string;
+  duration_minutes?: number;
 };
 
-const fmtTime = (iso?: string) => {
+type Flight = {
+  price_usd: number;
+  currency?: string;
+  mainCarrier?: string;
+  segments_out?: Segment[];
+  segments_return?: Segment[];
+};
+
+type Pkg = {
+  id: string;
+  flight?: Flight;
+  flight_total?: number;
+  hotel_total?: number;
+  total_cost?: number;
+  provider?: string;
+};
+
+type Props = {
+  pkg: Pkg;
+  index: number;
+  currency: string;
+  pax: number;
+  showHotel: boolean;
+  hotelNights: number;
+  showAllHotels: boolean;
+  comparedIds: string[];
+  onToggleCompare: (id: string) => void;
+  onSavedChangeGlobal: (id: string, saved: boolean) => void;
+  hideActions?: boolean;
+  bookUrl?: string;
+};
+
+const AIRLINE_NAMES: Record<string, string> = {
+  AA: "American Airlines",
+  AAL: "American Airlines",
+  UA: "United Airlines",
+  UAL: "United Airlines",
+  DL: "Delta Air Lines",
+  DAL: "Delta Air Lines",
+  WN: "Southwest Airlines",
+  SWA: "Southwest Airlines",
+  B6: "JetBlue",
+  AS: "Alaska Airlines",
+  AF: "Air France",
+  BA: "British Airways",
+  LH: "Lufthansa",
+  EK: "Emirates",
+  QR: "Qatar Airways",
+  SQ: "Singapore Airlines",
+};
+
+function formatTime(iso?: string) {
   if (!iso) return "";
   const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-};
-const fmtDate = (iso?: string) => (iso ? new Date(iso).toISOString().slice(0, 10) : "");
-const mins = (a?: string, b?: string) =>
-  a && b ? Math.max(0, Math.round((+new Date(b) - +new Date(a)) / 60000)) : 0;
-const fmtDur = (m: number) => (m <= 0 ? "" : `${Math.floor(m / 60)}h ${m % 60}m`);
-const ensureHttps = (u?: string) => (!u ? "" : u.startsWith("http") ? u : `https://${u.replace(/^\/\//, "")}`);
-
-/* airline site guess (kept minimal) */
-const AIRLINE_SITE: Record<string, string> = {
-  American: "https://www.aa.com",
-  "American Airlines": "https://www.aa.com",
-  Delta: "https://www.delta.com",
-  United: "https://www.united.com",
-  Alaska: "https://www.alaskaair.com",
-  Southwest: "https://www.southwest.com",
-  JetBlue: "https://www.jetblue.com",
-  Lufthansa: "https://www.lufthansa.com",
-  Emirates: "https://www.emirates.com",
-  Qatar: "https://www.qatarairways.com",
-  "British Airways": "https://www.britishairways.com",
-  "Air France": "https://wwws.airfrance.us",
-  KLM: "https://www.klm.com",
-};
-
-/* ---------------------------------------
-   Types
---------------------------------------- */
-type Props = {
-  pkg: any;
-  index?: number;
-  currency?: string;
-  pax?: number;
-
-  comparedIds?: string[];
-  onToggleCompare?: (id: string) => void;
-  onSavedChangeGlobal?: (n: number) => void;
-
-  showHotel?: boolean;
-  showAllHotels?: boolean;
-  hotelNights?: number;
-  hotelCheckIn?: string;
-  hotelCheckOut?: string;
-};
-
-/* ---------------------------------------
-   Robust getters (accept many shapes so
-   data never “disappears”)
---------------------------------------- */
-function getSegmentsOutbound(pkg: any): any[] {
-  return (
-    pkg?.flight?.segments_out ||
-    pkg?.flight?.outbound ||
-    pkg?.segments_out ||
-    pkg?.segmentsOut ||
-    pkg?.outbound ||
-    pkg?.segments?.out ||
-    pkg?.segments ||
-    []
-  );
 }
-function getSegmentsReturn(pkg: any): any[] {
-  return (
-    pkg?.flight?.segments_in ||
-    pkg?.flight?.segments_return ||
-    pkg?.flight?.return ||
-    pkg?.segments_in ||
-    pkg?.segmentsIn ||
-    pkg?.returnSegments ||
-    pkg?.inbound ||
-    pkg?.segments?.in ||
-    []
-  );
-}
-function getCarrierList(pkg: any, outSegs: any[], inSegs: any[]) {
-  return Array.from(
-    new Set(
-      [
-        ...(outSegs || []).map((s) => s?.carrier_name || s?.carrier),
-        ...(inSegs || []).map((s) => s?.carrier_name || s?.carrier),
-        pkg?.flight?.carrier_name || pkg?.flight?.carrier,
-      ].filter(Boolean)
-    )
-  );
-}
-function getOrigin(pkg: any, outSegs: any[]) {
-  return (outSegs?.[0]?.from || pkg?.origin || pkg?.from || "").toUpperCase();
-}
-function getDestination(pkg: any, outSegs: any[]) {
-  return (outSegs?.[outSegs.length - 1]?.to || pkg?.destination || pkg?.to || "").toUpperCase();
-}
-const readNightly = (h: any): number | undefined => {
-  const n =
-    h?.price_per_night ??
-    h?.nightly ??
-    h?.rate ??
-    h?.nightly_price ??
-    h?.night_price ??
-    h?.priceNight ??
-    h?.price_night ??
-    h?.pricePerNight ??
-    h?.amountNight ??
-    h?.amount_night;
-  const v = Number(n);
-  return Number.isFinite(v) ? v : undefined;
-};
-const readTotal = (h: any): number | undefined => {
-  const t =
-    h?.price_total ??
-    h?.priceTotal ??
-    h?.total ??
-    h?.total_price ??
-    h?.amount ??
-    h?.price ??
-    h?.cost;
-  const v = Number(t);
-  return Number.isFinite(v) ? v : undefined;
-};
-const photoSeed = (s: string) => {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
-  return Math.abs(h);
-};
 
-/* -------- Leg rows with a layover chip between segments -------- */
-const LegRows: React.FC<{ segs: any[]; airlineFallback?: string }> = ({ segs, airlineFallback }) => {
-  if (!segs?.length) return <div style={{ color: "#94a3b8", fontWeight: 700 }}>No segments found</div>;
-  const rows: React.ReactNode[] = [];
-  for (let i = 0; i < segs.length; i++) {
-    const s = segs[i];
-    const carrier = s?.carrier_name || s?.carrier || airlineFallback || "—";
-    const dep = s?.depart_time;
-    const arr = s?.arrive_time;
-    const dur = fmtDur(mins(dep, arr));
-    rows.push(
-      <div key={`seg-${i}`} className="leg-row">
-        <div className="leg-left">
-          <div className="leg-airline">{carrier}</div>
-          <div className="leg-cities">
-            {s?.from?.toUpperCase()} <span className="leg-arrow">→</span> {s?.to?.toUpperCase()}
-          </div>
-          <div className="leg-times">
-            {fmtTime(dep)} — {fmtTime(arr)}
-          </div>
-        </div>
-        <div className="leg-right">{dur}</div>
-      </div>
-    );
-    const next = segs[i + 1];
-    if (next) {
-      const lay = mins(arr, next?.depart_time);
-      rows.push(
-        <div key={`lay-${i}`} className="layover-chip">
-          ⏱ <span>Layover in</span>
-          <strong>{` ${next?.from?.toUpperCase()} `}</strong>
-          <span>• Next departs at</span>
-          <strong>{` ${fmtTime(next?.depart_time)} `}</strong>
-          <span className="layover-dur">({fmtDur(lay)})</span>
-        </div>
-      );
+function formatDate(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  return d.toLocaleDateString();
+}
+
+function formatDuration(minutes?: number) {
+  if (!minutes || minutes <= 0) return "";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
+
+function computeLayovers(segments: Segment[]): { city: string; minutes: number }[] {
+  const layovers: { city: string; minutes: number }[] = [];
+  for (let i = 0; i < segments.length - 1; i++) {
+    const cur = segments[i];
+    const next = segments[i + 1];
+    if (!cur.arrivalTime || !next.departureTime || !cur.to) continue;
+    const t1 = new Date(cur.arrivalTime).getTime();
+    const t2 = new Date(next.departureTime).getTime();
+    if (!Number.isFinite(t1) || !Number.isFinite(t2)) continue;
+    const diffMin = Math.round((t2 - t1) / 60000);
+    if (diffMin > 0) {
+      layovers.push({ city: cur.to, minutes: diffMin });
     }
   }
-  return <>{rows}</>;
-};
+  return layovers;
+}
 
-/* ---------------------------------------
-   Component
---------------------------------------- */
+function carrierDisplay(code?: string, flightNumber?: string) {
+  if (!code) return "";
+  const cleanCode = code.trim().toUpperCase();
+  const name = AIRLINE_NAMES[cleanCode] || cleanCode;
+  if (flightNumber) {
+    return `${name} · ${cleanCode}${flightNumber}`;
+  }
+  return name;
+}
+
 export default function ResultCard({
   pkg,
-  index = 0,
-  currency = "USD",
-  pax = 1,
+  index,
+  currency,
+  pax,
+  showHotel,
+  hotelNights,
+  showAllHotels,
   comparedIds,
   onToggleCompare,
   onSavedChangeGlobal,
-  showHotel,
-  showAllHotels = false,
-  hotelNights = 0,
-  hotelCheckIn,
-  hotelCheckOut,
+  hideActions,
+  bookUrl,
 }: Props) {
-  const id = pkg?.id || `pkg-${index}`;
+  const flight = pkg.flight;
+  const price = flight?.price_usd ?? pkg.total_cost ?? 0;
+  const cur = flight?.currency || currency || "USD";
 
-  const outSegs = getSegmentsOutbound(pkg);
-  const inSegs = getSegmentsReturn(pkg);
+  const segmentsOut = flight?.segments_out || [];
+  const segmentsReturn = flight?.segments_return || [];
 
-  const from = getOrigin(pkg, outSegs);
-  const to = getDestination(pkg, outSegs);
+  const firstOut = segmentsOut[0];
+  const lastOut = segmentsOut[segmentsOut.length - 1];
+  const firstRet = segmentsReturn[0];
+  const lastRet = segmentsReturn[segmentsReturn.length - 1];
 
-  const firstOut = outSegs?.[0];
-  const firstIn = inSegs?.[0];
+  const layoversOut = computeLayovers(segmentsOut);
+  const layoversRet = computeLayovers(segmentsReturn);
 
-  const dateOut = fmtDate(firstOut?.depart_time || pkg?.departDate);
-  const dateRet = fmtDate(firstIn?.depart_time || pkg?.returnDate);
+  const flightLabel = carrierDisplay(
+    flight?.mainCarrier || firstOut?.carrierCode,
+    firstOut?.flightNumber
+  );
 
-  const carriers = getCarrierList(pkg, outSegs, inSegs);
-  const airline = carriers[0];
+  const totalPerPerson = price > 0 ? price / Math.max(1, pax) : 0;
 
-  const price =
-    pkg?.total_cost_converted ??
-    pkg?.total_cost ??
-    pkg?.flight?.price_usd_converted ??
-    pkg?.flight?.price_usd ??
-    pkg?.flight_total ??
-    0;
-
-  /* Booking links (kept) */
-  const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(
-    `${from} to ${to} on ${dateOut}${dateRet ? ` return ${dateRet}` : ""} for ${pax} travelers`
-  )}`;
-
-  const sky =
-    from && to && dateOut
-      ? `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${dateOut.replace(
-          /-/g,
-          ""
-        )}/${dateRet ? `${dateRet.replace(/-/g, "")}/` : ""}`
-      : "https://www.skyscanner.com/";
-
-  const airlineUrl =
-    AIRLINE_SITE[airline || ""] ||
-    `https://www.google.com/search?q=${encodeURIComponent(`${airline || "airline"} ${from} ${to} ${dateOut}`)}`;
-
-  /* TrioTrip internal link (kept; works with your /book/checkout route) */
-  const trioQS = new URLSearchParams({
-    from,
-    to,
-    depart: dateOut || "",
-    ...(dateRet ? { return: dateRet } : {}),
-    price: String(Number(price) || 0),
-    airline: airline || "",
-    pax: String(pax || 1),
-  }).toString();
-  const trioCheckout = `/book/checkout?${trioQS}`;
-
-  /* Save */
-  const compared = !!comparedIds?.includes(id);
-  const saved = useMemo(() => {
-    try {
-      return (JSON.parse(localStorage.getItem("triptrio:saved") || "[]") as string[]).includes(id);
-    } catch {
-      return false;
-    }
-  }, [id]);
-
-  function toggleSave(e: React.MouseEvent) {
-    e.stopPropagation();
-    try {
-      const k = "triptrio:saved";
-      const arr = JSON.parse(localStorage.getItem(k) || "[]") as string[];
-      const next = arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
-      localStorage.setItem(k, JSON.stringify(next));
-      onSavedChangeGlobal?.(next.length);
-    } catch {}
-  }
-
-  /* Hotels (logic unchanged; just robust links) */
-  const hotels: any[] = Array.isArray(pkg?.hotels) && pkg.hotels.length ? pkg.hotels : pkg?.hotel ? [pkg.hotel] : [];
-
-  const hotelLinks = (h: any) => {
-    const city = h?.city || pkg?.destination || to || "";
-    const q = h?.name ? `${h.name}, ${city}` : city || "hotels";
-    const booking = new URL("https://www.booking.com/searchresults.html");
-    if (q) booking.searchParams.set("ss", q);
-    if (hotelCheckIn) booking.searchParams.set("checkin", hotelCheckIn);
-    if (hotelCheckOut) booking.searchParams.set("checkout", hotelCheckOut);
-
-    const exp = new URL("https://www.expedia.com/Hotel-Search");
-    if (q) exp.searchParams.set("destination", q);
-    if (hotelCheckIn) exp.searchParams.set("startDate", hotelCheckIn);
-    if (hotelCheckOut) exp.searchParams.set("endDate", hotelCheckOut);
-
-    const hcx = new URL("https://www.hotels.com/Hotel-Search");
-    if (q) hcx.searchParams.set("destination", q);
-    if (hotelCheckIn) hcx.searchParams.set("checkIn", hotelCheckIn);
-    if (hotelCheckOut) hcx.searchParams.set("checkOut", hotelCheckOut);
-
-    const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
-    return { booking: booking.toString(), exp: exp.toString(), hcx: hcx.toString(), maps };
-  };
-
-  const computePrices = (h: any) => {
-    const nightly = readNightly(h);
-    const total = readTotal(h);
-    if (nightly != null && total == null && hotelNights && hotelNights > 0) {
-      return { nightly, total: nightly * hotelNights };
-    }
-    if (total != null && nightly == null && hotelNights && hotelNights > 0) {
-      return { nightly: total / hotelNights, total };
-    }
-    return { nightly, total };
-  };
+  const isCompared = comparedIds.includes(pkg.id);
 
   return (
-    <section onClick={() => onToggleCompare?.(id)} className={`result-card ${compared ? "result-card--compared" : ""}`}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontWeight: 900, color: "#0f172a" }}>Option {index + 1} • {from} — {to}</div>
-          <div style={{ color: "#334155", fontWeight: 600 }}>
-            {dateOut && <>Outbound {dateOut}</>} {dateRet && <>• Return {dateRet}</>} {airline && <>• {airline}</>}
+    <div
+      className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm text-slate-100 flex flex-col gap-3"
+    >
+      {/* Price + airline header */}
+      <div className="flex justify-between items-start gap-2">
+        <div className="flex flex-col gap-1">
+          <div className="text-xs uppercase tracking-wide text-slate-400">
+            Option {index + 1}
+          </div>
+          {flightLabel && (
+            <div className="font-semibold text-sm">{flightLabel}</div>
+          )}
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-bold">
+            {cur} {Math.round(price).toLocaleString()}
+          </div>
+          <div className="text-xs text-slate-400">
+            ~{cur} {Math.round(totalPerPerson).toLocaleString()} / person
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <div className="price-badge">💵 {money(Number(price) || 0, currency || "USD")}</div>
-          <a className="btn" href={trioCheckout} target="_blank" rel="noreferrer">TrioTrip</a>
-          <a className="btn" href={gf} target="_blank" rel="noreferrer">Google Flights</a>
-          <a className="btn" href={sky} target="_blank" rel="noreferrer">Skyscanner</a>
-          <a className="btn" href={airlineUrl} target="_blank" rel="noreferrer">{airline ? "Airline" : "Airlines"}</a>
-          <button className="btn btn--ghost" onClick={toggleSave}>{saved ? "💾 Saved" : "＋ Save"}</button>
-          <button
-            className={`btn ${compared ? "btn--on" : ""}`}
-            onClick={(e) => { e.stopPropagation(); onToggleCompare?.(id); }}
-          >
-            {compared ? "🆚 In Compare" : "➕ Compare"}
-          </button>
-        </div>
-      </header>
-
-      {/* Outbound box */}
-      <div className="result-leg" style={{ padding: 12, marginTop: 10 }}>
-        <div className="result-leg-title" style={{ marginBottom: 8 }}>Outbound</div>
-        <LegRows segs={outSegs} airlineFallback={airline} />
       </div>
 
-      {/* Return box */}
-      <div className="result-leg" style={{ padding: 12, marginTop: 10 }}>
-        <div className="result-leg-title" style={{ marginBottom: 8 }}>Return</div>
-        <LegRows segs={inSegs} airlineFallback={airline} />
-      </div>
+      {/* Outbound summary */}
+      {segmentsOut.length > 0 && (
+        <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3 flex flex-col gap-1">
+          <div className="flex justify-between items-baseline gap-2">
+            <div className="font-semibold text-xs text-sky-300 uppercase tracking-wide">
+              Outbound
+            </div>
+            <div className="text-xs text-slate-400">
+              {firstOut?.from} → {lastOut?.to} ·{" "}
+              {segmentsOut.length > 1
+                ? `${segmentsOut.length - 1} stop${
+                    segmentsOut.length - 1 > 1 ? "s" : ""
+                  }`
+                : "non-stop"}
+            </div>
+          </div>
 
-      {/* Hotels (unchanged list & links) */}
-      {showHotel && (Array.isArray(pkg?.hotels) ? pkg.hotels.length : pkg?.hotel) ? (
-        <div className="hotels">
-          <div className="hotels__title">{showAllHotels ? "Hotels (all)" : "Hotels (top options)"}</div>
-          {(showAllHotels ? (pkg.hotels || []) : (pkg.hotels || []).slice(0, 12)).map((h: any, i: number) => {
-            const { booking, exp, hcx, maps } = hotelLinks(h);
-            const { nightly, total } = computePrices(h);
-            const img =
-              ensureHttps(h?.image) ||
-              ensureHttps(h?.photoUrl) ||
-              ensureHttps(h?.thumbnail) ||
-              ensureHttps(h?.images?.[0]) ||
-              `https://picsum.photos/seed/${photoSeed((h?.name || "hotel") + "|" + i)}/400/240`;
-
-            return (
-              <div key={i} className="hotel">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <a href={booking} target="_blank" rel="noreferrer" className="hotel__img">
-                  <img src={img} alt={h?.name || "Hotel"} />
-                </a>
-                <div className="hotel__body">
-                  <div className="hotel__head">
-                    <a href={booking} target="_blank" rel="noreferrer" className="hotel__name">
-                      {h?.name || "Hotel"}
-                    </a>
-                    <div className="hotel__price">
-                      {nightly != null && (
-                        <span>
-                          {money(nightly, currency || "USD")} <span className="muted">/ night</span>
-                        </span>
-                      )}
-                      {total != null && <span className="muted"> • {money(total, currency || "USD")} total</span>}
-                    </div>
-                  </div>
-                  <div className="hotel__links">
-                    <a className="btn" href={booking} target="_blank" rel="noreferrer">Booking.com</a>
-                    <a className="btn" href={exp} target="_blank" rel="noreferrer">Expedia</a>
-                    <a className="btn" href={hcx} target="_blank" rel="noreferrer">Hotels</a>
-                    <a className="btn" href={maps} target="_blank" rel="noreferrer">Map</a>
-                  </div>
-                </div>
+          <div className="flex justify-between text-xs mt-1">
+            <div>
+              <div className="font-semibold">
+                {formatTime(firstOut?.departureTime)}{" "}
               </div>
-            );
-          })}
+              <div className="text-slate-400">
+                {formatDate(firstOut?.departureTime)} · {firstOut?.from}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold">
+                {formatTime(lastOut?.arrivalTime)}{" "}
+              </div>
+              <div className="text-slate-400">
+                {formatDate(lastOut?.arrivalTime)} · {lastOut?.to}
+              </div>
+            </div>
+          </div>
+
+          {/* Layovers outbound */}
+          {layoversOut.length > 0 && (
+            <div className="mt-2 text-xs text-slate-300">
+              {layoversOut.map((l, i) => (
+                <div key={i}>
+                  Layover in {l.city} · {formatDuration(l.minutes)}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ) : null}
-    </section>
+      )}
+
+      {/* Return summary */}
+      {segmentsReturn.length > 0 && (
+        <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3 flex flex-col gap-1">
+          <div className="flex justify-between items-baseline gap-2">
+            <div className="font-semibold text-xs text-emerald-300 uppercase tracking-wide">
+              Return
+            </div>
+            <div className="text-xs text-slate-400">
+              {firstRet?.from} → {lastRet?.to} ·{" "}
+              {segmentsReturn.length > 1
+                ? `${segmentsReturn.length - 1} stop${
+                    segmentsReturn.length - 1 > 1 ? "s" : ""
+                  }`
+                : "non-stop"}
+            </div>
+          </div>
+
+          <div className="flex justify-between text-xs mt-1">
+            <div>
+              <div className="font-semibold">
+                {formatTime(firstRet?.departureTime)}{" "}
+              </div>
+              <div className="text-slate-400">
+                {formatDate(firstRet?.departureTime)} · {firstRet?.from}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold">
+                {formatTime(lastRet?.arrivalTime)}{" "}
+              </div>
+              <div className="text-slate-400">
+                {formatDate(lastRet?.arrivalTime)} · {lastRet?.to}
+              </div>
+            </div>
+          </div>
+
+          {/* Layovers return */}
+          {layoversRet.length > 0 && (
+            <div className="mt-2 text-xs text-slate-300">
+              {layoversRet.map((l, i) => (
+                <div key={i}>
+                  Layover in {l.city} · {formatDuration(l.minutes)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Hotel info placeholder – still 0 until real hotel API is wired */}
+      {showHotel && hotelNights > 0 && (
+        <div className="text-xs text-slate-400">
+          Includes hotel for {hotelNights} night
+          {hotelNights > 1 ? "s" : ""} (pricing TBD).
+        </div>
+      )}
+
+      {/* Actions row */}
+      <div className="flex justify-between items-center mt-1 gap-2">
+        {bookUrl ? (
+          <a
+            href={bookUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-full bg-sky-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-sky-400 transition-colors"
+          >
+            Book on Google Flights
+          </a>
+        ) : (
+          <div />
+        )}
+
+        {!hideActions && (
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => onToggleCompare(pkg.id)}
+              className={`px-2 py-1 rounded-full border ${
+                isCompared
+                  ? "border-amber-400 text-amber-300"
+                  : "border-slate-700 text-slate-300"
+              } hover:border-amber-400 hover:text-amber-200 transition-colors`}
+            >
+              {isCompared ? "In compare" : "Compare"}
+            </button>
+            {/* You can wire Saved state from parent if needed */}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
