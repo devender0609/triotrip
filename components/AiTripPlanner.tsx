@@ -23,6 +23,18 @@ type PlanningPayload = {
 
 type OptionsView = "top3" | "all";
 
+function nightsBetween(a?: string, b?: string) {
+  if (!a || !b) return 0;
+  const A = new Date(a).getTime();
+  const B = new Date(b).getTime();
+  if (!Number.isFinite(A) || !Number.isFinite(B)) return 0;
+  return Math.max(0, Math.round((B - A) / 86400000));
+}
+
+/**
+ * Build a simple Google Flights deeplink using inferred params.
+ * Not perfect, but good enough for pre-filled search.
+ */
 function buildGoogleFlightsUrl(
   pkg: any,
   searchParams: any | null
@@ -69,10 +81,10 @@ export function AiTripPlanner() {
     const t = planning.top3;
     if (!t) return null;
 
-    const defs: { key: keyof PlanningPayload["top3"]; label: string }[] = [
-      { key: "best_overall", label: "Best overall" },
-      { key: "best_budget", label: "Best budget" },
-      { key: "best_comfort", label: "Most comfortable" },
+    const defs: { key: keyof PlanningPayload["top3"]; label: string; icon: string }[] = [
+      { key: "best_overall", label: "Best overall", icon: "🥇" },
+      { key: "best_budget", label: "Best budget", icon: "💰" },
+      { key: "best_comfort", label: "Most comfortable", icon: "🛏️" },
     ];
 
     const items = defs
@@ -81,23 +93,29 @@ export function AiTripPlanner() {
         if (!value || (!value.title && !value.reason)) return null;
         return { ...def, value };
       })
-      .filter(Boolean) as { key: any; label: string; value: Top3Item }[];
+      .filter(Boolean) as {
+      key: any;
+      label: string;
+      icon: string;
+      value: Top3Item;
+    }[];
 
     if (!items.length) return null;
 
     return (
-      <section className="mt-4 space-y-2">
+      <section className="mt-6 space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
-          <span>🏆 Top 3 options</span>
+          <span>🏆 Top 3 Options</span>
         </h3>
-        <div className="grid gap-3 md:grid-cols-3">
-          {items.map(({ key, label, value }) => (
+        <div className="grid gap-4 md:grid-cols-3">
+          {items.map(({ key, label, icon, value }) => (
             <article
               key={key}
-              className="rounded-xl bg-slate-800/70 border border-slate-700 p-3 text-xs space-y-1 shadow-sm"
+              className="rounded-2xl bg-slate-900/70 border border-slate-700 px-4 py-3 text-xs space-y-1 shadow-sm"
             >
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                {label}
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <span>{icon}</span>
+                <span>{label}</span>
               </div>
               {value.title && (
                 <div className="text-[13px] font-semibold text-slate-50">
@@ -122,24 +140,34 @@ export function AiTripPlanner() {
       (searchParams?.passengersAdults || 1) +
       (searchParams?.passengersChildren || 0) +
       (searchParams?.passengersInfants || 0);
+
     const includeHotel = !!searchParams?.includeHotel;
 
+    const hotelCheckIn =
+      searchParams?.hotelCheckIn || searchParams?.departDate || "";
+    const hotelCheckOut =
+      searchParams?.hotelCheckOut || searchParams?.returnDate || "";
+    const hotelNights = includeHotel
+      ? nightsBetween(hotelCheckIn, hotelCheckOut)
+      : 0;
+
+    // EXACT same ResultCard layout as manual search
     const visible = optionsView === "top3" ? results.slice(0, 3) : results;
 
     return (
-      <section className="mt-6 space-y-3">
+      <section className="mt-8 space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
-            <span>✈ Flight options</span>
+          <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+            <span>✈ Real flight options (same as manual search)</span>
           </h3>
-          <div className="inline-flex items-center rounded-full border border-slate-600 bg-slate-900 text-[11px] overflow-hidden">
+          <div className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900 text-[11px] overflow-hidden">
             <button
               type="button"
               onClick={() => setOptionsView("top3")}
               className={`px-3 py-1 font-semibold ${
                 optionsView === "top3"
                   ? "bg-sky-500 text-white"
-                  : "text-slate-200"
+                  : "text-slate-300"
               }`}
             >
               Top 3
@@ -150,7 +178,7 @@ export function AiTripPlanner() {
               className={`px-3 py-1 font-semibold ${
                 optionsView === "all"
                   ? "bg-sky-500 text-white"
-                  : "text-slate-200"
+                  : "text-slate-300"
               }`}
             >
               All options
@@ -158,8 +186,7 @@ export function AiTripPlanner() {
           </div>
         </div>
 
-        {/* Result cards: exactly the same style as Manual Search */}
-        <div className="grid gap-3">
+        <div className="grid gap-5">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
             return (
@@ -170,9 +197,9 @@ export function AiTripPlanner() {
                 currency={currency}
                 pax={pax}
                 showHotel={includeHotel}
-                hotelNights={pkg.hotelNights ?? 0}
+                hotelNights={hotelNights}
                 showAllHotels={optionsView === "all"}
-                comparedIds={[]}
+                comparedIds={[]} // AI view doesn’t use Compare tray yet
                 onToggleCompare={() => {}}
                 onSavedChangeGlobal={() => {}}
                 bookUrl={bookUrl}
@@ -208,9 +235,9 @@ export function AiTripPlanner() {
       setSearchParams(data.searchParams || null);
 
       if (!data.ok) {
-        // Test-mode / Amadeus issues -> soft message only
+        // Hide raw Amadeus / backend errors – just a soft message
         setWarning(
-          "Live flight prices are not available in this test mode. You can still use Manual Search for real prices."
+          "Live flight prices may be limited in test mode. You can still use Manual Search for full control."
         );
       } else {
         setWarning(null);
@@ -227,37 +254,40 @@ export function AiTripPlanner() {
 
   return (
     <section className="mt-6">
-      {/* Dark, elegant card – visually matches your Compare AI card */}
-      <div className="rounded-3xl bg-slate-900 text-slate-50 px-5 py-6 shadow-lg space-y-4">
+      {/* Main AI card */}
+      <div className="rounded-3xl bg-slate-950 text-slate-50 px-5 py-6 shadow-lg space-y-5 border border-slate-800">
+        {/* Header */}
         <div className="space-y-1">
-          <h2 className="text-lg font-bold flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
             <span>Plan my trip with AI</span>
             <span>✈️</span>
           </h2>
-          <p className="text-xs text-slate-300 max-w-2xl">
-            Type one sentence about your trip. We&apos;ll infer dates, cities,
-            cabin, and travellers and then show flights in the same card layout
-            as your manual search.
+          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
+            Tell us your trip idea in one sentence. We&apos;ll interpret it,
+            generate an itinerary, and show real flight options using the same
+            data as manual search.
           </p>
         </div>
 
+        {/* Input */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <textarea
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder='Example: "Austin to Boston, flights Nov 20–22, nice hotel near downtown."'
+            placeholder='Example: "Austin to New Delhi, budget-friendly flight and hotel, Nov 20–Dec 3, 2 nights in Delhi."'
             rows={2}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
           />
           <button
             type="submit"
             disabled={loading || !query.trim()}
             className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md disabled:opacity-60"
           >
-            {loading ? "Planning your trip…" : "Generate AI trip"}
+            {loading ? "Planning your trip…" : "Generate AI Trip"}
           </button>
         </form>
 
+        {/* Soft warning (no raw 400 / Amadeus error) */}
         {warning && (
           <div className="rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100 flex gap-2">
             <span>⚠️</span>
@@ -268,10 +298,11 @@ export function AiTripPlanner() {
         {planning && <Top3Strip planning={planning} />}
         {results && <FlightOptions />}
 
-        {!results && !planning && !warning && (
-          <p className="text-[11px] text-slate-400">
-            Tip: For now, AI planning works best for simple round-trip ideas.
-            Use Manual Search if you need full control over times and airlines.
+        {!planning && !results && !warning && (
+          <p className="text-[11px] text-slate-500">
+            Tip: Try including dates, trip length, and whether you want hotel
+            included. Example: &quot;Austin to Boston, 3-day weekend in
+            November, flights + 2 nights hotel downtown.&quot;
           </p>
         )}
       </div>
