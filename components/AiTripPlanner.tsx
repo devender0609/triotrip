@@ -25,12 +25,8 @@ type PlanningPayload = {
 
 type OptionsView = "top3" | "all";
 
-function buildGoogleFlightsUrl(
-  pkg: any,
-  searchParams: any | null
-): string | undefined {
+function buildGoogleFlightsUrl(pkg: any, searchParams: any | null) {
   if (!searchParams) return undefined;
-
   const origin = searchParams.origin;
   const destination = searchParams.destination;
   const departDate = searchParams.departDate;
@@ -61,7 +57,7 @@ function buildGoogleFlightsUrl(
   return `https://www.google.com/travel/flights?q=${q}`;
 }
 
-function AiTripPlannerInner() {
+function AiTripPlanner() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -145,7 +141,7 @@ function AiTripPlannerInner() {
 
     return (
       <section className="mt-8 space-y-4">
-        {/* Flight section header in a dark bar */}
+        {/* header bar with toggle */}
         <div className="rounded-2xl bg-slate-950/90 border border-slate-800 px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <span>✈ Real flight options (same as manual search)</span>
@@ -176,7 +172,7 @@ function AiTripPlannerInner() {
           </div>
         </div>
 
-        {/* 🔥 THIS is what creates the white flight boxes, reusing Manual Search */}
+        {/* 🔥 These are the white ResultCard boxes, identical to manual search */}
         <div className="grid gap-5">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
@@ -202,7 +198,7 @@ function AiTripPlannerInner() {
     );
   };
 
-  /*************** HOTEL BOXES ***************/
+  /*************** HOTEL CARDS ***************/
   const HotelSection = () => {
     const hotels = Array.isArray(planning?.hotels)
       ? planning!.hotels
@@ -264,7 +260,7 @@ function AiTripPlannerInner() {
     );
   };
 
-  /*************** ITINERARY BOXES ***************/
+  /*************** ITINERARY CARDS ***************/
   const ItinerarySection = () => {
     const days = Array.isArray(planning?.itinerary)
       ? planning!.itinerary
@@ -345,7 +341,7 @@ function AiTripPlannerInner() {
       }
 
       setPlanning(data.planning || null);
-      setResults(data.searchResult?.results || null); // same shape as manual search
+      setResults(data.searchResult?.results || null);
       setSearchParams(data.searchParams || null);
     } catch (err: any) {
       console.error("AI trip error:", err);
@@ -358,11 +354,8 @@ function AiTripPlannerInner() {
   }
 
   /*************** RENDER ***************/
-  if (!AI_ENABLED) return null;
-
   return (
-    <section className="mt-6 space-y-4 text-slate-50">
-      {/* header – this is the part that already looks right for you */}
+    <section className="mt-2 space-y-4 text-slate-50 bg-slate-950 px-4 py-4 rounded-2xl border border-slate-800">
       <div className="space-y-1">
         <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
           <span>Plan my trip with AI</span>
@@ -375,7 +368,6 @@ function AiTripPlannerInner() {
         </p>
       </div>
 
-      {/* prompt + button */}
       <form onSubmit={handleSubmit} className="space-y-3">
         <textarea
           value={prompt}
@@ -416,8 +408,4 @@ function AiTripPlannerInner() {
   );
 }
 
-export function AiTripPlanner() {
-  return <AiTripPlannerInner />;
-}
-
-export default AiTripPlannerInner;
+export default AiTripPlanner;
