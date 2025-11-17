@@ -19,6 +19,7 @@ type PlanningPayload = {
     best_budget?: Top3Item;
     best_comfort?: Top3Item;
   };
+  itinerary?: any[];
 };
 
 type OptionsView = "top3" | "all";
@@ -59,7 +60,7 @@ function buildGoogleFlightsUrl(
   return `https://www.google.com/travel/flights?q=${q}`;
 }
 
-function AiTripPlanner() {
+function AiTripPlannerInner() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -72,6 +73,9 @@ function AiTripPlanner() {
 
   if (!AI_ENABLED) return null;
 
+  /************************
+   *   TOP 3 OPTIONS STRIP
+   ************************/
   const Top3Strip = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
     if (!t) return null;
@@ -102,27 +106,27 @@ function AiTripPlanner() {
     if (!items.length) return null;
 
     return (
-      <section className="mt-4 space-y-3">
-        <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-          <span>Top 3 picks</span>
+      <section className="mt-6 space-y-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
+          <span>🏆 Top 3 Options</span>
         </h3>
         <div className="grid gap-4 md:grid-cols-3">
           {items.map(({ key, label, icon, value }) => (
             <article
               key={key}
-              className="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 text-xs space-y-1 shadow-sm"
+              className="rounded-2xl bg-slate-900/80 border border-slate-700 px-4 py-3 text-xs space-y-1 shadow-sm"
             >
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                 <span>{icon}</span>
                 <span>{label}</span>
               </div>
               {value.title && (
-                <div className="text-[13px] font-semibold text-slate-900">
+                <div className="text-[13px] font-semibold text-slate-50">
                   {value.title}
                 </div>
               )}
               {value.reason && (
-                <p className="text-slate-600 leading-snug">{value.reason}</p>
+                <p className="text-slate-300 leading-snug">{value.reason}</p>
               )}
             </article>
           ))}
@@ -131,6 +135,9 @@ function AiTripPlanner() {
     );
   };
 
+  /************************
+   *   FLIGHT OPTIONS
+   ************************/
   const FlightOptions = () => {
     if (!results || !results.length) return null;
 
@@ -144,22 +151,22 @@ function AiTripPlanner() {
     const visible = optionsView === "top3" ? results.slice(0, 3) : results;
 
     return (
-      <section className="mt-6 space-y-4">
+      <section className="mt-8 space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <span>Flight options</span>
+          <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+            <span>✈ Real flight options (same as manual search)</span>
           </h3>
-          <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 text-[11px] overflow-hidden">
+          <div className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900 text-[11px] overflow-hidden">
             <button
               type="button"
               onClick={() => setOptionsView("top3")}
               className={`px-3 py-1 font-semibold ${
                 optionsView === "top3"
                   ? "bg-sky-500 text-white"
-                  : "text-slate-700"
+                  : "text-slate-300"
               }`}
             >
-              Top 3
+              Top 3 options
             </button>
             <button
               type="button"
@@ -167,15 +174,15 @@ function AiTripPlanner() {
               className={`px-3 py-1 font-semibold ${
                 optionsView === "all"
                   ? "bg-sky-500 text-white"
-                  : "text-slate-700"
+                  : "text-slate-300"
               }`}
             >
-              All
+              All options
             </button>
           </div>
         </div>
 
-        {/* This is where AI results use the same elegant card UI as manual search */}
+        {/* Same ResultCard layout as Manual Search */}
         <div className="grid gap-5">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
@@ -201,6 +208,59 @@ function AiTripPlanner() {
     );
   };
 
+  /************************
+   *   ITINERARY
+   ************************/
+  const ItinerarySection = () => {
+    const days = Array.isArray(planning?.itinerary)
+      ? planning!.itinerary
+      : [];
+
+    if (!days.length) return null;
+
+    return (
+      <section className="mt-10 space-y-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
+          <span>📅 Suggested Itinerary</span>
+        </h3>
+        <div className="space-y-3">
+          {days.map((day: any, idx: number) => {
+            const title =
+              day.title ||
+              day.dayLabel ||
+              `Day ${idx + 1}${day.date ? ` — ${day.date}` : ""}`;
+            const activities: string[] =
+              day.activities ||
+              day.items ||
+              day.plans ||
+              [];
+
+            return (
+              <article
+                key={idx}
+                className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3 text-xs space-y-1 shadow-sm"
+              >
+                <div className="font-semibold text-slate-50 text-[13px]">
+                  {title}
+                </div>
+                {activities.length > 0 && (
+                  <ul className="list-disc ml-4 mt-1 space-y-1 text-slate-300">
+                    {activities.map((act, i) => (
+                      <li key={i}>{act}</li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
+  /************************
+   *   SUBMIT
+   ************************/
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -222,7 +282,7 @@ function AiTripPlanner() {
         const raw = (data.error || "").toString().toLowerCase();
         if (raw.includes("amadeus") || raw.includes("400")) {
           setMessage(
-            "Live flight prices may be limited in test mode. You can still use Manual Search for full prices."
+            "We couldn’t fetch live flight prices from our provider right now. Please try different dates or use Manual Search for this trip."
           );
         } else {
           setMessage(
@@ -246,30 +306,34 @@ function AiTripPlanner() {
     }
   }
 
-  if (!AI_ENABLED) return null;
-
+  /************************
+   *   RENDER
+   ************************/
   return (
-    <section className="mt-4">
-      <div className="rounded-2xl bg-white border border-slate-200 px-4 py-5 sm:px-6 sm:py-6 shadow-sm space-y-4">
+    <section className="mt-6">
+      {/* This matches your dark full-width layout in the screenshots */}
+      <div className="space-y-4 text-slate-50">
+        {/* Header */}
         <div className="space-y-1">
-          <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2 text-slate-900">
+          <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
             <span>Plan my trip with AI</span>
-            <span>✨</span>
+            <span>✈️</span>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600 max-w-2xl">
-            Describe your trip in one sentence. We&apos;ll infer cities, dates,
-            cabin, and travellers, then show real flight options using the same
-            card layout as your manual search.
+          <p className="text-xs sm:text-sm text-slate-300 max-w-3xl">
+            Tell us your trip idea in one sentence. We&apos;ll interpret it,
+            generate an itinerary, and show real flight options using the same
+            data as your manual search.
           </p>
         </div>
 
+        {/* Prompt */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder='Example: "Austin to Las Vegas, flights Jan 10–15 2026, 2 adults, nice hotel on the Strip."'
+            placeholder='Example: "Austin to New Delhi, budget friendly flight and hotel, Nov 18–Dec 3 2025, hotel for 2 nights."'
             rows={2}
-            className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
           />
           <button
             type="submit"
@@ -281,7 +345,7 @@ function AiTripPlanner() {
         </form>
 
         {message && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 flex gap-2">
+          <div className="rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100 flex gap-2">
             <span>⚠️</span>
             <span>{message}</span>
           </div>
@@ -289,6 +353,7 @@ function AiTripPlanner() {
 
         {planning && <Top3Strip planning={planning} />}
         {results && <FlightOptions />}
+        {planning && <ItinerarySection />}
 
         {!planning && !results && !message && (
           <p className="text-[11px] text-slate-500">
@@ -302,5 +367,8 @@ function AiTripPlanner() {
   );
 }
 
-export { AiTripPlanner };
-export default AiTripPlanner;
+export function AiTripPlanner() {
+  return <AiTripPlannerInner />;
+}
+
+export default AiTripPlannerInner;
