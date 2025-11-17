@@ -20,11 +20,12 @@ type PlanningPayload = {
     best_comfort?: Top3Item;
   };
   itinerary?: any[];
-  hotels?: any[]; // <-- AI hotel suggestions
+  hotels?: any[]; // AI hotel suggestions (structured)
 };
 
 type OptionsView = "top3" | "all";
 
+/** Build a prefilled Google Flights link (nice “Book on Google Flights” button) */
 function buildGoogleFlightsUrl(
   pkg: any,
   searchParams: any | null
@@ -74,9 +75,9 @@ function AiTripPlannerInner() {
 
   if (!AI_ENABLED) return null;
 
-  /************************
-   *   TOP 3 OPTIONS STRIP
-   ************************/
+  /*********************
+   *  TOP 3 OPTIONS BOX
+   *********************/
   const Top3Strip = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
     if (!t) return null;
@@ -136,9 +137,9 @@ function AiTripPlannerInner() {
     );
   };
 
-  /************************
-   *   FLIGHT OPTIONS
-   ************************/
+  /*********************
+   *  FLIGHT RESULT BOX
+   *********************/
   const FlightOptions = () => {
     if (!results || !results.length) return null;
 
@@ -153,11 +154,12 @@ function AiTripPlannerInner() {
 
     return (
       <section className="mt-8 space-y-4">
-        <div className="flex items-center justify-between gap-2">
+        {/* Flight section header in its own box */}
+        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <span>✈ Real flight options (same as manual search)</span>
           </h3>
-          <div className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900 text-[11px] overflow-hidden">
+          <div className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900 text-[11px] overflow-hidden self-start sm:self-auto">
             <button
               type="button"
               onClick={() => setOptionsView("top3")}
@@ -167,7 +169,7 @@ function AiTripPlannerInner() {
                   : "text-slate-300"
               }`}
             >
-              Top 3 options
+              Top 3
             </button>
             <button
               type="button"
@@ -183,7 +185,7 @@ function AiTripPlannerInner() {
           </div>
         </div>
 
-        {/* 🔥 Same boxed layout as Manual Search */}
+        {/* Each flight option is the same white card as manual search */}
         <div className="grid gap-5">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
@@ -209,9 +211,9 @@ function AiTripPlannerInner() {
     );
   };
 
-  /************************
-   *   HOTEL SUGGESTIONS
-   ************************/
+  /*********************
+   *  HOTEL RESULT BOX
+   *********************/
   const HotelSection = () => {
     const hotels = Array.isArray(planning?.hotels)
       ? planning!.hotels
@@ -221,9 +223,15 @@ function AiTripPlannerInner() {
 
     return (
       <section className="mt-8 space-y-3">
-        <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
-          <span>🏨 Hotel suggestions (AI)</span>
-        </h3>
+        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 px-4 py-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
+            <span>🏨 Hotel suggestions (AI)</span>
+          </h3>
+          <p className="text-[11px] text-slate-400 mt-1">
+            These are AI-picked hotel ideas based on your budget and vibe. Check
+            prices on your favorite booking site.
+          </p>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           {hotels.map((h, i) => {
             const name = h.name || h.title || h.hotel || `Option ${i + 1}`;
@@ -236,26 +244,26 @@ function AiTripPlannerInner() {
             return (
               <article
                 key={i}
-                className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3 text-xs shadow-sm flex flex-col gap-1"
+                className="rounded-2xl bg-gradient-to-br from-sky-900/80 via-indigo-900/80 to-slate-900/90 border border-sky-500/40 px-4 py-3 text-xs shadow-sm flex flex-col gap-1"
               >
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-200">
                   Hotel option {i + 1}
                 </div>
                 <div className="text-[13px] font-semibold text-slate-50">
                   {name}
                 </div>
                 {area && (
-                  <div className="text-slate-300">
+                  <div className="text-slate-200">
                     <span className="font-semibold">Area:</span> {area}
                   </div>
                 )}
                 {approx && (
-                  <div className="text-slate-300">
+                  <div className="text-slate-200">
                     <span className="font-semibold">Approx:</span> {approx}
                   </div>
                 )}
                 {vibe && (
-                  <div className="text-slate-300">
+                  <div className="text-slate-200">
                     <span className="font-semibold">Vibe:</span> {vibe}
                   </div>
                 )}
@@ -267,9 +275,9 @@ function AiTripPlannerInner() {
     );
   };
 
-  /************************
-   *   ITINERARY
-   ************************/
+  /*********************
+   *  ITINERARY BOX
+   *********************/
   const ItinerarySection = () => {
     const days = Array.isArray(planning?.itinerary)
       ? planning!.itinerary
@@ -279,9 +287,11 @@ function AiTripPlannerInner() {
 
     return (
       <section className="mt-10 space-y-3">
-        <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
-          <span>📅 Suggested Itinerary</span>
-        </h3>
+        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 px-4 py-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
+            <span>📅 Suggested Itinerary</span>
+          </h3>
+        </div>
         <div className="space-y-3">
           {days.map((day: any, idx: number) => {
             const title =
@@ -314,9 +324,9 @@ function AiTripPlannerInner() {
     );
   };
 
-  /************************
-   *   SUBMIT
-   ************************/
+  /*********************
+   *  SUBMIT HANDLER
+   *********************/
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -350,7 +360,7 @@ function AiTripPlannerInner() {
       }
 
       setPlanning(data.planning || null);
-      setResults(data.searchResult?.results || null);
+      setResults(data.searchResult?.results || null); // same data as manual search
       setSearchParams(data.searchParams || null);
     } catch (err: any) {
       console.error("AI trip error:", err);
@@ -362,13 +372,13 @@ function AiTripPlannerInner() {
     }
   }
 
-  /************************
-   *   RENDER
-   ************************/
+  /*********************
+   *  RENDER
+   *********************/
   return (
     <section className="mt-6">
       <div className="space-y-4 text-slate-50">
-        {/* Header */}
+        {/* HEADER – this should match exactly the screenshot you just sent */}
         <div className="space-y-1">
           <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
             <span>Plan my trip with AI</span>
@@ -376,12 +386,12 @@ function AiTripPlannerInner() {
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 max-w-3xl">
             Tell us your trip idea in one sentence. We&apos;ll interpret it,
-            generate an itinerary, and show real flight and hotel options using
-            the same data as your manual search.
+            generate an itinerary, and show real flight options using the same
+            data as your manual search.
           </p>
         </div>
 
-        {/* Prompt */}
+        {/* PROMPT + BUTTON */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <textarea
             value={prompt}
@@ -395,10 +405,11 @@ function AiTripPlannerInner() {
             disabled={loading || !prompt.trim()}
             className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md disabled:opacity-60"
           >
-            {loading ? "Planning your trip…" : "Generate AI trip"}
+            {loading ? "Planning your trip…" : "Generate AI Trip"}
           </button>
         </form>
 
+        {/* MESSAGE (IF ANY) */}
         {message && (
           <div className="rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100 flex gap-2">
             <span>⚠️</span>
@@ -406,6 +417,7 @@ function AiTripPlannerInner() {
           </div>
         )}
 
+        {/* RESULT BOXES */}
         {planning && <Top3Strip planning={planning} />}
         {results && <FlightOptions />}
         {planning && <HotelSection />}
