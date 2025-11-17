@@ -23,22 +23,11 @@ type PlanningPayload = {
 
 type OptionsView = "top3" | "all";
 
-function nightsBetween(a?: string, b?: string) {
-  if (!a || !b) return 0;
-  const A = new Date(a).getTime();
-  const B = new Date(b).getTime();
-  if (!Number.isFinite(A) || !Number.isFinite(B)) return 0;
-  return Math.max(0, Math.round((B - A) / 86400000));
-}
-
 /**
- * Build a simple Google Flights deeplink using inferred params.
- * Not perfect, but good enough for pre-filled search.
+ * Build a Google Flights URL that is pre-filled with the AI-inferred search.
+ * This doesn’t have to be perfect, just useful for the user.
  */
-function buildGoogleFlightsUrl(
-  pkg: any,
-  searchParams: any | null
-): string | undefined {
+function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | undefined {
   if (!searchParams) return undefined;
 
   const origin = searchParams.origin;
@@ -63,16 +52,13 @@ function buildGoogleFlightsUrl(
   return `https://www.google.com/travel/flights?q=${q}`;
 }
 
-export function AiTripPlanner() {
+function AiTripPlannerInner() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [planning, setPlanning] = useState<PlanningPayload | null>(null);
   const [results, setResults] = useState<any[] | null>(null);
   const [searchParams, setSearchParams] = useState<any | null>(null);
-
-  // soft message when Amadeus / backend is in test mode or fails
-  const [warning, setWarning] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [optionsView, setOptionsView] = useState<OptionsView>("top3");
 
   if (!AI_ENABLED) return null;
@@ -81,41 +67,40 @@ export function AiTripPlanner() {
     const t = planning.top3;
     if (!t) return null;
 
-    const defs: { key: keyof PlanningPayload["top3"]; label: string; icon: string }[] = [
-      { key: "best_overall", label: "Best overall", icon: "🥇" },
-      { key: "best_budget", label: "Best budget", icon: "💰" },
-      { key: "best_comfort", label: "Most comfortable", icon: "🛏️" },
-    ];
+    const defs: { key: keyof NonNullable<PlanningPayload["top3"]>; label: string }[] =
+      [
+        { key: "best_overall", label: "Best overall" },
+        { key: "best_budget", label: "Best budget" },
+        { key: "best_comfort", label: "Most comfortable" },
+      ];
 
     const items = defs
       .map((def) => {
         const value = t[def.key];
         if (!value || (!value.title && !value.reason)) return null;
-        return { ...def, value };
+        return { key: def.key, label: def.label, value };
       })
       .filter(Boolean) as {
-      key: any;
+      key: keyof NonNullable<PlanningPayload["top3"]>;
       label: string;
-      icon: string;
       value: Top3Item;
     }[];
 
     if (!items.length) return null;
 
     return (
-      <section className="mt-6 space-y-3">
-        <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
-          <span>🏆 Top 3 Options</span>
+      <section className="mt-4 space-y-2">
+        <h3 className="text-base font-semibold flex items-center gap-2 text-slate-100">
+          <span>🏆 Top 3 options</span>
         </h3>
-        <div className="grid gap-4 md:grid-cols-3">
-          {items.map(({ key, label, icon, value }) => (
+        <div className="grid gap-3 md:grid-cols-3">
+          {items.map(({ key, label, value }) => (
             <article
               key={key}
-              className="rounded-2xl bg-slate-900/70 border border-slate-700 px-4 py-3 text-xs space-y-1 shadow-sm"
+              className="rounded-xl border border-slate-800 bg-slate-900/80 p-3 text-xs space-y-1 shadow-sm"
             >
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                <span>{icon}</span>
-                <span>{label}</span>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                {label}
               </div>
               {value.title && (
                 <div className="text-[13px] font-semibold text-slate-50">
@@ -140,25 +125,18 @@ export function AiTripPlanner() {
       (searchParams?.passengersAdults || 1) +
       (searchParams?.passengersChildren || 0) +
       (searchParams?.passengersInfants || 0);
-
     const includeHotel = !!searchParams?.includeHotel;
 
-    const hotelCheckIn =
-      searchParams?.hotelCheckIn || searchParams?.departDate || "";
-    const hotelCheckOut =
-      searchParams?.hotelCheckOut || searchParams?.returnDate || "";
-    const hotelNights = includeHotel
-      ? nightsBetween(hotelCheckIn, hotelCheckOut)
-      : 0;
-
-    // EXACT same ResultCard layout as manual search
     const visible = optionsView === "top3" ? results.slice(0, 3) : results;
 
     return (
-      <section className="mt-8 space-y-4">
+      <section className="mt-6 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-            <span>✈ Real flight options (same as manual search)</span>
+          <h3 className="text-base font-semibold flex items-center gap-2 text-slate-100">
+            <span>✈ Real flight options</span>
+            <span className="text-xs text-slate-400">
+              (same prices as Manual Search)
+            </span>
           </h3>
           <div className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900 text-[11px] overflow-hidden">
             <button
@@ -170,7 +148,7 @@ export function AiTripPlanner() {
                   : "text-slate-300"
               }`}
             >
-              Top 3
+              Top 3 options
             </button>
             <button
               type="button"
@@ -186,20 +164,21 @@ export function AiTripPlanner() {
           </div>
         </div>
 
-        <div className="grid gap-5">
+        {/* Use the SAME elegant ResultCard layout as manual search */}
+        <div className="grid gap-3">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
             return (
               <ResultCard
-                key={pkg.id || i}
+                key={pkg.id || `ai-${i}`}
                 pkg={pkg}
                 index={i}
                 currency={currency}
                 pax={pax}
                 showHotel={includeHotel}
-                hotelNights={hotelNights}
+                hotelNights={pkg.hotelNights ?? 0}
                 showAllHotels={optionsView === "all"}
-                comparedIds={[]} // AI view doesn’t use Compare tray yet
+                comparedIds={[]}
                 onToggleCompare={() => {}}
                 onSavedChangeGlobal={() => {}}
                 bookUrl={bookUrl}
@@ -215,7 +194,7 @@ export function AiTripPlanner() {
     e.preventDefault();
     try {
       setLoading(true);
-      setWarning(null);
+      setError(null);
       setPlanning(null);
       setResults(null);
       setSearchParams(null);
@@ -223,91 +202,67 @@ export function AiTripPlanner() {
 
       const data: any = await aiPlanTrip(query);
 
-      if (!data) {
-        setWarning(
-          "We couldn’t plan this trip. Please try again with a bit more detail."
-        );
+      if (!data?.ok) {
+        const msg =
+          typeof data?.error === "string" ? data.error : "AI planner failed.";
+        // Friendlier message for Amadeus issues
+        if (msg.toLowerCase().includes("amadeus")) {
+          setError(
+            "We couldn’t fetch live flight prices from our provider right now. Please try different dates or use Manual Search for this trip."
+          );
+        } else {
+          setError(msg || "AI planner failed. Please try again or be more specific.");
+        }
         return;
       }
 
       setPlanning(data.planning || null);
       setResults(data.searchResult?.results || null);
       setSearchParams(data.searchParams || null);
-
-      if (!data.ok) {
-        // Hide raw Amadeus / backend errors – just a soft message
-        setWarning(
-          "Live flight prices may be limited in test mode. You can still use Manual Search for full control."
-        );
-      } else {
-        setWarning(null);
-      }
-    } catch (err) {
-      console.error("AI trip error:", err);
-      setWarning(
-        "We couldn’t plan this trip right now. Please try again or use Manual Search."
-      );
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong with AI.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <section className="mt-6">
-      {/* Main AI card */}
-      <div className="rounded-3xl bg-slate-950 text-slate-50 px-5 py-6 shadow-lg space-y-5 border border-slate-800">
-        {/* Header */}
-        <div className="space-y-1">
-          <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-            <span>Plan my trip with AI</span>
-            <span>✈️</span>
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
-            Tell us your trip idea in one sentence. We&apos;ll interpret it,
-            generate an itinerary, and show real flight options using the same
-            data as manual search.
-          </p>
-        </div>
+    <section className="mt-4 rounded-2xl bg-slate-950 border border-slate-800 p-4 sm:p-6 space-y-4 text-slate-100">
+      <h2 className="text-xl font-semibold">Plan my trip with AI ✈️</h2>
+      <p className="text-sm text-slate-300">
+        Tell us your trip idea in one sentence. We&apos;ll interpret it,
+        generate an itinerary, and show real flight options in the same clean
+        card layout as your manual search.
+      </p>
 
-        {/* Input */}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder='Example: "Austin to New Delhi, budget-friendly flight and hotel, Nov 20–Dec 3, 2 nights in Delhi."'
-            rows={2}
-            className="w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-          />
-          <button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md disabled:opacity-60"
-          >
-            {loading ? "Planning your trip…" : "Generate AI Trip"}
-          </button>
-        </form>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <textarea
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Example: Austin to Boston, flight + hotel, Dec 1–6, 2025, nice hotel."
+          rows={2}
+          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+        />
+        <button
+          type="submit"
+          disabled={loading || !query.trim()}
+          className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md disabled:opacity-60"
+        >
+          {loading ? "Thinking…" : "Generate AI Trip"}
+        </button>
+      </form>
 
-        {/* Soft warning (no raw 400 / Amadeus error) */}
-        {warning && (
-          <div className="rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100 flex gap-2">
-            <span>⚠️</span>
-            <span>{warning}</span>
-          </div>
-        )}
+      {error && <p className="text-sm text-rose-400">❌ {error}</p>}
 
-        {planning && <Top3Strip planning={planning} />}
-        {results && <FlightOptions />}
-
-        {!planning && !results && !warning && (
-          <p className="text-[11px] text-slate-500">
-            Tip: Try including dates, trip length, and whether you want hotel
-            included. Example: &quot;Austin to Boston, 3-day weekend in
-            November, flights + 2 nights hotel downtown.&quot;
-          </p>
-        )}
-      </div>
+      {planning && <Top3Strip planning={planning} />}
+      {results && <FlightOptions />}
     </section>
   );
 }
 
-export default AiTripPlanner;
+export function AiTripPlanner() {
+  return <AiTripPlannerInner />;
+}
+
+// Default export so `import AiTripPlanner from "./components/AiTripPlanner"` also works
+export default AiTripPlannerInner;
