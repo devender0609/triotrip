@@ -20,12 +20,11 @@ type PlanningPayload = {
     best_comfort?: Top3Item;
   };
   itinerary?: any[];
-  hotels?: any[]; // AI hotel suggestions (structured)
+  hotels?: any[];
 };
 
 type OptionsView = "top3" | "all";
 
-/** Build a prefilled Google Flights link (nice “Book on Google Flights” button) */
 function buildGoogleFlightsUrl(
   pkg: any,
   searchParams: any | null
@@ -75,28 +74,22 @@ function AiTripPlannerInner() {
 
   if (!AI_ENABLED) return null;
 
-  /*********************
-   *  TOP 3 OPTIONS BOX
-   *********************/
+  /*************** TOP 3 STRIP ***************/
   const Top3Strip = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
     if (!t) return null;
 
-    const defs: {
-      key: keyof NonNullable<PlanningPayload["top3"]>;
-      label: string;
-      icon: string;
-    }[] = [
-      { key: "best_overall", label: "Best overall", icon: "🥇" },
-      { key: "best_budget", label: "Best budget", icon: "💰" },
-      { key: "best_comfort", label: "Most comfortable", icon: "🛏️" },
+    const defs = [
+      { key: "best_overall" as const, label: "Best overall", icon: "🥇" },
+      { key: "best_budget" as const, label: "Best budget", icon: "💰" },
+      { key: "best_comfort" as const, label: "Most comfortable", icon: "🛏️" },
     ];
 
     const items = defs
       .map((def) => {
         const value = t[def.key];
         if (!value || (!value.title && !value.reason)) return null;
-        return { key: def.key, label: def.label, icon: def.icon, value };
+        return { ...def, value };
       })
       .filter(Boolean) as {
       key: keyof NonNullable<PlanningPayload["top3"]>;
@@ -137,9 +130,7 @@ function AiTripPlannerInner() {
     );
   };
 
-  /*********************
-   *  FLIGHT RESULT BOX
-   *********************/
+  /*************** FLIGHT BOXES (ResultCard) ***************/
   const FlightOptions = () => {
     if (!results || !results.length) return null;
 
@@ -154,7 +145,7 @@ function AiTripPlannerInner() {
 
     return (
       <section className="mt-8 space-y-4">
-        {/* Flight section header in its own box */}
+        {/* Flight section header in a dark bar */}
         <div className="rounded-2xl bg-slate-950/90 border border-slate-800 px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <span>✈ Real flight options (same as manual search)</span>
@@ -185,7 +176,7 @@ function AiTripPlannerInner() {
           </div>
         </div>
 
-        {/* Each flight option is the same white card as manual search */}
+        {/* 🔥 THIS is what creates the white flight boxes, reusing Manual Search */}
         <div className="grid gap-5">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
@@ -211,9 +202,7 @@ function AiTripPlannerInner() {
     );
   };
 
-  /*********************
-   *  HOTEL RESULT BOX
-   *********************/
+  /*************** HOTEL BOXES ***************/
   const HotelSection = () => {
     const hotels = Array.isArray(planning?.hotels)
       ? planning!.hotels
@@ -228,8 +217,8 @@ function AiTripPlannerInner() {
             <span>🏨 Hotel suggestions (AI)</span>
           </h3>
           <p className="text-[11px] text-slate-400 mt-1">
-            These are AI-picked hotel ideas based on your budget and vibe. Check
-            prices on your favorite booking site.
+            AI-picked hotel ideas based on your budget and vibe. Check prices on
+            your favorite booking site.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -275,9 +264,7 @@ function AiTripPlannerInner() {
     );
   };
 
-  /*********************
-   *  ITINERARY BOX
-   *********************/
+  /*************** ITINERARY BOXES ***************/
   const ItinerarySection = () => {
     const days = Array.isArray(planning?.itinerary)
       ? planning!.itinerary
@@ -324,9 +311,7 @@ function AiTripPlannerInner() {
     );
   };
 
-  /*********************
-   *  SUBMIT HANDLER
-   *********************/
+  /*************** SUBMIT ***************/
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -360,7 +345,7 @@ function AiTripPlannerInner() {
       }
 
       setPlanning(data.planning || null);
-      setResults(data.searchResult?.results || null); // same data as manual search
+      setResults(data.searchResult?.results || null); // same shape as manual search
       setSearchParams(data.searchParams || null);
     } catch (err: any) {
       console.error("AI trip error:", err);
@@ -372,65 +357,61 @@ function AiTripPlannerInner() {
     }
   }
 
-  /*********************
-   *  RENDER
-   *********************/
+  /*************** RENDER ***************/
+  if (!AI_ENABLED) return null;
+
   return (
-    <section className="mt-6">
-      <div className="space-y-4 text-slate-50">
-        {/* HEADER – this should match exactly the screenshot you just sent */}
-        <div className="space-y-1">
-          <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-            <span>Plan my trip with AI</span>
-            <span>✈️</span>
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-300 max-w-3xl">
-            Tell us your trip idea in one sentence. We&apos;ll interpret it,
-            generate an itinerary, and show real flight options using the same
-            data as your manual search.
-          </p>
-        </div>
-
-        {/* PROMPT + BUTTON */}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder='Example: "Austin to New Delhi, budget friendly flight and hotel, Nov 18–Dec 3 2025, hotel for 2 nights."'
-            rows={2}
-            className="w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-          />
-          <button
-            type="submit"
-            disabled={loading || !prompt.trim()}
-            className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md disabled:opacity-60"
-          >
-            {loading ? "Planning your trip…" : "Generate AI Trip"}
-          </button>
-        </form>
-
-        {/* MESSAGE (IF ANY) */}
-        {message && (
-          <div className="rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100 flex gap-2">
-            <span>⚠️</span>
-            <span>{message}</span>
-          </div>
-        )}
-
-        {/* RESULT BOXES */}
-        {planning && <Top3Strip planning={planning} />}
-        {results && <FlightOptions />}
-        {planning && <HotelSection />}
-        {planning && <ItinerarySection />}
-
-        {!planning && !results && !message && (
-          <p className="text-[11px] text-slate-500">
-            Tip: Include dates and whether you want hotel. Example: &quot;2
-            adults, Austin to Boston, long weekend in November, flights + 2
-            nights hotel downtown.&quot;
-          </p>
-        )}
+    <section className="mt-6 space-y-4 text-slate-50">
+      {/* header – this is the part that already looks right for you */}
+      <div className="space-y-1">
+        <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+          <span>Plan my trip with AI</span>
+          <span>✈️</span>
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-300 max-w-3xl">
+          Tell us your trip idea in one sentence. We&apos;ll interpret it,
+          generate an itinerary, and show real flight options using the same
+          data as your manual search.
+        </p>
       </div>
+
+      {/* prompt + button */}
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder='Example: "Austin to New Delhi, budget friendly flight and hotel, Nov 18–Dec 3 2025, hotel for 2 nights."'
+          rows={2}
+          className="w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+        />
+        <button
+          type="submit"
+          disabled={loading || !prompt.trim()}
+          className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md disabled:opacity-60"
+        >
+          {loading ? "Planning your trip…" : "Generate AI Trip"}
+        </button>
+      </form>
+
+      {message && (
+        <div className="rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100 flex gap-2">
+          <span>⚠️</span>
+          <span>{message}</span>
+        </div>
+      )}
+
+      {planning && <Top3Strip planning={planning} />}
+      {results && <FlightOptions />}
+      {planning && <HotelSection />}
+      {planning && <ItinerarySection />}
+
+      {!planning && !results && !message && (
+        <p className="text-[11px] text-slate-500">
+          Tip: Include dates and whether you want hotel. Example: &quot;2
+          adults, Austin to Boston, long weekend in November, flights + 2
+          nights hotel downtown.&quot;
+        </p>
+      )}
     </section>
   );
 }
