@@ -23,10 +23,7 @@ type PlanningPayload = {
 
 type OptionsView = "top3" | "all";
 
-/**
- * Build a Google Flights URL that is pre-filled with the AI-inferred search.
- * This doesn’t have to be perfect, just useful for the user.
- */
+// Small helper to build a Google Flights deeplink
 function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | undefined {
   if (!searchParams) return undefined;
 
@@ -52,13 +49,15 @@ function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | und
   return `https://www.google.com/travel/flights?q=${q}`;
 }
 
-function AiTripPlannerInner() {
-  const [query, setQuery] = useState("");
+export function AiTripPlanner() {
+  const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+
   const [planning, setPlanning] = useState<PlanningPayload | null>(null);
   const [results, setResults] = useState<any[] | null>(null);
   const [searchParams, setSearchParams] = useState<any | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const [warning, setWarning] = useState<string | null>(null);
   const [optionsView, setOptionsView] = useState<OptionsView>("top3");
 
   if (!AI_ENABLED) return null;
@@ -67,40 +66,42 @@ function AiTripPlannerInner() {
     const t = planning.top3;
     if (!t) return null;
 
-    const defs: { key: keyof NonNullable<PlanningPayload["top3"]>; label: string }[] =
+    const defs: { key: keyof NonNullable<PlanningPayload["top3"]>; label: string; icon: string }[] =
       [
-        { key: "best_overall", label: "Best overall" },
-        { key: "best_budget", label: "Best budget" },
-        { key: "best_comfort", label: "Most comfortable" },
+        { key: "best_overall", label: "Best overall", icon: "🥇" },
+        { key: "best_budget", label: "Best budget", icon: "💰" },
+        { key: "best_comfort", label: "Most comfortable", icon: "🛏️" },
       ];
 
     const items = defs
       .map((def) => {
         const value = t[def.key];
         if (!value || (!value.title && !value.reason)) return null;
-        return { key: def.key, label: def.label, value };
+        return { key: def.key, label: def.label, icon: def.icon, value };
       })
       .filter(Boolean) as {
       key: keyof NonNullable<PlanningPayload["top3"]>;
       label: string;
+      icon: string;
       value: Top3Item;
     }[];
 
     if (!items.length) return null;
 
     return (
-      <section className="mt-4 space-y-2">
-        <h3 className="text-base font-semibold flex items-center gap-2 text-slate-100">
-          <span>🏆 Top 3 options</span>
+      <section className="mt-6 space-y-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
+          <span>🏆 Top 3 picks</span>
         </h3>
-        <div className="grid gap-3 md:grid-cols-3">
-          {items.map(({ key, label, value }) => (
+        <div className="grid gap-4 md:grid-cols-3">
+          {items.map(({ key, label, icon, value }) => (
             <article
               key={key}
-              className="rounded-xl border border-slate-800 bg-slate-900/80 p-3 text-xs space-y-1 shadow-sm"
+              className="rounded-2xl bg-slate-900/80 border border-slate-700 px-4 py-3 text-xs space-y-1 shadow-sm"
             >
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                {label}
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <span>{icon}</span>
+                <span>{label}</span>
               </div>
               {value.title && (
                 <div className="text-[13px] font-semibold text-slate-50">
@@ -130,12 +131,12 @@ function AiTripPlannerInner() {
     const visible = optionsView === "top3" ? results.slice(0, 3) : results;
 
     return (
-      <section className="mt-6 space-y-3">
+      <section className="mt-8 space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-base font-semibold flex items-center gap-2 text-slate-100">
-            <span>✈ Real flight options</span>
+          <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+            <span>✈ Flight options</span>
             <span className="text-xs text-slate-400">
-              (same prices as Manual Search)
+              (same layout as Manual Search)
             </span>
           </h3>
           <div className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900 text-[11px] overflow-hidden">
@@ -148,7 +149,7 @@ function AiTripPlannerInner() {
                   : "text-slate-300"
               }`}
             >
-              Top 3 options
+              Top 3
             </button>
             <button
               type="button"
@@ -159,13 +160,13 @@ function AiTripPlannerInner() {
                   : "text-slate-300"
               }`}
             >
-              All options
+              All
             </button>
           </div>
         </div>
 
-        {/* Use the SAME elegant ResultCard layout as manual search */}
-        <div className="grid gap-3">
+        {/* 🔥 THIS is where AI flights use the SAME ResultCard as manual */}
+        <div className="grid gap-5">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
             return (
@@ -178,8 +179,8 @@ function AiTripPlannerInner() {
                 showHotel={includeHotel}
                 hotelNights={pkg.hotelNights ?? 0}
                 showAllHotels={optionsView === "all"}
-                comparedIds={[]}
-                onToggleCompare={() => {}}
+                comparedIds={[]}          // no compare tray in AI view
+                onToggleCompare={() => {}} // disabled
                 onSavedChangeGlobal={() => {}}
                 bookUrl={bookUrl}
               />
@@ -194,75 +195,102 @@ function AiTripPlannerInner() {
     e.preventDefault();
     try {
       setLoading(true);
-      setError(null);
+      setWarning(null);
       setPlanning(null);
       setResults(null);
       setSearchParams(null);
       setOptionsView("top3");
 
-      const data: any = await aiPlanTrip(query);
+      const data: any = await aiPlanTrip(prompt);
 
-      if (!data?.ok) {
-        const msg =
-          typeof data?.error === "string" ? data.error : "AI planner failed.";
-        // Friendlier message for Amadeus issues
-        if (msg.toLowerCase().includes("amadeus")) {
-          setError(
-            "We couldn’t fetch live flight prices from our provider right now. Please try different dates or use Manual Search for this trip."
+      if (!data) {
+        setWarning("We couldn’t plan this trip. Please try again.");
+        return;
+      }
+
+      if (!data.ok) {
+        const msg = (data.error || "").toString().toLowerCase();
+        if (msg.includes("amadeus") || msg.includes("400")) {
+          setWarning(
+            "Live flight prices are limited in test mode. You can still use Manual Search for real prices."
           );
         } else {
-          setError(msg || "AI planner failed. Please try again or be more specific.");
+          setWarning(
+            "We couldn’t plan this trip. Please try again with a bit more detail."
+          );
         }
-        return;
       }
 
       setPlanning(data.planning || null);
       setResults(data.searchResult?.results || null);
       setSearchParams(data.searchParams || null);
     } catch (err: any) {
-      setError(err?.message || "Something went wrong with AI.");
+      console.error("AI trip error:", err);
+      setWarning(
+        "We couldn’t plan this trip right now. Please try again or use Manual Search."
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <section className="mt-4 rounded-2xl bg-slate-950 border border-slate-800 p-4 sm:p-6 space-y-4 text-slate-100">
-      <h2 className="text-xl font-semibold">Plan my trip with AI ✈️</h2>
-      <p className="text-sm text-slate-300">
-        Tell us your trip idea in one sentence. We&apos;ll interpret it,
-        generate an itinerary, and show real flight options in the same clean
-        card layout as your manual search.
-      </p>
+    <section className="mt-6">
+      {/* Main AI card – dark, clean, no messy text sections */}
+      <div className="rounded-3xl bg-slate-950 text-slate-50 px-5 py-6 shadow-lg space-y-5 border border-slate-800">
+        {/* Header */}
+        <div className="space-y-1">
+          <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+            <span>Plan my trip with AI</span>
+            <span>✨</span>
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
+            Type one sentence about your trip. We&apos;ll infer cities, dates,
+            cabin, and travellers, then show flight options in the same card
+            layout as your manual search.
+          </p>
+        </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <textarea
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Example: Austin to Boston, flight + hotel, Dec 1–6, 2025, nice hotel."
-          rows={2}
-          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-        />
-        <button
-          type="submit"
-          disabled={loading || !query.trim()}
-          className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md disabled:opacity-60"
-        >
-          {loading ? "Thinking…" : "Generate AI Trip"}
-        </button>
-      </form>
+        {/* Prompt input */}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder='Example: "Austin to Las Vegas, flights Jan 10–15 2026, fun hotel on the Strip."'
+            rows={2}
+            className="w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+          <button
+            type="submit"
+            disabled={loading || !prompt.trim()}
+            className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md disabled:opacity-60"
+          >
+            {loading ? "Planning your trip…" : "Generate AI trip"}
+          </button>
+        </form>
 
-      {error && <p className="text-sm text-rose-400">❌ {error}</p>}
+        {/* Soft warning (no ugly raw error text) */}
+        {warning && (
+          <div className="rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100 flex gap-2">
+            <span>⚠️</span>
+            <span>{warning}</span>
+          </div>
+        )}
 
-      {planning && <Top3Strip planning={planning} />}
-      {results && <FlightOptions />}
+        {/* Compact Top-3 and clean ResultCard flight layout */}
+        {planning && <Top3Strip planning={planning} />}
+        {results && <FlightOptions />}
+
+        {!planning && !results && !warning && (
+          <p className="text-[11px] text-slate-500">
+            Tip: Include dates and whether you want hotel. Example: &quot;2
+            adults, Austin to Boston, long weekend in November, flights + 2
+            nights hotel downtown.&quot;
+          </p>
+        )}
+      </div>
     </section>
   );
 }
 
-export function AiTripPlanner() {
-  return <AiTripPlannerInner />;
-}
-
-// Default export so `import AiTripPlanner from "./components/AiTripPlanner"` also works
-export default AiTripPlannerInner;
+export default AiTripPlanner;
