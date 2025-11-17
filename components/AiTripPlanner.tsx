@@ -20,6 +20,7 @@ type PlanningPayload = {
     best_comfort?: Top3Item;
   };
   itinerary?: any[];
+  hotels?: any[]; // <-- AI hotel suggestions
 };
 
 type OptionsView = "top3" | "all";
@@ -182,7 +183,7 @@ function AiTripPlannerInner() {
           </div>
         </div>
 
-        {/* Same ResultCard layout as Manual Search */}
+        {/* 🔥 Same boxed layout as Manual Search */}
         <div className="grid gap-5">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
@@ -201,6 +202,64 @@ function AiTripPlannerInner() {
                 onSavedChangeGlobal={() => {}}
                 bookUrl={bookUrl}
               />
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
+  /************************
+   *   HOTEL SUGGESTIONS
+   ************************/
+  const HotelSection = () => {
+    const hotels = Array.isArray(planning?.hotels)
+      ? planning!.hotels
+      : [];
+
+    if (!hotels.length) return null;
+
+    return (
+      <section className="mt-8 space-y-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
+          <span>🏨 Hotel suggestions (AI)</span>
+        </h3>
+        <div className="grid gap-4 md:grid-cols-3">
+          {hotels.map((h, i) => {
+            const name = h.name || h.title || h.hotel || `Option ${i + 1}`;
+            const area = h.area || h.location || h.neighborhood || "";
+            const approx =
+              h.approx || h.price || h.priceText || h.approxPrice || "";
+            const vibe =
+              h.vibe || h.description || h.notes || h.summary || "";
+
+            return (
+              <article
+                key={i}
+                className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3 text-xs shadow-sm flex flex-col gap-1"
+              >
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  Hotel option {i + 1}
+                </div>
+                <div className="text-[13px] font-semibold text-slate-50">
+                  {name}
+                </div>
+                {area && (
+                  <div className="text-slate-300">
+                    <span className="font-semibold">Area:</span> {area}
+                  </div>
+                )}
+                {approx && (
+                  <div className="text-slate-300">
+                    <span className="font-semibold">Approx:</span> {approx}
+                  </div>
+                )}
+                {vibe && (
+                  <div className="text-slate-300">
+                    <span className="font-semibold">Vibe:</span> {vibe}
+                  </div>
+                )}
+              </article>
             );
           })}
         </div>
@@ -230,10 +289,7 @@ function AiTripPlannerInner() {
               day.dayLabel ||
               `Day ${idx + 1}${day.date ? ` — ${day.date}` : ""}`;
             const activities: string[] =
-              day.activities ||
-              day.items ||
-              day.plans ||
-              [];
+              day.activities || day.items || day.plans || [];
 
             return (
               <article
@@ -311,7 +367,6 @@ function AiTripPlannerInner() {
    ************************/
   return (
     <section className="mt-6">
-      {/* This matches your dark full-width layout in the screenshots */}
       <div className="space-y-4 text-slate-50">
         {/* Header */}
         <div className="space-y-1">
@@ -321,8 +376,8 @@ function AiTripPlannerInner() {
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 max-w-3xl">
             Tell us your trip idea in one sentence. We&apos;ll interpret it,
-            generate an itinerary, and show real flight options using the same
-            data as your manual search.
+            generate an itinerary, and show real flight and hotel options using
+            the same data as your manual search.
           </p>
         </div>
 
@@ -353,6 +408,7 @@ function AiTripPlannerInner() {
 
         {planning && <Top3Strip planning={planning} />}
         {results && <FlightOptions />}
+        {planning && <HotelSection />}
         {planning && <ItinerarySection />}
 
         {!planning && !results && !message && (
