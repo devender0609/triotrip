@@ -23,7 +23,10 @@ type PlanningPayload = {
 
 type OptionsView = "top3" | "all";
 
-function buildGoogleFlightsUrl(pkg: any, searchParams: any | null): string | undefined {
+function buildGoogleFlightsUrl(
+  pkg: any,
+  searchParams: any | null
+): string | undefined {
   if (!searchParams) return undefined;
 
   const origin = searchParams.origin;
@@ -152,7 +155,7 @@ export function AiTripPlanner() {
           </div>
         </div>
 
-        {/* THIS is where we use your elegant ResultCard */}
+        {/* Use the same ResultCard as manual search */}
         <div className="grid gap-3">
           {visible.map((pkg, i) => {
             const bookUrl = buildGoogleFlightsUrl(pkg, searchParams);
@@ -178,6 +181,14 @@ export function AiTripPlanner() {
     );
   };
 
+  function friendlyErrorMessage(raw: unknown): string {
+    const msg = String(raw || "").toLowerCase();
+    if (msg.includes("amadeus") || msg.includes("400")) {
+      return "We couldn’t fetch live flight prices from our provider right now. Please try different dates or use Manual Search for this trip.";
+    }
+    return "We couldn’t plan this trip. Please try again with a bit more detail.";
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -190,16 +201,25 @@ export function AiTripPlanner() {
 
       const data: any = await aiPlanTrip(query);
 
-      if (!data?.ok) {
-        setError("AI planner failed. Please try again or be more specific.");
+      if (!data) {
+        setError("Something went wrong. Please try again.");
         return;
       }
 
+      // Always store whatever the backend sends so layout stays consistent
       setPlanning(data.planning || null);
       setResults(data.searchResult?.results || null);
       setSearchParams(data.searchParams || null);
+
+      if (!data.ok) {
+        // Soft error: show friendly text, never raw "Amadeus error 400"
+        setError(friendlyErrorMessage(data.error));
+      } else {
+        setError(null);
+      }
     } catch (err: any) {
-      setError(err.message || "Something went wrong with AI.");
+      console.error("AI trip error:", err);
+      setError(friendlyErrorMessage(err?.message));
     } finally {
       setLoading(false);
     }
@@ -231,7 +251,12 @@ export function AiTripPlanner() {
         </button>
       </form>
 
-      {error && <p className="text-sm text-rose-500">❌ {error}</p>}
+      {error && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <span>⚠️</span>
+          <span>{error}</span>
+        </div>
+      )}
 
       {planning && <Top3Strip planning={planning} />}
       {results && <FlightOptions />}
