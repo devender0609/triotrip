@@ -55,7 +55,7 @@ const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
 export default function Page() {
-  // 👇 START WITH NO TAB SELECTED
+  // start with no mode selected
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
 
   // Places & dates (manual)
@@ -173,21 +173,70 @@ export default function Page() {
   }
 
   /** AI → shared results */
-  function handleAiSearchComplete(payload: {
+  async function handleAiSearchComplete(payload: {
     searchParams: any;
     searchResult: any;
     planning: any;
   }) {
     try {
-      const searchParams = payload?.searchParams || {};
-      const searchResult = payload?.searchResult || {};
-      const arr = Array.isArray(searchResult.results)
-        ? searchResult.results
+      const sp = payload?.searchParams || {};
+
+      const origin = sp.origin;
+      const destination = sp.destination;
+      const departDate = sp.departDate;
+      const roundTrip = sp.roundTrip !== false;
+      const returnDate = roundTrip ? sp.returnDate : undefined;
+
+      const passengersAdults = sp.passengersAdults ?? 1;
+      const passengersChildren = sp.passengersChildren ?? 0;
+      const passengersInfants = sp.passengersInfants ?? 0;
+      const passengersChildrenAges = Array.isArray(sp.passengersChildrenAges)
+        ? sp.passengersChildrenAges
         : [];
 
+      const includeHotel = !!sp.includeHotel;
+
+      const body = {
+        origin,
+        destination,
+        departDate,
+        returnDate,
+        roundTrip,
+        passengersAdults,
+        passengersChildren,
+        passengersChildrenAges,
+        passengersInfants,
+        cabin: sp.cabin || "ECONOMY",
+        includeHotel,
+        hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
+        hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
+        minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
+        minBudget:
+          typeof sp.minBudget === "number" ? sp.minBudget : undefined,
+        maxBudget:
+          typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
+        currency: sp.currency || currency,
+        maxStops:
+          sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
+            ? sp.maxStops
+            : 2,
+      };
+
+      const resp = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        cache: "no-store",
+      });
+      const j = await resp.json();
+      if (!resp.ok) {
+        throw new Error(j?.error || "Search failed");
+      }
+
+      const arr = Array.isArray(j.results) ? j.results : [];
       const withIds = arr.map((res: any, i: number) => ({
         id: res.id ?? `ai-${i}`,
-        ...searchParams,
+        ...body,
         ...res,
       }));
 
@@ -197,38 +246,42 @@ export default function Page() {
       setSubTab("explore");
       setSubPanelOpen(false);
       setComparedIds([]);
+      setError(null);
 
-      // sync params into form (helps when switching to Manual)
-      if (searchParams.origin) setOriginCode(searchParams.origin);
-      if (searchParams.destination) setDestCode(searchParams.destination);
-      if (typeof searchParams.roundTrip === "boolean")
-        setRoundTrip(searchParams.roundTrip);
-      if (searchParams.departDate) setDepartDate(searchParams.departDate);
-      if (searchParams.returnDate) setReturnDate(searchParams.returnDate);
-      if (typeof searchParams.passengersAdults === "number")
-        setAdults(searchParams.passengersAdults);
-      if (typeof searchParams.passengersChildren === "number")
-        setChildren(searchParams.passengersChildren);
-      if (typeof searchParams.passengersInfants === "number")
-        setInfants(searchParams.passengersInfants);
-      if (Array.isArray(searchParams.passengersChildrenAges))
-        setChildAges(searchParams.passengersChildrenAges);
-      if (searchParams.cabin) setCabin(searchParams.cabin);
-      if (typeof searchParams.includeHotel === "boolean")
-        setIncludeHotel(searchParams.includeHotel);
-      if (searchParams.hotelCheckIn)
-        setHotelCheckIn(searchParams.hotelCheckIn);
-      if (searchParams.hotelCheckOut)
-        setHotelCheckOut(searchParams.hotelCheckOut);
-      if (typeof searchParams.minHotelStar === "number")
-        setMinHotelStar(searchParams.minHotelStar);
-      if (typeof searchParams.minBudget === "number")
-        setMinBudget(String(searchParams.minBudget));
-      if (typeof searchParams.maxBudget === "number")
-        setMaxBudget(String(searchParams.maxBudget));
-      if (searchParams.currency) setCurrency(searchParams.currency);
-    } catch (err) {
+      // sync manual form
+      if (origin) setOriginCode(origin);
+      if (destination) setDestCode(destination);
+      setRoundTrip(roundTrip);
+      if (departDate) setDepartDate(departDate);
+      if (returnDate) setReturnDate(returnDate || "");
+      setAdults(passengersAdults);
+      setChildren(passengersChildren);
+      setInfants(passengersInfants);
+      setChildAges(passengersChildrenAges);
+      setCabin(body.cabin as any);
+      setIncludeHotel(includeHotel);
+      if (includeHotel) {
+        if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
+        if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
+        setMinHotelStar(body.minHotelStar || 0);
+        setMinBudget(
+          typeof body.minBudget === "number" ? String(body.minBudget) : ""
+        );
+        setMaxBudget(
+          typeof body.maxBudget === "number" ? String(body.maxBudget) : ""
+        );
+      } else {
+        setHotelCheckIn("");
+        setHotelCheckOut("");
+        setMinHotelStar(0);
+        setMinBudget("");
+        setMaxBudget("");
+      }
+      if (body.currency) setCurrency(body.currency);
+      setMaxStops(body.maxStops as 0 | 1 | 2);
+    } catch (err: any) {
       console.error("handleAiSearchComplete error", err);
+      setError(err?.message || "AI search failed");
     }
   }
 
@@ -486,6 +539,7 @@ export default function Page() {
               gap: 8,
               alignItems: "center",
               flexWrap: "wrap",
+              marginTop: 8,
             }}
           >
             <button
@@ -528,6 +582,21 @@ export default function Page() {
             <button className="chip" onClick={() => window.print()}>
               Print
             </button>
+            <style jsx>{`
+              .chip {
+                padding: 6px 10px;
+                border-radius: 999px;
+                border: 1px solid #e2e8f0;
+                background: #ffffff;
+                font-size: 12px;
+                cursor: pointer;
+              }
+              .chip.on {
+                background: #0f172a;
+                color: #ffffff;
+                border-color: #0f172a;
+              }
+            `}</style>
           </div>
         )}
 
@@ -539,6 +608,7 @@ export default function Page() {
               color: "#7f1d1d",
               padding: 10,
               borderRadius: 10,
+              marginTop: 8,
             }}
           >
             ⚠ {error}
@@ -555,6 +625,7 @@ export default function Page() {
               padding: 12,
               display: "grid",
               gap: 6,
+              marginTop: 8,
             }}
           >
             <div style={{ fontWeight: 700, fontSize: 16 }}>
@@ -615,7 +686,7 @@ export default function Page() {
 
         {/* RESULTS */}
         {(shown?.length ?? 0) > 0 && (
-          <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             {shown.map((pkg, i) => (
               <ResultCard
                 key={pkg.id || i}
@@ -732,7 +803,7 @@ export default function Page() {
       {/* MANUAL MODE */}
       {mode === "manual" && (
         <>
-          {/* MANUAL SEARCH FORM ONLY IN THIS TAB */}
+          {/* MANUAL SEARCH FORM */}
           <form
             style={{
               background: "#fff",
