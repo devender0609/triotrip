@@ -55,10 +55,9 @@ const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
 export default function Page() {
-  // Global mode: "none" (just tabs), "ai", or "manual"
-  const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
+  const [mode, setMode] = useState<"ai" | "manual" | "none">("ai");
 
-  // Places & dates (manual search)
+  // Places & dates (manual)
   const [originCode, setOriginCode] = useState("");
   const [originDisplay, setOriginDisplay] = useState("");
   const [destCode, setDestCode] = useState("");
@@ -67,13 +66,15 @@ export default function Page() {
   const [departDate, setDepartDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
 
-  // Pax & cabin
+  // Pax
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [infants, setInfants] = useState(0);
   const [childAges, setChildAges] = useState<number[]>([]);
-  const [cabin, setCabin] = useState<Cabin>("ECONOMY");
   const totalPax = adults + children + infants;
+
+  // Cabin
+  const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
   // Currency
   const [currency, setCurrency] = useState("USD");
@@ -90,10 +91,8 @@ export default function Page() {
     return () => window.removeEventListener("triptrio:currency", handler);
   }, []);
 
-  // Flight filters
+  // Filters / hotel
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
-
-  // Hotels
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
@@ -101,37 +100,34 @@ export default function Page() {
   const [minBudget, setMinBudget] = useState<string>("");
   const [maxBudget, setMaxBudget] = useState<string>("");
 
-  // Sort & tabs
+  // Sort / tabs
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">(
     "flightOnly"
   );
   const [listTab, setListTab] = useState<ListTab>("all");
 
-  // Sub-tabs toggle behavior
   const [subTab, setSubTab] = useState<SubTab>("explore");
   const [subPanelOpen, setSubPanelOpen] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
-  // Results (manual + AI search shared)
+  // Results
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
 
-  // AI Top-3 state (manual search enhancement)
+  // AI Top-3 (based on results)
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
 
-  // sync
+  // sync hotel / dates
   useEffect(() => {
     if (!includeHotel) setSortBasis("flightOnly");
   }, [includeHotel]);
   useEffect(() => {
     if (!roundTrip) setReturnDate("");
   }, [roundTrip]);
-
-  // hotel sanity
   useEffect(() => {
     if (!includeHotel) return;
     if (departDate && hotelCheckIn && hotelCheckIn < departDate)
@@ -153,11 +149,11 @@ export default function Page() {
     roundTrip,
   ]);
 
-  // keep child age boxes aligned with children count
+  // child ages
   useEffect(() => {
     setChildAges((prev) => {
       const copy = prev.slice(0, children);
-      while (copy.length < children) copy.push(8); // default 8y
+      while (copy.length < children) copy.push(8);
       return copy;
     });
   }, [children]);
@@ -175,10 +171,7 @@ export default function Page() {
     });
   }
 
-  /**
-   * NEW: when AI trip planner finishes, push its results into the same
-   * `results` state used by manual search, so the display is identical.
-   */
+  /** AI → shared results */
   function handleAiSearchComplete(payload: {
     searchParams: any;
     searchResult: any;
@@ -198,15 +191,13 @@ export default function Page() {
       }));
 
       setResults(withIds);
-
-      // show chips / tabs / explore panel controls
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
       setSubPanelOpen(false);
       setComparedIds([]);
 
-      // Optional: sync AI-inferred params back into the form
+      // sync params into form (helps when switching to Manual)
       if (searchParams.origin) setOriginCode(searchParams.origin);
       if (searchParams.destination) setDestCode(searchParams.destination);
       if (typeof searchParams.roundTrip === "boolean")
@@ -307,13 +298,12 @@ export default function Page() {
     }
   }
 
-  // AI Top-3 whenever results change (works for both manual & AI results)
+  // AI Top-3 whenever results change
   useEffect(() => {
     if (!results || results.length === 0) {
       setAiTop3(null);
       return;
     }
-
     async function go() {
       try {
         setAiTop3Loading(true);
@@ -331,7 +321,6 @@ export default function Page() {
         setAiTop3Loading(false);
       }
     }
-
     go();
   }, [results]);
 
@@ -412,6 +401,257 @@ export default function Page() {
     }
   }
 
+  const ResultsArea: React.FC = () => {
+    if (!showControls && !results && !error) return null;
+
+    return (
+      <>
+        {/* SUB-TABS */}
+        {showControls && (
+          <>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                flexWrap: "wrap",
+                color: "#475569",
+                fontWeight: 700,
+              }}
+            >
+              <button
+                className={`subtab ${
+                  subTab === "explore" && subPanelOpen ? "on" : ""
+                }`}
+                onClick={() => clickSubTab("explore")}
+              >
+                Explore
+              </button>
+              <button
+                className={`subtab ${
+                  subTab === "savor" && subPanelOpen ? "on" : ""
+                }`}
+                onClick={() => clickSubTab("savor")}
+              >
+                Savor
+              </button>
+              <button
+                className={`subtab ${
+                  subTab === "misc" && subPanelOpen ? "on" : ""
+                }`}
+                onClick={() => clickSubTab("misc")}
+              >
+                Miscellaneous
+              </button>
+              <style jsx>{`
+                .subtab {
+                  padding: 8px 12px;
+                  border-radius: 999px;
+                  background: #fff;
+                  border: 1px solid #e2e8f0;
+                  cursor: pointer;
+                }
+                .subtab.on {
+                  background: linear-gradient(90deg, #06b6d4, #0ea5e9);
+                  color: #fff;
+                  border: none;
+                }
+              `}</style>
+            </div>
+
+            {subPanelOpen && (
+              <div
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  background: "#fff",
+                  padding: 12,
+                }}
+              >
+                <ExploreSavorTabs
+                  city={cityFromDisplay(destDisplay) || "Destination"}
+                  active={subTab}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {/* SORT & VIEW CHIPS */}
+        {showControls && (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              className={`chip ${sort === "best" ? "on" : ""}`}
+              onClick={() => setSort("best")}
+            >
+              Best
+            </button>
+            <button
+              className={`chip ${sort === "cheapest" ? "on" : ""}`}
+              onClick={() => setSort("cheapest")}
+            >
+              Cheapest
+            </button>
+            <button
+              className={`chip ${sort === "fastest" ? "on" : ""}`}
+              onClick={() => setSort("fastest")}
+            >
+              Fastest
+            </button>
+            <button
+              className={`chip ${sort === "flexible" ? "on" : ""}`}
+              onClick={() => setSort("flexible")}
+            >
+              Flexible
+            </button>
+            <span style={{ marginLeft: 8 }} />
+            <button
+              className={`chip ${listTab === "top3" ? "on" : ""}`}
+              onClick={() => setListTab("top3")}
+            >
+              Top-3
+            </button>
+            <button
+              className={`chip ${listTab === "all" ? "on" : ""}`}
+              onClick={() => setListTab("all")}
+            >
+              All
+            </button>
+            <button className="chip" onClick={() => window.print()}>
+              Print
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <div
+            style={{
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              color: "#7f1d1d",
+              padding: 10,
+              borderRadius: 10,
+            }}
+          >
+            ⚠ {error}
+          </div>
+        )}
+
+        {/* AI TOP-3 SUMMARY */}
+        {aiTop3 && results && results.length > 0 && (
+          <div
+            style={{
+              background: "#0f172a",
+              color: "white",
+              borderRadius: 16,
+              padding: 12,
+              display: "grid",
+              gap: 6,
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: 16 }}>
+              ✨ AI Top 3 Picks
+              {aiTop3Loading && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    marginLeft: 8,
+                    opacity: 0.8,
+                    fontWeight: 400,
+                  }}
+                >
+                  (refreshing…)
+                </span>
+              )}
+            </div>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: 18,
+                fontSize: 14,
+              }}
+            >
+              {["best_overall", "best_budget", "best_comfort"].map((key) => {
+                const info = (aiTop3 as any)[key];
+                if (!info?.id) return null;
+                const pkg = results.find(
+                  (r) => String(r.id) === String(info.id)
+                );
+                if (!pkg) return null;
+
+                const title =
+                  key === "best_overall"
+                    ? "Best overall"
+                    : key === "best_budget"
+                    ? "Best for budget"
+                    : "Best for comfort";
+
+                const destText =
+                  pkg.destination ||
+                  pkg.destinationName ||
+                  cityFromDisplay(destDisplay) ||
+                  "Option";
+
+                return (
+                  <li key={key}>
+                    <strong>{title}:</strong>{" "}
+                    <span>
+                      {destText} – {info.reason || "chosen by AI"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {/* RESULTS */}
+        {(shown?.length ?? 0) > 0 && (
+          <div style={{ display: "grid", gap: 10 }}>
+            {shown.map((pkg, i) => (
+              <ResultCard
+                key={pkg.id || i}
+                pkg={pkg}
+                index={i}
+                currency={currency}
+                pax={totalPax}
+                showHotel={includeHotel}
+                hotelNights={
+                  includeHotel ? nightsBetween(hotelCheckIn, hotelCheckOut) : 0
+                }
+                showAllHotels={listTab === "all"}
+                comparedIds={comparedIds}
+                onToggleCompare={(id) => toggleCompare(id)}
+                onSavedChangeGlobal={() => {}}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* COMPARE PANEL */}
+        {comparedIds.length >= 2 && (
+          <ComparePanel
+            items={(shown || []).filter((r: any) =>
+              comparedIds.includes(String(r.id || ""))
+            )}
+            currency={currency}
+            onClose={() => setComparedIds([])}
+            onRemove={(id) =>
+              setComparedIds((prev) => prev.filter((x) => x !== id))
+            }
+          />
+        )}
+      </>
+    );
+  };
+
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
       {/* GLOBAL TABS */}
@@ -425,7 +665,7 @@ export default function Page() {
       >
         <button
           type="button"
-          onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
+          onClick={() => setMode("ai")}
           style={{
             flex: 1,
             padding: 10,
@@ -445,7 +685,7 @@ export default function Page() {
         </button>
         <button
           type="button"
-          onClick={() => setMode((m) => (m === "manual" ? "none" : "manual"))}
+          onClick={() => setMode("manual")}
           style={{
             flex: 1,
             padding: 10,
@@ -462,18 +702,19 @@ export default function Page() {
         </button>
       </div>
 
-      {/* AI MODE – AI panels (itinerary + compare) */}
+      {/* AI MODE */}
       {mode === "ai" && (
         <>
           <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
           <AiDestinationCompare />
+          <ResultsArea />
         </>
       )}
 
-      {/* SHARED SEARCH + RESULTS (for both Manual and AI modes) */}
-      {(mode === "manual" || mode === "ai") && (
+      {/* MANUAL MODE */}
+      {mode === "manual" && (
         <>
-          {/* SEARCH FORM */}
+          {/* MANUAL SEARCH FORM ONLY IN THIS TAB */}
           <form
             style={{
               background: "#fff",
@@ -488,7 +729,7 @@ export default function Page() {
               runSearch();
             }}
           >
-            {/* Origin / Swap / Destination */}
+            {/* Origin / swap / destination */}
             <div
               style={{
                 display: "grid",
@@ -552,7 +793,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Trip / Dates / Pax */}
+            {/* Trip / dates / pax */}
             <div
               style={{
                 display: "grid",
@@ -729,7 +970,7 @@ export default function Page() {
               </div>
             )}
 
-            {/* Cabin / Stops / Hotel toggle / Actions */}
+            {/* Cabin / stops / hotel / actions */}
             <div
               style={{
                 display: "grid",
@@ -937,250 +1178,8 @@ export default function Page() {
             )}
           </form>
 
-          {/* SUB-TABS */}
-          {showControls && (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  color: "#475569",
-                  fontWeight: 700,
-                }}
-              >
-                <button
-                  className={`subtab ${
-                    subTab === "explore" && subPanelOpen ? "on" : ""
-                  }`}
-                  onClick={() => clickSubTab("explore")}
-                >
-                  Explore
-                </button>
-                <button
-                  className={`subtab ${
-                    subTab === "savor" && subPanelOpen ? "on" : ""
-                  }`}
-                  onClick={() => clickSubTab("savor")}
-                >
-                  Savor
-                </button>
-                <button
-                  className={`subtab ${
-                    subTab === "misc" && subPanelOpen ? "on" : ""
-                  }`}
-                  onClick={() => clickSubTab("misc")}
-                >
-                  Miscellaneous
-                </button>
-                <style jsx>{`
-                  .subtab {
-                    padding: 8px 12px;
-                    border-radius: 999px;
-                    background: #fff;
-                    border: 1px solid #e2e8f0;
-                    cursor: pointer;
-                  }
-                  .subtab.on {
-                    background: linear-gradient(90deg, #06b6d4, #0ea5e9);
-                    color: #fff;
-                    border: none;
-                  }
-                `}</style>
-              </div>
-
-              {subPanelOpen && (
-                <div
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 12,
-                    background: "#fff",
-                    padding: 12,
-                  }}
-                >
-                  <ExploreSavorTabs
-                    city={cityFromDisplay(destDisplay) || "Destination"}
-                    active={subTab}
-                  />
-                </div>
-              )}
-            </>
-          )}
-
-          {/* SORT & VIEW CHIPS */}
-          {showControls && (
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <button
-                className={`chip ${sort === "best" ? "on" : ""}`}
-                onClick={() => setSort("best")}
-              >
-                Best
-              </button>
-              <button
-                className={`chip ${sort === "cheapest" ? "on" : ""}`}
-                onClick={() => setSort("cheapest")}
-              >
-                Cheapest
-              </button>
-              <button
-                className={`chip ${sort === "fastest" ? "on" : ""}`}
-                onClick={() => setSort("fastest")}
-              >
-                Fastest
-              </button>
-              <button
-                className={`chip ${sort === "flexible" ? "on" : ""}`}
-                onClick={() => setSort("flexible")}
-              >
-                Flexible
-              </button>
-              <span style={{ marginLeft: 8 }} />
-              <button
-                className={`chip ${listTab === "top3" ? "on" : ""}`}
-                onClick={() => setListTab("top3")}
-              >
-                Top-3
-              </button>
-              <button
-                className={`chip ${listTab === "all" ? "on" : ""}`}
-                onClick={() => setListTab("all")}
-              >
-                All
-              </button>
-              <button className="chip" onClick={() => window.print()}>
-                Print
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <div
-              style={{
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                color: "#7f1d1d",
-                padding: 10,
-                borderRadius: 10,
-              }}
-            >
-              ⚠ {error}
-            </div>
-          )}
-
-          {/* AI TOP-3 SUMMARY (based on results, works for AI or manual) */}
-          {aiTop3 && results && results.length > 0 && (
-            <div
-              style={{
-                background: "#0f172a",
-                color: "white",
-                borderRadius: 16,
-                padding: 12,
-                display: "grid",
-                gap: 6,
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: 16 }}>
-                ✨ AI Top 3 Picks
-                {aiTop3Loading && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      marginLeft: 8,
-                      opacity: 0.8,
-                      fontWeight: 400,
-                    }}
-                  >
-                    (refreshing…)
-                  </span>
-                )}
-              </div>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: 18,
-                  fontSize: 14,
-                }}
-              >
-                {["best_overall", "best_budget", "best_comfort"].map((key) => {
-                  const info = (aiTop3 as any)[key];
-                  if (!info?.id) return null;
-                  const pkg = results.find(
-                    (r) => String(r.id) === String(info.id)
-                  );
-                  if (!pkg) return null;
-
-                  const title =
-                    key === "best_overall"
-                      ? "Best overall"
-                      : key === "best_budget"
-                      ? "Best for budget"
-                      : "Best for comfort";
-
-                  const destText =
-                    pkg.destination ||
-                    pkg.destinationName ||
-                    cityFromDisplay(destDisplay) ||
-                    "Option";
-
-                  return (
-                    <li key={key}>
-                      <strong>{title}:</strong>{" "}
-                      <span>
-                        {destText} – {info.reason || "chosen by AI"}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
-          {/* RESULTS */}
-          {(shown?.length ?? 0) > 0 && (
-            <div style={{ display: "grid", gap: 10 }}>
-              {shown.map((pkg, i) => (
-                <ResultCard
-                  key={pkg.id || i}
-                  pkg={pkg}
-                  index={i}
-                  currency={currency}
-                  pax={totalPax}
-                  showHotel={includeHotel}
-                  hotelNights={
-                    includeHotel
-                      ? nightsBetween(hotelCheckIn, hotelCheckOut)
-                      : 0
-                  }
-                  showAllHotels={listTab === "all"}
-                  comparedIds={comparedIds}
-                  onToggleCompare={(id) => toggleCompare(id)}
-                  onSavedChangeGlobal={() => {}}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* COMPARE PANEL */}
-          {comparedIds.length >= 2 && (
-            <ComparePanel
-              items={(shown || []).filter((r: any) =>
-                comparedIds.includes(String(r.id || "")))
-              }
-              currency={currency}
-              onClose={() => setComparedIds([])}
-              onRemove={(id) =>
-                setComparedIds((prev) => prev.filter((x) => x !== id))
-              }
-            />
-          )}
+          {/* SHARED RESULTS AREA */}
+          <ResultsArea />
         </>
       )}
     </div>

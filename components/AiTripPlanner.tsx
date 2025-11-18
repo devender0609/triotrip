@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import ResultCard from "./ResultCard";
 import { aiPlanTrip } from "@/lib/api";
 
 const AI_ENABLED =
@@ -31,51 +30,10 @@ type AiTripPlannerProps = {
   }) => void;
 };
 
-function buildGoogleFlightsUrl(pkg: any, searchParams: any | null) {
-  if (!searchParams) return undefined;
-  const origin = searchParams.origin;
-  const destination = searchParams.destination;
-  const departDate = searchParams.departDate;
-  const returnDate = searchParams.returnDate;
-
-  if (!origin || !destination || !departDate) return undefined;
-
-  const base = "https://www.google.com/travel/flights";
-  const params = new URLSearchParams();
-
-  params.set("q", `${origin} to ${destination}`);
-  params.set("hl", "en");
-  params.set("curr", searchParams.currency || "USD");
-
-  try {
-    const segs = pkg?.flightSegments || pkg?.segments || [];
-    if (Array.isArray(segs) && segs.length) {
-      const first = segs[0];
-      if (first?.departure?.iataCode && first?.arrival?.iataCode) {
-        params.set("f", `${first.departure.iataCode}.${first.arrival.iataCode}`);
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  params.set("d1", departDate);
-  if (searchParams.roundTrip && returnDate) {
-    params.set("d2", returnDate);
-  }
-  if (searchParams.passengersAdults) {
-    params.set("ap", String(searchParams.passengersAdults));
-  }
-
-  return `${base}?${params.toString()}`;
-}
-
 function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [planning, setPlanning] = useState<PlanningPayload | null>(null);
-
   const [message, setMessage] = useState<string | null>(null);
 
   if (!AI_ENABLED) return null;
@@ -93,13 +51,13 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
 
     return (
       <section className="mt-6 space-y-2">
-        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 px-4 py-3">
+        <div className="rounded-2xl bg-slate-900 border border-sky-500/40 px-4 py-3">
           <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
             <span>🔝 AI’s top picks</span>
           </h3>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-[11px] text-slate-300 mt-1">
             These are the trips the AI thinks fit your request best. You’ll see
-            the full list of live options below in the main results.
+            the full list of live options below in the results section.
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
@@ -138,11 +96,11 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
 
     return (
       <section className="mt-8 space-y-3">
-        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 px-4 py-3">
+        <div className="rounded-2xl bg-slate-900 border border-sky-500/40 px-4 py-3">
           <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
             <span>🏨 Hotel suggestions (AI)</span>
           </h3>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-[11px] text-slate-300 mt-1">
             AI-picked hotel ideas based on your budget and vibe. Check prices on
             your favorite booking site.
           </p>
@@ -201,11 +159,11 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
 
     return (
       <section className="mt-10 space-y-3">
-        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 px-4 py-3">
+        <div className="rounded-2xl bg-slate-900 border border-sky-500/40 px-4 py-3">
           <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
             <span>📅 Suggested Itinerary</span>
           </h3>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-[11px] text-slate-300 mt-1">
             Use this as a starting point – you can adjust days or swap
             activities once you pick final flights and hotel.
           </p>
@@ -224,7 +182,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             return (
               <article
                 key={i}
-                className="rounded-2xl bg-slate-950/80 border border-slate-800 px-4 py-3 text-xs shadow-sm space-y-2"
+                className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3 text-xs shadow-sm space-y-2"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-[12px] font-semibold text-slate-100">
@@ -257,22 +215,22 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                       const time = b.time || b.when;
                       const text = b.text || b.title || b.activity || "";
                       return (
-                            <li
-                              key={idx}
-                              className="flex items-start gap-2 text-[11px]"
-                            >
-                              <span className="mt-0.5">
-                                {time ? "⏰" : "•"}
+                        <li
+                          key={idx}
+                          className="flex items-start gap-2 text-[11px]"
+                        >
+                          <span className="mt-0.5">
+                            {time ? "⏰" : "•"}
+                          </span>
+                          <span>
+                            {time && (
+                              <span className="font-semibold">
+                                {time}:{" "}
                               </span>
-                              <span>
-                                {time && (
-                                  <span className="font-semibold">
-                                    {time}:{" "}
-                                  </span>
-                                )}
-                                {text}
-                              </span>
-                            </li>
+                            )}
+                            {text}
+                          </span>
+                        </li>
                       );
                     })}
                   </ul>
@@ -300,23 +258,23 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         return;
       }
 
+      const planningPayload: PlanningPayload | null = data.planning || null;
+      setPlanning(planningPayload);
+
       if (!data.ok) {
         const raw = (data.error || "").toString().toLowerCase();
         if (raw.includes("amadeus") || raw.includes("400")) {
           setMessage(
-            "We couldn’t fetch live flight prices from our provider. Please try different dates or use Manual Search for this trip."
+            "We couldn’t fetch live flight prices from our provider. Please try different dates or use Manual Search."
           );
         } else {
           setMessage(
-            "We couldn’t plan this trip. Please try again with a bit more detail."
+            "We couldn’t plan this trip right now. Please try again or use Manual Search."
           );
         }
       } else {
         setMessage(null);
       }
-
-      const planningPayload: PlanningPayload | null = data.planning || null;
-      setPlanning(planningPayload);
 
       if (onSearchComplete) {
         onSearchComplete({
@@ -337,7 +295,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
 
   /*************** RENDER ***************/
   return (
-    <section className="mt-2 space-y-4 text-slate-50 bg-slate-950 px-4 py-4 rounded-2xl border border-slate-800">
+    <section className="mt-2 space-y-4 text-slate-50 bg-slate-950 rounded-2xl border border-slate-800 px-4 py-5">
       <div className="space-y-1">
         <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
           <span>Plan my trip with AI</span>
@@ -354,7 +312,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder='Example: "Austin to New Delhi, budget friendly flight and hotel, Nov 18–Dec 3 2025, hotel for 2 nights."'
+          placeholder='Example: "Austin to Boston, Jan 18–20 2026, 2 nights hotel, budget friendly."'
           rows={2}
           className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
         />
