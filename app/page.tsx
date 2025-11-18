@@ -113,7 +113,7 @@ export default function Page() {
   const [subPanelOpen, setSubPanelOpen] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
-  // Results (manual search)
+  // Results (manual + AI search shared)
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -173,6 +173,71 @@ export default function Page() {
       setDestDisplay(od);
       return dd;
     });
+  }
+
+  /**
+   * NEW: when AI trip planner finishes, push its results into the same
+   * `results` state used by manual search, so the display is identical.
+   */
+  function handleAiSearchComplete(payload: {
+    searchParams: any;
+    searchResult: any;
+    planning: any;
+  }) {
+    try {
+      const searchParams = payload?.searchParams || {};
+      const searchResult = payload?.searchResult || {};
+      const arr = Array.isArray(searchResult.results)
+        ? searchResult.results
+        : [];
+
+      const withIds = arr.map((res: any, i: number) => ({
+        id: res.id ?? `ai-${i}`,
+        ...searchParams,
+        ...res,
+      }));
+
+      setResults(withIds);
+
+      // show chips / tabs / explore panel controls
+      setShowControls(true);
+      setListTab("all");
+      setSubTab("explore");
+      setSubPanelOpen(false);
+      setComparedIds([]);
+
+      // Optional: sync AI-inferred params back into the form
+      if (searchParams.origin) setOriginCode(searchParams.origin);
+      if (searchParams.destination) setDestCode(searchParams.destination);
+      if (typeof searchParams.roundTrip === "boolean")
+        setRoundTrip(searchParams.roundTrip);
+      if (searchParams.departDate) setDepartDate(searchParams.departDate);
+      if (searchParams.returnDate) setReturnDate(searchParams.returnDate);
+      if (typeof searchParams.passengersAdults === "number")
+        setAdults(searchParams.passengersAdults);
+      if (typeof searchParams.passengersChildren === "number")
+        setChildren(searchParams.passengersChildren);
+      if (typeof searchParams.passengersInfants === "number")
+        setInfants(searchParams.passengersInfants);
+      if (Array.isArray(searchParams.passengersChildrenAges))
+        setChildAges(searchParams.passengersChildrenAges);
+      if (searchParams.cabin) setCabin(searchParams.cabin);
+      if (typeof searchParams.includeHotel === "boolean")
+        setIncludeHotel(searchParams.includeHotel);
+      if (searchParams.hotelCheckIn)
+        setHotelCheckIn(searchParams.hotelCheckIn);
+      if (searchParams.hotelCheckOut)
+        setHotelCheckOut(searchParams.hotelCheckOut);
+      if (typeof searchParams.minHotelStar === "number")
+        setMinHotelStar(searchParams.minHotelStar);
+      if (typeof searchParams.minBudget === "number")
+        setMinBudget(String(searchParams.minBudget));
+      if (typeof searchParams.maxBudget === "number")
+        setMaxBudget(String(searchParams.maxBudget));
+      if (searchParams.currency) setCurrency(searchParams.currency);
+    } catch (err) {
+      console.error("handleAiSearchComplete error", err);
+    }
   }
 
   async function runSearch() {
@@ -242,7 +307,7 @@ export default function Page() {
     }
   }
 
-  // AI Top-3 whenever manual results change
+  // AI Top-3 whenever results change (works for both manual & AI results)
   useEffect(() => {
     if (!results || results.length === 0) {
       setAiTop3(null);
@@ -397,16 +462,16 @@ export default function Page() {
         </button>
       </div>
 
-      {/* AI MODE */}
+      {/* AI MODE – AI panels (itinerary + compare) */}
       {mode === "ai" && (
         <>
-          <AiTripPlanner />
+          <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
           <AiDestinationCompare />
         </>
       )}
 
-      {/* MANUAL MODE */}
-      {mode === "manual" && (
+      {/* SHARED SEARCH + RESULTS (for both Manual and AI modes) */}
+      {(mode === "manual" || mode === "ai") && (
         <>
           {/* SEARCH FORM */}
           <form
@@ -1010,7 +1075,7 @@ export default function Page() {
             </div>
           )}
 
-          {/* AI TOP-3 SUMMARY */}
+          {/* AI TOP-3 SUMMARY (based on results, works for AI or manual) */}
           {aiTop3 && results && results.length > 0 && (
             <div
               style={{
@@ -1107,8 +1172,8 @@ export default function Page() {
           {comparedIds.length >= 2 && (
             <ComparePanel
               items={(shown || []).filter((r: any) =>
-                comparedIds.includes(String(r.id || ""))
-              )}
+                comparedIds.includes(String(r.id || "")))
+              }
               currency={currency}
               onClose={() => setComparedIds([])}
               onRemove={(id) =>

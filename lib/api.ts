@@ -1,98 +1,86 @@
-"use client";
+// lib/api.ts
 
-/**
- * In production, always call same-origin /api/* to avoid CORS.
- * In local dev, if you set NEXT_PUBLIC_API_BASE (e.g., http://localhost:4000),
- * we'll use it. In production we ignore it.
- */
-
-const isBrowser = typeof window !== "undefined";
-const isDev = process.env.NODE_ENV !== "production";
-const PUBLIC_BASE = isDev ? (process.env.NEXT_PUBLIC_API_BASE || "") : "";
-
-/** Normalize to /api/<path>; return absolute only in dev if PUBLIC_BASE set */
-function apiUrl(path: string) {
-  const p = path.startsWith("/") ? path : `/${path}`;
-  const withApi = p.startsWith("/api/") ? p : `/api${p}`;
-  return isBrowser && PUBLIC_BASE ? `${PUBLIC_BASE.replace(/\/+$/, "")}${withApi}` : withApi;
-}
-
-/** Generic JSON fetch (same-origin in prod) */
-async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = apiUrl(path);
+// Generic JSON helper
+async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
-    cache: init?.cache ?? "no-store",
-    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init && init.headers),
+    },
   });
+
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {
+    // ignore JSON parse errors; we’ll throw below
+  }
 
   if (!res.ok) {
-    // Try to surface a useful error
-    let msg = `Request failed (${res.status})`;
-    try {
-      const j = await res.clone().json();
-      if ((j as any)?.error) msg = (j as any).error;
-    } catch {
-      const t = await res.clone().text().catch(() => "");
-      if (t) msg = t;
-    }
+    const msg =
+      data?.error ||
+      data?.message ||
+      `Request to ${url} failed with status ${res.status}`;
     throw new Error(msg);
   }
-  return res.json() as Promise<T>;
+  return data as T;
 }
 
-/** =========================
- *  Places (autocomplete)
- *  ========================= */
-export async function searchPlaces(term: string) {
-  const q = (term || "").trim();
-  if (q.length < 2) return { ok: true, data: [] as any[] };
-  // Always hit our own API route; dev base is auto-applied by apiUrl
-  return fetchJSON<{ ok: boolean; data: any[] }>(`/api/places?q=${encodeURIComponent(q)}`);
-}
-
-/** =========================
- *  Favorites API (used by app/saved and ResultCard)
- *  ========================= */
-
-/** GET /api/favorites -> { items: any[] } */
-export async function listFavorites() {
-  return fetchJSON<{ items: any[] }>(`/api/favorites`);
-}
-
-/** POST /api/favorites { payload } -> { item: any } */
-export async function addFavorite(payload: any) {
-  return fetchJSON<{ item: any }>(`/api/favorites`, {
+/**
+ * Manual trip search wrapper (if you want to use it instead of fetch("/api/search") directly).
+ * Not currently used by app/page.tsx, but safe to keep for components.
+ */
+export async function searchTrips(payload: any) {
+  return fetchJSON<{
+    results: any[];
+  }>("/api/search", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ payload }),
+    body: JSON.stringify(payload),
   });
 }
 
-/** DELETE /api/favorites/:id -> { ok: boolean } */
-export async function removeFavorite(id: string) {
-  return fetchJSON<{ ok: boolean }>(`/api/favorites/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
-}
-
-/** (Optional utility if you need it elsewhere) */
-export const getJSON = fetchJSON;
-
-// lib/api.ts (add at bottom)
+/**
+ * AI trip planner
+ * Hits /api/ai/plan-trip and returns:
+ *  {
+ *    ok: boolean;
+ *    searchParams?: any;   // inferred structured params
+ *    searchResult?: any;   // { results: [...] } similar to /api/search
+ *    planning?: any;       // { top3, hotels, itinerary }
+ *    error?: string;
+ *  }
+ */
 export async function aiPlanTrip(query: string) {
   return fetchJSON<{
     ok: boolean;
-    payload: any;
-    searchResult: any;
-    planning: any;
+    searchParams?: any;
+    searchResult?: any;
+    planning?: any;
+    error?: string;
   }>("/api/ai/plan-trip", {
     method: "POST",
     body: JSON.stringify({ query }),
-    headers: { "Content-Type": "application/json" },
   });
 }
 
+/**
+ * AI destination comparison (for AiDestinationCompare component)
+ *  {
+ *    ok: boolean;
+ *    comparisons: [
+ *      {
+ *        name: string;
+ *        approx_cost_level: string;
+ *        weather_summary: string;
+ *        best_for: string;
+ *        pros: string[];
+ *        cons: string[];
+ *        overall_vibe: string;
+ *      }, ...
+ *    ]
+ *  }
+ */
 export async function aiCompareDestinations(input: {
   destinations: string[];
   month?: string;
@@ -113,7 +101,24 @@ export async function aiCompareDestinations(input: {
   }>("/api/ai/compare", {
     method: "POST",
     body: JSON.stringify(input),
-    headers: { "Content-Type": "application/json" },
   });
 }
 
+/**
+ * (Optional) AI Top-3 helper – you’re currently calling /api/ai/top3
+ * directly from app/page.tsx, but this wrapper is here if you want it.
+ */
+export async function aiTop3FromResults(results: any[]) {
+  return fetchJSON<{
+    ok: boolean;
+    top3?: {
+      best_overall?: { id: string; reason?: string };
+      best_budget?: { id: string; reason?: string };
+      best_comfort?: { id: string; reason?: string };
+    };
+    error?: string;
+  }>("/api/ai/top3", {
+    method: "POST",
+    body: JSON.stringify({ results }),
+  });
+}
