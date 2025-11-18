@@ -14,7 +14,7 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   try {
     data = await res.json();
   } catch {
-    // ignore JSON parse errors; we’ll throw below
+    // ignore JSON parse errors; we’ll throw below if needed
   }
 
   if (!res.ok) {
@@ -28,8 +28,8 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 /**
- * Manual trip search wrapper (if you want to use it instead of fetch("/api/search") directly).
- * Not currently used by app/page.tsx, but safe to keep for components.
+ * Manual trip search wrapper
+ * (optional – you can still call /api/search directly)
  */
 export async function searchTrips(payload: any) {
   return fetchJSON<{
@@ -37,6 +37,31 @@ export async function searchTrips(payload: any) {
   }>("/api/search", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * FAVORITES API
+ * These are used by app/saved/page.tsx
+ */
+
+// Get all saved favorites
+export async function listFavorites() {
+  return fetchJSON<{
+    ok: boolean;
+    items: any[];
+  }>("/api/favorites", {
+    method: "GET",
+  });
+}
+
+// Remove a favorite by id
+export async function removeFavorite(id: string) {
+  return fetchJSON<{
+    ok: boolean;
+  }>("/api/favorites", {
+    method: "DELETE",
+    body: JSON.stringify({ id }),
   });
 }
 
@@ -105,8 +130,7 @@ export async function aiCompareDestinations(input: {
 }
 
 /**
- * (Optional) AI Top-3 helper – you’re currently calling /api/ai/top3
- * directly from app/page.tsx, but this wrapper is here if you want it.
+ * AI Top-3 helper – used to score/summarize a list of results
  */
 export async function aiTop3FromResults(results: any[]) {
   return fetchJSON<{
