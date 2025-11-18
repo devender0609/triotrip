@@ -55,7 +55,6 @@ const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
 export default function Page() {
-  // start with no mode selected
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
 
   // Places & dates (manual)
@@ -122,7 +121,6 @@ export default function Page() {
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
 
-  // sync hotel / dates
   useEffect(() => {
     if (!includeHotel) setSortBasis("flightOnly");
   }, [includeHotel]);
@@ -150,7 +148,6 @@ export default function Page() {
     roundTrip,
   ]);
 
-  // child ages
   useEffect(() => {
     setChildAges((prev) => {
       const copy = prev.slice(0, children);
@@ -435,16 +432,16 @@ export default function Page() {
     color: "#334155",
     display: "block",
     marginBottom: 6,
-    fontSize: 14,
+    fontSize: 16,
   };
   const sInput: React.CSSProperties = {
-    height: 44,
+    height: 46,
     padding: "0 12px",
     border: "1px solid #e2e8f0",
     borderRadius: 12,
     width: "100%",
     background: "#fff",
-    fontSize: 15,
+    fontSize: 16,
   };
 
   function clickSubTab(tab: SubTab) {
@@ -504,6 +501,7 @@ export default function Page() {
                   background: #fff;
                   border: 1px solid #e2e8f0;
                   cursor: pointer;
+                  font-size: 13px;
                 }
                 .subtab.on {
                   background: linear-gradient(90deg, #06b6d4, #0ea5e9);
@@ -588,7 +586,7 @@ export default function Page() {
                 border-radius: 999px;
                 border: 1px solid #e2e8f0;
                 background: #ffffff;
-                font-size: 12px;
+                font-size: 13px;
                 cursor: pointer;
               }
               .chip.on {
@@ -609,6 +607,7 @@ export default function Page() {
               padding: 10,
               borderRadius: 10,
               marginTop: 8,
+              fontSize: 13,
             }}
           >
             ⚠ {error}
@@ -737,7 +736,7 @@ export default function Page() {
       >
         <button
           type="button"
-          onClick={() => setMode("ai")}
+          onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
           style={{
             flex: 1,
             padding: 10,
@@ -749,7 +748,7 @@ export default function Page() {
                 : "#ffffff",
             color: mode === "ai" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 14,
+            fontSize: 16,
             cursor: "pointer",
           }}
         >
@@ -757,7 +756,7 @@ export default function Page() {
         </button>
         <button
           type="button"
-          onClick={() => setMode("manual")}
+          onClick={() => setMode((m) => (m === "manual" ? "none" : "manual"))}
           style={{
             flex: 1,
             padding: 10,
@@ -766,7 +765,7 @@ export default function Page() {
             background: mode === "manual" ? "#0f172a" : "#ffffff",
             color: mode === "manual" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 14,
+            fontSize: 16,
             cursor: "pointer",
           }}
         >
@@ -1017,13 +1016,18 @@ export default function Page() {
                   {Array.from({ length: children }).map((_, i) => (
                     <div
                       key={i}
-                      className="chip"
-                      style={{ padding: 0, borderRadius: 12 }}
+                      style={{
+                        padding: 0,
+                        borderRadius: 12,
+                        border: "1px solid #e2e8f0",
+                      }}
                     >
                       <label
                         style={{
                           padding: "8px 10px",
                           fontWeight: 700,
+                          fontSize: 13,
+                          display: "inline-block",
                         }}
                       >
                         Child {i + 1}
@@ -1051,6 +1055,7 @@ export default function Page() {
                           borderRadius: 12,
                           margin: 6,
                           padding: "0 8px",
+                          fontSize: 14,
                         }}
                       />
                     </div>
@@ -1112,7 +1117,7 @@ export default function Page() {
                 />
                 <label
                   htmlFor="include-hotel"
-                  style={{ fontWeight: 700 }}
+                  style={{ fontWeight: 700, fontSize: 14 }}
                 >
                   Include hotel
                 </label>
@@ -1130,6 +1135,7 @@ export default function Page() {
                     fontWeight: 800,
                     marginTop: 8,
                     marginRight: 8,
+                    fontSize: 14,
                   }}
                 >
                   {loading ? "Searching..." : "Search"}
@@ -1145,6 +1151,7 @@ export default function Page() {
                     background: "#fff",
                     fontWeight: 800,
                     marginTop: 8,
+                    fontSize: 14,
                   }}
                 >
                   Reset
@@ -1242,6 +1249,7 @@ export default function Page() {
                             ? "#60a5fa"
                             : "#e2e8f0"
                         }`,
+                        fontSize: 13,
                       }}
                     >
                       Flight only
@@ -1257,6 +1265,7 @@ export default function Page() {
                             ? "#60a5fa"
                             : "#e2e8f0"
                         }`,
+                        fontSize: 13,
                       }}
                     >
                       Bundle total

@@ -1,297 +1,196 @@
-"use client";
-
+// components/ExploreSavorTabs.tsx
 import React from "react";
 
-// ===== Types =====
 type Props = {
   city: string;
-  /** Optional: if true we add “Regional dining” under Savor.  */
-  isInternational?: boolean;
-  /** Which panel is visible; the others are hidden so the page isn’t crowded. */
   active: "explore" | "savor" | "misc";
 };
 
-/** Gradient chip */
-function Chip({
-  href,
-  children,
-  title,
-}: {
-  href: string;
-  children: React.ReactNode;
-  title?: string;
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      title={title}
-      className="tt-chip"
-    >
-      {children}
-      <style jsx>{`
-        .tt-chip {
-          display: inline-flex;
-          align-items: center;
-          padding: 8px 12px;
-          border-radius: 999px;
-          font-weight: 700;
-          text-decoration: none;
-          color: #0f172a;
-          background: linear-gradient(90deg, #fdfbfb 0%, #ebedee 100%);
-          border: 1px solid #e2e8f0;
-          box-shadow: 0 2px 4px rgba(2, 6, 23, 0.06);
-          transition: transform 0.05s ease, box-shadow 0.2s ease,
-            background 0.2s ease;
-          white-space: nowrap;
-        }
-        .tt-chip:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 16px rgba(2, 6, 23, 0.08);
-          background: linear-gradient(90deg, #e0f2fe, #f0f9ff);
-        }
-      `}</style>
-    </a>
+const labelCity = (city: string) =>
+  city && city !== "Destination" ? city : "your destination";
+
+const ExploreSavorTabs: React.FC<Props> = ({ city, active }) => {
+  const displayCity = labelCity(city || "");
+
+  const commonLinks = (
+    <>
+      <li>
+        👉{" "}
+        <a
+          href={`https://www.google.com/maps/search/tourist+attractions+in+${encodeURIComponent(
+            city || "city"
+          )}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Google Maps: things to do in {displayCity}
+        </a>
+      </li>
+      <li>
+        👉{" "}
+        <a
+          href={`https://www.tripadvisor.com/Search?q=${encodeURIComponent(
+            city || "city"
+          )}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Tripadvisor guide for {displayCity}
+        </a>
+      </li>
+      <li>
+        👉{" "}
+        <a
+          href={`https://en.wikipedia.org/wiki/${encodeURIComponent(
+            (city || "city").replace(/\s+/g, "_")
+          )}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Wikipedia overview of {displayCity}
+        </a>
+      </li>
+    </>
   );
-}
 
-/** Section card */
-function Box({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+  if (active === "explore") {
+    return (
+      <div>
+        <h3
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            marginBottom: 4,
+          }}
+        >
+          Explore {displayCity}
+        </h3>
+        <p style={{ fontSize: 13, marginBottom: 6 }}>
+          Ideas for how to spend your days in {displayCity}. Use these to refine
+          the itinerary or choose which neighborhood to stay in.
+        </p>
+        <ul
+          style={{
+            fontSize: 13,
+            paddingLeft: 18,
+            margin: 0,
+            display: "grid",
+            gap: 4,
+          }}
+        >
+          <li>
+            Check if {displayCity} has a historic center, river walk, or main
+            square and plan at least one slow walk there.
+          </li>
+          <li>
+            Search “best viewpoints in {displayCity}” for sunset spots and city
+            skyline photos.
+          </li>
+          <li>
+            Pick 1–2 museums or cultural sites that match your interests (art,
+            history, science, local culture).
+          </li>
+          <li>
+            Save 2–3 parks or short hikes around {displayCity} for low-key
+            mornings or jetlag days.
+          </li>
+          {commonLinks}
+        </ul>
+      </div>
+    );
+  }
+
+  if (active === "savor") {
+    return (
+      <div>
+        <h3
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            marginBottom: 4,
+          }}
+        >
+          Savor {displayCity}
+        </h3>
+        <p style={{ fontSize: 13, marginBottom: 6 }}>
+          Food & drink ideas so you don&apos;t waste meals on random places.
+        </p>
+        <ul
+          style={{
+            fontSize: 13,
+            paddingLeft: 18,
+            margin: 0,
+            display: "grid",
+            gap: 4,
+          }}
+        >
+          <li>
+            Search “must-try foods in {displayCity}” and add 2–3 signature
+            dishes to your list.
+          </li>
+          <li>
+            Bookmark 1–2 casual brunch/lunch spots and 1–2 nicer dinner options
+            near where you&apos;re staying.
+          </li>
+          <li>
+            Look for food halls, markets, or street-food areas in {displayCity}{" "}
+            to sample lots of things in one stop.
+          </li>
+          <li>
+            If coffee or cafés matter, search “best coffee in {displayCity}” and
+            pin a couple of spots on your map.
+          </li>
+          {commonLinks}
+        </ul>
+      </div>
+    );
+  }
+
+  // misc
   return (
-    <div className="tt-card">
-      <div className="tt-card__title">{title}</div>
-      <div className="tt-card__chips">{children}</div>
-
-      <style jsx>{`
-        .tt-card {
-          border: 1px solid #e6eef7;
-          border-radius: 14px;
-          padding: 14px;
-          background: linear-gradient(180deg, #ffffff, #f8fbff);
-          box-shadow: inset 0 1px 0 #fff, 0 8px 20px rgba(2, 6, 23, 0.04);
-          min-height: 108px;
-        }
-        .tt-card__title {
-          font-weight: 800;
-          color: #0b3b52;
-          margin-bottom: 10px;
-        }
-        .tt-card__chips {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
-      `}</style>
+    <div>
+      <h3
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          marginBottom: 4,
+        }}
+      >
+        Practical tips for {displayCity}
+      </h3>
+      <p style={{ fontSize: 13, marginBottom: 6 }}>
+        Logistics for getting in, getting around, and staying safe in{" "}
+        {displayCity}.
+      </p>
+      <ul
+        style={{
+          fontSize: 13,
+          paddingLeft: 18,
+          margin: 0,
+          display: "grid",
+          gap: 4,
+        }}
+      >
+        <li>
+          Check airport options near {displayCity} and typical ride times to the
+          main hotel neighborhoods.
+        </li>
+        <li>
+          Search “public transport in {displayCity}” to see if a transit card
+          or day pass will save money.
+        </li>
+        <li>
+          Look up “best neighborhoods to stay in {displayCity}” and choose 1–2
+          areas that match your vibe (quiet, nightlife, family-friendly).
+        </li>
+        <li>
+          Review basic safety tips, local customs, and tipping norms for{" "}
+          {displayCity}.
+        </li>
+        {commonLinks}
+      </ul>
     </div>
   );
-}
+};
 
-// Safe Google links
-const gmaps = (q: string) =>
-  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
-const wiki = (q: string) =>
-  `https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(q)}`;
-const wikivoyage = (q: string) =>
-  `https://en.wikivoyage.org/w/index.php?search=${encodeURIComponent(q)}`;
-const tripadvisor = (q: string) =>
-  `https://www.tripadvisor.com/Search?q=${encodeURIComponent(q)}`;
-const yelp = (q: string) =>
-  `https://www.yelp.com/search?find_desc=${encodeURIComponent(q)}`;
-const xe = () => "https://www.xe.com/currencyconverter/";
-const stateDept = (q: string) =>
-  `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html/`;
-const weather = (q: string) =>
-  `https://www.google.com/search?q=${encodeURIComponent(q + " weather")}`;
-const carRent = (q: string) =>
-  `https://www.google.com/travel/search?q=${encodeURIComponent(
-    `car rental ${q}`
-  )}`;
-
-export default function ExploreSavorTabs({
-  city,
-  isInternational,
-  active,
-}: Props) {
-  // Heuristic fallback if prop not provided
-  const intl =
-    typeof isInternational === "boolean"
-      ? isInternational
-      : /[,]|(, )/.test(city) || /delhi|paris|tokyo|dubai|london|rome|madrid|bangkok|singapore/i.test(city);
-
-  return (
-    <div className="wrapper">
-      {/* Explore */}
-      {active === "explore" && (
-        <>
-          <h3 className="panelTitle">
-            <span className="dot dot--green" /> Explore — {city}
-          </h3>
-          <div className="grid">
-            <Box title="Top sights">
-              <Chip href={gmaps(`${city} top sights`)}>Google Maps</Chip>
-              <Chip href={tripadvisor(`${city} attractions`)}>Tripadvisor</Chip>
-              <Chip href={gmaps(`${city} landmarks`)}>Time Out</Chip>
-            </Box>
-
-            <Box title="Parks & views">
-              <Chip href={gmaps(`${city} parks`)}>Google Maps</Chip>
-              <Chip href={tripadvisor(`${city} parks`)}>Tripadvisor</Chip>
-            </Box>
-
-            <Box title="Museums">
-              <Chip href={gmaps(`${city} museums`)}>Google Maps</Chip>
-              <Chip href={tripadvisor(`${city} museums`)}>Tripadvisor</Chip>
-            </Box>
-
-            <Box title="Family">
-              <Chip href={gmaps(`${city} family attractions`)}>
-                Google Maps
-              </Chip>
-              <Chip href={tripadvisor(`${city} for kids`)}>Tripadvisor</Chip>
-            </Box>
-
-            <Box title="Nightlife">
-              <Chip href={gmaps(`${city} nightlife`)}>Google Maps</Chip>
-              <Chip href={tripadvisor(`${city} nightlife`)}>Tripadvisor</Chip>
-              <Chip href={gmaps(`${city} events`)}>Time Out</Chip>
-            </Box>
-
-            <Box title="Guides">
-              <Chip href={wikivoyage(city)}>Wikivoyage</Chip>
-              <Chip href={wiki(city)}>Wikipedia</Chip>
-            </Box>
-          </div>
-        </>
-      )}
-
-      {/* Savor */}
-      {active === "savor" && (
-        <>
-          <h3 className="panelTitle">
-            <span className="dot dot--blue" /> Savor — {city}
-          </h3>
-          <div className="grid">
-            <Box title="Best restaurants">
-              <Chip href={yelp(`${city} best restaurants`)}>Yelp</Chip>
-              <Chip href={gmaps(`${city} restaurants`)}>Google Maps</Chip>
-              <Chip href={yelp(`${city} michelin`)}>Michelin</Chip>
-            </Box>
-
-            <Box title="Local eats">
-              <Chip href={yelp(`${city} local food`)}>Yelp</Chip>
-              <Chip href={gmaps(`${city} local food`)}>Google Maps</Chip>
-            </Box>
-
-            <Box title="Cafés & coffee">
-              <Chip href={gmaps(`${city} cafes`)}>Google Maps</Chip>
-              <Chip href={yelp(`${city} coffee`)}>Yelp</Chip>
-            </Box>
-
-            <Box title="Street food">
-              <Chip href={gmaps(`${city} street food`)}>Google Maps</Chip>
-              <Chip href={yelp(`${city} street food`)}>Yelp</Chip>
-            </Box>
-
-            <Box title="Desserts">
-              <Chip href={gmaps(`${city} desserts`)}>Google Maps</Chip>
-              <Chip href={yelp(`${city} desserts`)}>Yelp</Chip>
-            </Box>
-
-            {intl && (
-              <Box title="Regional dining">
-                <Chip href={`https://www.zomato.com/search?cuisines=&q=${encodeURIComponent(city)}`}>
-                  Zomato
-                </Chip>
-                <Chip href={`https://www.eazydiner.com/${encodeURIComponent(city)}`}>
-                  EazyDiner
-                </Chip>
-              </Box>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Misc */}
-      {active === "misc" && (
-        <>
-          <h3 className="panelTitle">
-            <span className="dot dot--gold" /> Miscellaneous — {city}
-          </h3>
-          <div className="grid">
-            <Box title="Know before you go">
-              <Chip href={wikivoyage(`${city} travel guide`)}>Wikivoyage</Chip>
-              <Chip href={wiki(city)}>Wikipedia</Chip>
-              <Chip href={xe()}>XE currency</Chip>
-              <Chip href={stateDept(city)}>US State Dept</Chip>
-            </Box>
-
-            <Box title="Weather">
-              <Chip href={weather(city)}>Weather</Chip>
-            </Box>
-
-            <Box title="Pharmacies">
-              <Chip href={gmaps(`${city} pharmacy`)}>Google Maps</Chip>
-            </Box>
-
-            <Box title="Car rental">
-              <Chip href={carRent(city)}>Search cars</Chip>
-            </Box>
-          </div>
-        </>
-      )}
-
-      <style jsx>{`
-        .wrapper {
-          display: grid;
-          gap: 12px;
-        }
-        .panelTitle {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin: 0;
-          font-weight: 900;
-          color: #0b3b52;
-        }
-        .dot {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          display: inline-block;
-          box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.08);
-        }
-        .dot--green {
-          background: #10b981;
-        }
-        .dot--blue {
-          background: #0ea5e9;
-        }
-        .dot--gold {
-          background: #f59e0b;
-        }
-        .grid {
-          display: grid;
-          gap: 12px;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-        @media (max-width: 1100px) {
-          .grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-        @media (max-width: 640px) {
-          .grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
+export default ExploreSavorTabs;
