@@ -18,8 +18,8 @@ type PlanningPayload = {
     best_budget?: Top3Item;
     best_comfort?: Top3Item;
   };
-  itinerary?: any[];
   hotels?: any[];
+  itinerary?: any[];
 };
 
 type AiTripPlannerProps = {
@@ -38,7 +38,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
 
   if (!AI_ENABLED) return null;
 
-  /*************** TOP 3 STRIP ***************/
+  /*************** TOP 3 STRIP (CARDS) ***************/
   const Top3Strip = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
     if (!t) return null;
@@ -50,8 +50,8 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     ];
 
     return (
-      <section className="mt-6 space-y-2">
-        <div className="rounded-2xl bg-slate-900 border border-sky-500/40 px-4 py-3">
+      <section className="mt-6 space-y-3">
+        <div className="rounded-2xl bg-slate-900/90 border border-sky-500/40 px-4 py-3">
           <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
             <span>🔝 AI’s top picks</span>
           </h3>
@@ -60,6 +60,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             the full list of live options below in the results section.
           </p>
         </div>
+
         <div className="grid gap-3 md:grid-cols-3">
           {defs.map(({ key, label, icon }) => {
             const value = (t as any)?.[key] as Top3Item | undefined;
@@ -67,9 +68,9 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             return (
               <article
                 key={key}
-                className="rounded-2xl bg-slate-900/80 border border-slate-700 px-4 py-3 text-xs space-y-1 shadow-sm"
+                className="rounded-2xl bg-gradient-to-br from-sky-900/70 via-slate-900 to-slate-950 border border-sky-500/40 px-4 py-3 text-xs space-y-1 shadow-sm"
               >
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-sky-200">
                   <span>{icon}</span>
                   <span>{label}</span>
                 </div>
@@ -79,7 +80,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                   </div>
                 )}
                 {value.reason && (
-                  <p className="text-slate-300 leading-snug">{value.reason}</p>
+                  <p className="text-slate-200 leading-snug">{value.reason}</p>
                 )}
               </article>
             );
@@ -89,14 +90,14 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     );
   };
 
-  /*************** HOTEL SUGGESTIONS ***************/
+  /*************** HOTEL SUGGESTIONS (CARDS) ***************/
   const HotelSection = () => {
     const hotels = Array.isArray(planning?.hotels) ? planning!.hotels : [];
     if (!hotels.length) return null;
 
     return (
       <section className="mt-8 space-y-3">
-        <div className="rounded-2xl bg-slate-900 border border-sky-500/40 px-4 py-3">
+        <div className="rounded-2xl bg-slate-900/90 border border-sky-500/40 px-4 py-3">
           <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
             <span>🏨 Hotel suggestions (AI)</span>
           </h3>
@@ -105,6 +106,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             your favorite booking site.
           </p>
         </div>
+
         <div className="grid gap-4 md:grid-cols-3">
           {hotels.map((h, i) => {
             const name = h.name || h.title || h.hotel || `Option ${i + 1}`;
@@ -117,10 +119,17 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             return (
               <article
                 key={i}
-                className="rounded-2xl bg-gradient-to-br from-sky-900/60 via-slate-900 to-slate-950 border border-sky-500/40 px-4 py-3 text-xs shadow-sm flex flex-col gap-1"
+                className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-4 text-xs shadow-sm flex flex-col gap-2"
               >
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-200">
-                  Hotel option {i + 1}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-300">
+                    Hotel option {i + 1}
+                  </div>
+                  {h.tag && (
+                    <span className="px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/40 text-[10px] uppercase tracking-wide text-sky-200">
+                      {h.tag}
+                    </span>
+                  )}
                 </div>
                 <div className="text-[13px] font-semibold text-slate-50">
                   {name}
@@ -137,9 +146,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                   </div>
                 )}
                 {vibe && (
-                  <div className="text-slate-200">
-                    <span className="font-semibold">Vibe:</span> {vibe}
-                  </div>
+                  <p className="text-slate-200 leading-snug">{vibe}</p>
                 )}
               </article>
             );
@@ -149,7 +156,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     );
   };
 
-  /*************** ITINERARY CARDS ***************/
+  /*************** ITINERARY (DAY CARDS) ***************/
   const ItinerarySection = () => {
     const days = Array.isArray(planning?.itinerary)
       ? planning!.itinerary
@@ -159,7 +166,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
 
     return (
       <section className="mt-10 space-y-3">
-        <div className="rounded-2xl bg-slate-900 border border-sky-500/40 px-4 py-3">
+        <div className="rounded-2xl bg-slate-900/90 border border-sky-500/40 px-4 py-3">
           <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
             <span>📅 Suggested Itinerary</span>
           </h3>
@@ -168,6 +175,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             activities once you pick final flights and hotel.
           </p>
         </div>
+
         <div className="grid gap-3">
           {days.map((day: any, i: number) => {
             const title = day.title || `Day ${i + 1}`;
@@ -182,18 +190,19 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             return (
               <article
                 key={i}
-                className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3 text-xs shadow-sm space-y-2"
+                className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-4 text-xs shadow-sm space-y-2"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-[12px] font-semibold text-slate-100">
                     {title}
                   </div>
                   {day.label && (
-                    <span className="px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/40 text-[10px] uppercase tracking-wide text-sky-200">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-[10px] uppercase tracking-wide text-emerald-200">
                       {day.label}
                     </span>
                   )}
                 </div>
+
                 {summary && (
                   <p className="text-slate-300 leading-snug">{summary}</p>
                 )}
@@ -276,6 +285,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         setMessage(null);
       }
 
+      // send structured info back to main page so it can show real flight/hotel boxes
       if (onSearchComplete) {
         onSearchComplete({
           searchParams: data.searchParams || null,
@@ -296,6 +306,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
   /*************** RENDER ***************/
   return (
     <section className="mt-2 space-y-4 text-slate-50 bg-slate-950 rounded-2xl border border-slate-800 px-4 py-5">
+      {/* HEADER */}
       <div className="space-y-1">
         <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
           <span>Plan my trip with AI</span>
@@ -308,13 +319,14 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         </p>
       </div>
 
+      {/* INPUT + BUTTON */}
       <form onSubmit={handleSubmit} className="space-y-3">
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder='Example: "Austin to Boston, Jan 18–20 2026, 2 nights hotel, budget friendly."'
+          placeholder='Example: "Austin to Boston, Nov 30 – Dec 3 2025, 2 nights hotel, budget friendly."'
           rows={2}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          className="w-full rounded-xl border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
         />
         <button
           type="submit"
@@ -325,6 +337,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         </button>
       </form>
 
+      {/* WARNING / INFO */}
       {message && (
         <div className="rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100 flex gap-2">
           <span>⚠️</span>
@@ -332,16 +345,21 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         </div>
       )}
 
-      {planning && <Top3Strip planning={planning} />}
-      {planning && <HotelSection />}
-      {planning && <ItinerarySection />}
-
       {!planning && !message && (
         <p className="text-[11px] text-slate-500">
           Tip: Include dates and whether you want hotel. Example: &quot;2
           adults, Austin to Boston, long weekend in November, flights + 2 nights
           hotel downtown.&quot;
         </p>
+      )}
+
+      {/* BOXED AI RESULTS */}
+      {planning && (
+        <>
+          <Top3Strip planning={planning} />
+          <HotelSection />
+          <ItinerarySection />
+        </>
       )}
     </section>
   );
