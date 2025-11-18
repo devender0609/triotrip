@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { aiPlanTrip } from "@/lib/api";
 
 const AI_ENABLED =
@@ -30,6 +30,67 @@ type AiTripPlannerProps = {
   }) => void;
 };
 
+const containerStyle: React.CSSProperties = {
+  marginTop: 8,
+  padding: 16,
+  borderRadius: 16,
+  border: "1px solid #0f172a",
+  background: "#020617", // slate-950
+  color: "#e5e7eb",
+  display: "grid",
+  gap: 12,
+};
+
+const boxTitle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 700,
+  marginBottom: 4,
+};
+
+const smallText: React.CSSProperties = {
+  fontSize: 11,
+  color: "#cbd5f5",
+};
+
+const infoBarStyle: React.CSSProperties = {
+  borderRadius: 14,
+  border: "1px solid rgba(56,189,248,0.5)",
+  background:
+    "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(8,47,73,0.95))",
+  padding: 10,
+};
+
+const chipColGrid: React.CSSProperties = {
+  display: "grid",
+  gap: 8,
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+};
+
+const cardStyle: React.CSSProperties = {
+  borderRadius: 16,
+  border: "1px solid rgba(30,64,175,0.6)",
+  background:
+    "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(12,74,110,0.9))",
+  padding: 10,
+  fontSize: 12,
+};
+
+const hotelCard: React.CSSProperties = {
+  borderRadius: 16,
+  border: "1px solid #1e293b",
+  background: "#020617",
+  padding: 10,
+  fontSize: 12,
+};
+
+const dayCard: React.CSSProperties = {
+  borderRadius: 16,
+  border: "1px solid #1e293b",
+  background: "#020617",
+  padding: 10,
+  fontSize: 12,
+};
+
 function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,7 +99,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
 
   if (!AI_ENABLED) return null;
 
-  /*************** TOP 3 STRIP (CARDS) ***************/
+  /*************** TOP 3 (BOXES) ***************/
   const Top3Strip = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
     if (!t) return null;
@@ -50,37 +111,69 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     ];
 
     return (
-      <section className="mt-6 space-y-3">
-        <div className="rounded-2xl bg-slate-900/90 border border-sky-500/40 px-4 py-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
+      <section style={{ display: "grid", gap: 8 }}>
+        <div style={infoBarStyle}>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
             <span>🔝 AI’s top picks</span>
-          </h3>
-          <p className="text-[11px] text-slate-300 mt-1">
+          </div>
+          <p style={smallText}>
             These are the trips the AI thinks fit your request best. You’ll see
             the full list of live options below in the results section.
           </p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div style={chipColGrid}>
           {defs.map(({ key, label, icon }) => {
             const value = (t as any)?.[key] as Top3Item | undefined;
             if (!value) return null;
+
             return (
-              <article
-                key={key}
-                className="rounded-2xl bg-gradient-to-br from-sky-900/70 via-slate-900 to-slate-950 border border-sky-500/40 px-4 py-3 text-xs space-y-1 shadow-sm"
-              >
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-sky-200">
+              <article key={key} style={cardStyle}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase",
+                    color: "#e0f2fe",
+                    display: "flex",
+                    gap: 6,
+                    alignItems: "center",
+                  }}
+                >
                   <span>{icon}</span>
                   <span>{label}</span>
                 </div>
                 {value.title && (
-                  <div className="text-[13px] font-semibold text-slate-50">
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#f9fafb",
+                    }}
+                  >
                     {value.title}
                   </div>
                 )}
                 {value.reason && (
-                  <p className="text-slate-200 leading-snug">{value.reason}</p>
+                  <p
+                    style={{
+                      marginTop: 2,
+                      fontSize: 12,
+                      color: "#e5e7eb",
+                    }}
+                  >
+                    {value.reason}
+                  </p>
                 )}
               </article>
             );
@@ -90,24 +183,22 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     );
   };
 
-  /*************** HOTEL SUGGESTIONS (CARDS) ***************/
+  /*************** HOTELS (BOXES) ***************/
   const HotelSection = () => {
     const hotels = Array.isArray(planning?.hotels) ? planning!.hotels : [];
     if (!hotels.length) return null;
 
     return (
-      <section className="mt-8 space-y-3">
-        <div className="rounded-2xl bg-slate-900/90 border border-sky-500/40 px-4 py-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
-            <span>🏨 Hotel suggestions (AI)</span>
-          </h3>
-          <p className="text-[11px] text-slate-300 mt-1">
+      <section style={{ display: "grid", gap: 8, marginTop: 10 }}>
+        <div style={infoBarStyle}>
+          <div style={boxTitle}>🏨 Hotel suggestions (AI)</div>
+          <p style={smallText}>
             AI-picked hotel ideas based on your budget and vibe. Check prices on
             your favorite booking site.
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div style={chipColGrid}>
           {hotels.map((h, i) => {
             const name = h.name || h.title || h.hotel || `Option ${i + 1}`;
             const area = h.area || h.location || h.neighborhood || "";
@@ -117,36 +208,55 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
               h.vibe || h.description || h.notes || h.summary || "";
 
             return (
-              <article
-                key={i}
-                className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-4 text-xs shadow-sm flex flex-col gap-2"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-300">
-                    Hotel option {i + 1}
-                  </div>
-                  {h.tag && (
-                    <span className="px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/40 text-[10px] uppercase tracking-wide text-sky-200">
-                      {h.tag}
-                    </span>
-                  )}
+              <article key={i} style={hotelCard}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase",
+                    color: "#38bdf8",
+                    marginBottom: 4,
+                  }}
+                >
+                  Hotel option {i + 1}
                 </div>
-                <div className="text-[13px] font-semibold text-slate-50">
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#f9fafb",
+                    marginBottom: 2,
+                  }}
+                >
                   {name}
                 </div>
                 {area && (
-                  <div className="text-slate-300 flex items-center gap-1">
-                    <span>📍</span>
-                    <span>{area}</span>
+                  <div
+                    style={{
+                      color: "#cbd5f5",
+                      fontSize: 12,
+                      marginBottom: 2,
+                    }}
+                  >
+                    📍 {area}
                   </div>
                 )}
                 {approx && (
-                  <div className="text-slate-200">
-                    <span className="font-semibold">Approx:</span> {approx}
+                  <div style={{ color: "#e5e7eb", fontSize: 12 }}>
+                    <strong>Approx:</strong> {approx}
                   </div>
                 )}
                 {vibe && (
-                  <p className="text-slate-200 leading-snug">{vibe}</p>
+                  <p
+                    style={{
+                      marginTop: 2,
+                      fontSize: 12,
+                      color: "#e5e7eb",
+                    }}
+                  >
+                    {vibe}
+                  </p>
                 )}
               </article>
             );
@@ -156,7 +266,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     );
   };
 
-  /*************** ITINERARY (DAY CARDS) ***************/
+  /*************** ITINERARY (DAY BOXES) ***************/
   const ItinerarySection = () => {
     const days = Array.isArray(planning?.itinerary)
       ? planning!.itinerary
@@ -165,18 +275,16 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     if (!days.length) return null;
 
     return (
-      <section className="mt-10 space-y-3">
-        <div className="rounded-2xl bg-slate-900/90 border border-sky-500/40 px-4 py-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2 text-slate-100">
-            <span>📅 Suggested Itinerary</span>
-          </h3>
-          <p className="text-[11px] text-slate-300 mt-1">
+      <section style={{ display: "grid", gap: 8, marginTop: 12 }}>
+        <div style={infoBarStyle}>
+          <div style={boxTitle}>📅 Suggested Itinerary</div>
+          <p style={smallText}>
             Use this as a starting point – you can adjust days or swap
             activities once you pick final flights and hotel.
           </p>
         </div>
 
-        <div className="grid gap-3">
+        <div style={{ display: "grid", gap: 8 }}>
           {days.map((day: any, i: number) => {
             const title = day.title || `Day ${i + 1}`;
             const summary = day.summary || day.overview || "";
@@ -188,35 +296,78 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                 : [];
 
             return (
-              <article
-                key={i}
-                className="rounded-2xl bg-slate-950 border border-slate-800 px-4 py-4 text-xs shadow-sm space-y-2"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-[12px] font-semibold text-slate-100">
+              <article key={i} style={dayCard}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    alignItems: "center",
+                    marginBottom: 4,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#f9fafb",
+                    }}
+                  >
                     {title}
                   </div>
                   {day.label && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-[10px] uppercase tracking-wide text-emerald-200">
+                    <span
+                      style={{
+                        fontSize: 10,
+                        textTransform: "uppercase",
+                        borderRadius: 999,
+                        padding: "2px 8px",
+                        border: "1px solid rgba(16,185,129,0.6)",
+                        background: "rgba(6,95,70,0.35)",
+                        color: "#a7f3d0",
+                      }}
+                    >
                       {day.label}
                     </span>
                   )}
                 </div>
 
                 {summary && (
-                  <p className="text-slate-300 leading-snug">{summary}</p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#e5e7eb",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {summary}
+                  </p>
                 )}
 
                 {bullets.length > 0 && (
-                  <ul className="mt-1 space-y-1.5 text-slate-200">
+                  <ul
+                    style={{
+                      listStyle: "none",
+                      paddingLeft: 0,
+                      margin: 0,
+                      display: "grid",
+                      gap: 3,
+                    }}
+                  >
                     {bullets.map((b: any, idx: number) => {
                       if (typeof b === "string") {
                         return (
                           <li
                             key={idx}
-                            className="flex items-start gap-2 text-[11px]"
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 6,
+                              fontSize: 11,
+                              color: "#e5e7eb",
+                            }}
                           >
-                            <span className="mt-0.5">•</span>
+                            <span>•</span>
                             <span>{b}</span>
                           </li>
                         );
@@ -226,16 +377,18 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                       return (
                         <li
                           key={idx}
-                          className="flex items-start gap-2 text-[11px]"
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 6,
+                            fontSize: 11,
+                            color: "#e5e7eb",
+                          }}
                         >
-                          <span className="mt-0.5">
-                            {time ? "⏰" : "•"}
-                          </span>
+                          <span>{time ? "⏰" : "•"}</span>
                           <span>
                             {time && (
-                              <span className="font-semibold">
-                                {time}:{" "}
-                              </span>
+                              <strong>{time}: </strong>
                             )}
                             {text}
                           </span>
@@ -285,7 +438,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         setMessage(null);
       }
 
-      // send structured info back to main page so it can show real flight/hotel boxes
+      // Let the main page fetch real flight/hotel results
       if (onSearchComplete) {
         onSearchComplete({
           searchParams: data.searchParams || null,
@@ -305,14 +458,28 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
 
   /*************** RENDER ***************/
   return (
-    <section className="mt-2 space-y-4 text-slate-50 bg-slate-950 rounded-2xl border border-slate-800 px-4 py-5">
+    <section style={containerStyle}>
       {/* HEADER */}
-      <div className="space-y-1">
-        <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+      <div style={{ display: "grid", gap: 4 }}>
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 800,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
           <span>Plan my trip with AI</span>
           <span>✈️</span>
-        </h2>
-        <p className="text-xs sm:text-sm text-slate-300 max-w-3xl">
+        </div>
+        <p
+          style={{
+            fontSize: 12,
+            color: "#cbd5f5",
+            maxWidth: 640,
+          }}
+        >
           Tell us your trip idea in one sentence. We&apos;ll interpret it,
           generate an itinerary, and show real flight options using the same
           data as your manual search.
@@ -320,33 +487,71 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
       </div>
 
       {/* INPUT + BUTTON */}
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "grid", gap: 8, marginTop: 4 }}
+      >
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder='Example: "Austin to Boston, Nov 30 – Dec 3 2025, 2 nights hotel, budget friendly."'
           rows={2}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          style={{
+            width: "100%",
+            borderRadius: 12,
+            border: "1px solid #1e293b",
+            background: "#020617",
+            color: "#f9fafb",
+            padding: 8,
+            fontSize: 13,
+          }}
         />
         <button
           type="submit"
           disabled={loading || !prompt.trim()}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-md disabled:opacity-60"
+          style={{
+            padding: "10px 16px",
+            borderRadius: 999,
+            border: "none",
+            background:
+              "linear-gradient(90deg, #0ea5e9, #6366f1, #ec4899)",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: loading || !prompt.trim() ? "default" : "pointer",
+            opacity: loading || !prompt.trim() ? 0.6 : 1,
+          }}
         >
           {loading ? "Planning your trip…" : "Generate AI Trip"}
         </button>
       </form>
 
-      {/* WARNING / INFO */}
+      {/* MESSAGE / TIP */}
       {message && (
-        <div className="rounded-xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100 flex gap-2">
+        <div
+          style={{
+            borderRadius: 12,
+            border: "1px solid rgba(251,191,36,0.6)",
+            background: "rgba(251,191,36,0.12)",
+            padding: 8,
+            fontSize: 11,
+            color: "#facc15",
+            display: "flex",
+            gap: 6,
+          }}
+        >
           <span>⚠️</span>
           <span>{message}</span>
         </div>
       )}
 
       {!planning && !message && (
-        <p className="text-[11px] text-slate-500">
+        <p
+          style={{
+            fontSize: 11,
+            color: "#9ca3af",
+          }}
+        >
           Tip: Include dates and whether you want hotel. Example: &quot;2
           adults, Austin to Boston, long weekend in November, flights + 2 nights
           hotel downtown.&quot;
