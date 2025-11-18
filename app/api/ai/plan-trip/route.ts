@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     if (!query) {
       return NextResponse.json(
-        { ok: false, error: "query is required" },
+        { ok: false, error: "Trip description (query) is required." },
         { status: 400 }
       );
     }
@@ -102,7 +102,7 @@ Return ONE JSON object ONLY in this exact structure:
     try {
       parsed = JSON.parse(raw);
     } catch (e) {
-      console.error("plan-trip parse error:", e, raw);
+      console.error("plan-trip JSON parse error:", e, raw);
       return NextResponse.json(
         {
           ok: false,
@@ -138,7 +138,7 @@ Return ONE JSON object ONLY in this exact structure:
       );
     }
 
-    // Build the exact same search body that manual /api/search uses
+    // ✅ 2️⃣ Build the exact same search body that manual /api/search uses
     const searchBody = {
       origin,
       destination,
@@ -153,7 +153,7 @@ Return ONE JSON object ONLY in this exact structure:
       currency,
     };
 
-    // 2️⃣ Call your existing /api/search (same logic as manual search)
+    // ✅ 3️⃣ Call your existing /api/search (same logic as manual search)
     const searchUrl = new URL("/api/search", req.url);
 
     const searchResp = await fetch(searchUrl.toString(), {
@@ -176,19 +176,19 @@ Return ONE JSON object ONLY in this exact structure:
 
     const searchResult = await searchResp.json();
 
-    // 3️⃣ Return to frontend: same results structure as manual search + AI planning
+    // ✅ 4️⃣ Return to frontend: same results structure as manual search + AI planning
     return NextResponse.json({
       ok: true,
       searchParams: searchBody,
       planning,
-      searchResult, // has .results[] in same shape as manual
+      searchResult, // has .results[] in same shape as manual search
     });
   } catch (err: any) {
-    console.error("AI plan-trip error:", err);
+    console.error("AI plan-trip route error:", err);
     return NextResponse.json(
       {
         ok: false,
-        error: err?.message || "AI plan-trip error",
+        error: err?.message || "Unexpected error in AI trip planner.",
       },
       { status: 500 }
     );
