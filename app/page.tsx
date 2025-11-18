@@ -55,7 +55,8 @@ const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
 export default function Page() {
-  const [mode, setMode] = useState<"ai" | "manual" | "none">("ai");
+  // 👇 START WITH NO TAB SELECTED
+  const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
 
   // Places & dates (manual)
   const [originCode, setOriginCode] = useState("");
@@ -701,6 +702,23 @@ export default function Page() {
           🔎 Manual Search
         </button>
       </div>
+
+      {/* HINT WHEN NO TAB SELECTED */}
+      {mode === "none" && (
+        <div
+          style={{
+            padding: 16,
+            borderRadius: 16,
+            border: "1px dashed #cbd5e1",
+            background: "#f8fafc",
+            color: "#475569",
+            fontSize: 14,
+          }}
+        >
+          Choose <strong>AI Trip Planning</strong> or{" "}
+          <strong>Manual Search</strong> above to get started.
+        </div>
+      )}
 
       {/* AI MODE */}
       {mode === "ai" && (
