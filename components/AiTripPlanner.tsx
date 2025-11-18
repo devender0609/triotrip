@@ -35,7 +35,7 @@ const containerStyle: React.CSSProperties = {
   padding: 16,
   borderRadius: 16,
   border: "1px solid #0f172a",
-  background: "#020617", // slate-950
+  background: "#020617",
   color: "#e5e7eb",
   display: "grid",
   gap: 12,
@@ -438,7 +438,6 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         setMessage(null);
       }
 
-      // Let the main page fetch real flight/hotel results
       if (onSearchComplete) {
         onSearchComplete({
           searchParams: data.searchParams || null,
@@ -526,7 +525,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         </button>
       </form>
 
-      {/* MESSAGE / TIP */}
+      {/* MESSAGE */}
       {message && (
         <div
           style={{
@@ -543,19 +542,6 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
           <span>⚠️</span>
           <span>{message}</span>
         </div>
-      )}
-
-      {!planning && !message && (
-        <p
-          style={{
-            fontSize: 11,
-            color: "#9ca3af",
-          }}
-        >
-          Tip: Include dates and whether you want hotel. Example: &quot;2
-          adults, Austin to Boston, long weekend in November, flights + 2 nights
-          hotel downtown.&quot;
-        </p>
       )}
 
       {/* BOXED AI RESULTS */}
