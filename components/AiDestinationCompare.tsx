@@ -464,15 +464,21 @@ export function AiDestinationCompare() {
     setData(null);
     try {
       setLoading(true);
-      const destinations = input.trim();
-      if (!destinations) {
+
+      // ✅ turn the input string into a string[]
+      const destinationList = input
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (destinationList.length < 2) {
         setError("Please enter at least 2 destinations to compare.");
         return;
       }
 
       // Get raw response (untyped)
       const raw: any = await aiCompareDestinations({
-        destinations,
+        destinations: destinationList, // <-- fixed type
         month: month || undefined,
         home,
         days,
