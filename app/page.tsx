@@ -111,7 +111,7 @@ export default function Page() {
   const [subPanelOpen, setSubPanelOpen] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
-  // Results
+  // Results (shared, but cleared when mode changes)
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +155,15 @@ export default function Page() {
       return copy;
     });
   }, [children]);
+
+  // IMPORTANT: clear results when switching between AI / Manual
+  useEffect(() => {
+    setResults(null);
+    setError(null);
+    setShowControls(false);
+    setComparedIds([]);
+    setAiTop3(null);
+  }, [mode]);
 
   function swapOriginDest() {
     setOriginCode((oc) => {
@@ -349,7 +358,7 @@ export default function Page() {
     }
   }
 
-  // AI Top-3 whenever results change
+  // AI Top-3 whenever results change (within current mode)
   useEffect(() => {
     if (!results || results.length === 0) {
       setAiTop3(null);
@@ -457,7 +466,7 @@ export default function Page() {
 
     return (
       <>
-        {/* SUB-TABS */}
+        {/* Explore / Savor / Misc tabs */}
         {showControls && (
           <>
             <div
@@ -504,7 +513,7 @@ export default function Page() {
                   font-size: 13px;
                 }
                 .subtab.on {
-                  background: linear-gradient(90deg, #06b6d4, #0ea5e9);
+                  background: #0ea5e9;
                   color: #fff;
                   border: none;
                 }
@@ -518,6 +527,7 @@ export default function Page() {
                   borderRadius: 12,
                   background: "#fff",
                   padding: 12,
+                  marginTop: 8,
                 }}
               >
                 <ExploreSavorTabs
@@ -529,7 +539,7 @@ export default function Page() {
           </>
         )}
 
-        {/* SORT & VIEW CHIPS */}
+        {/* Sort & view chips */}
         {showControls && (
           <div
             style={{
@@ -614,7 +624,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* AI TOP-3 SUMMARY */}
+        {/* AI Top-3 summary */}
         {aiTop3 && results && results.length > 0 && (
           <div
             style={{
@@ -683,7 +693,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* RESULTS */}
+        {/* Result cards */}
         {(shown?.length ?? 0) > 0 && (
           <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             {shown.map((pkg, i) => (
@@ -706,7 +716,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* COMPARE PANEL */}
+        {/* Compare panel */}
         {comparedIds.length >= 2 && (
           <ComparePanel
             items={(shown || []).filter((r: any) =>
@@ -725,7 +735,7 @@ export default function Page() {
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 14 }}>
-      {/* GLOBAL TABS */}
+      {/* TOP MODE TABS */}
       <div
         style={{
           display: "flex",
@@ -773,7 +783,6 @@ export default function Page() {
         </button>
       </div>
 
-      {/* HINT WHEN NO TAB SELECTED */}
       {mode === "none" && (
         <div
           style={{
@@ -802,7 +811,6 @@ export default function Page() {
       {/* MANUAL MODE */}
       {mode === "manual" && (
         <>
-          {/* MANUAL SEARCH FORM */}
           <form
             style={{
               background: "#fff",
@@ -817,7 +825,7 @@ export default function Page() {
               runSearch();
             }}
           >
-            {/* Origin / swap / destination */}
+            {/* origin / destination */}
             <div
               style={{
                 display: "grid",
@@ -881,7 +889,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Trip / dates / pax */}
+            {/* trip / dates / pax */}
             <div
               style={{
                 display: "grid",
@@ -1000,7 +1008,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Child ages */}
+            {/* child ages */}
             {children > 0 && (
               <div style={{ display: "grid", gap: 12 }}>
                 <div style={{ fontWeight: 700, color: "#334155" }}>
@@ -1064,7 +1072,7 @@ export default function Page() {
               </div>
             )}
 
-            {/* Cabin / stops / hotel / actions */}
+            {/* cabin / stops / hotel */}
             <div
               style={{
                 display: "grid",
@@ -1185,9 +1193,7 @@ export default function Page() {
                     value={hotelCheckOut}
                     onChange={(e) => setHotelCheckOut(e.target.value)}
                     min={hotelCheckIn || departDate || undefined}
-                    max={
-                      roundTrip ? returnDate || undefined : undefined
-                    }
+                    max={roundTrip ? returnDate || undefined : undefined}
                   />
                 </div>
                 <div>
@@ -1276,12 +1282,11 @@ export default function Page() {
             )}
           </form>
 
-          {/* SHARED RESULTS AREA */}
           <ResultsArea />
         </>
       )}
 
-      {/* Global font + smoothing for sharper text */}
+      {/* Global font smoothing */}
       <style jsx global>{`
         html,
         body {

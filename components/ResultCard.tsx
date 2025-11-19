@@ -128,7 +128,6 @@ const ResultCard: React.FC<Props> = ({
   const primaryHotel = showHotel && hotels.length ? hotels[0] : null;
   const extraHotels = showHotel && hotels.length > 1 ? hotels.slice(1) : [];
 
-  // Local toggle for expanding hotel list
   const [showAllHotelsLocal, setShowAllHotelsLocal] = useState(
     showAllHotels || false
   );
@@ -147,7 +146,7 @@ const ResultCard: React.FC<Props> = ({
     pkg.return_date ||
     pkg.return;
 
-  // Main booking URLs
+  // Booking URLs
   const flightQueryParts = [
     `Flights from ${originCode} to ${destCode}`,
     departDate ? `on ${departDate}` : "",
@@ -158,6 +157,10 @@ const ResultCard: React.FC<Props> = ({
 
   const flightBookingUrl = `https://www.google.com/travel/flights?q=${encodeURIComponent(
     flightQueryParts
+  )}`;
+
+  const airlineSitesUrl = `https://www.google.com/search?q=${encodeURIComponent(
+    `airlines flying ${originCode} to ${destCode}`
   )}`;
 
   const hotelCity =
@@ -183,7 +186,6 @@ const ResultCard: React.FC<Props> = ({
   if (hotelCheckIn) hotelBookingUrl += `&checkin=${hotelCheckIn}`;
   if (hotelCheckOut) hotelBookingUrl += `&checkout=${hotelCheckOut}`;
 
-  // Extra booking options (simple searches)
   const flightKayakUrl = `https://www.kayak.com/flights/${originCode}-${destCode}`;
   const flightSkyscannerUrl = `https://www.skyscanner.com/transport/flights/${originCode.toLowerCase()}/${destCode.toLowerCase()}/`;
   const hotelExpediaUrl = `https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(
@@ -195,7 +197,7 @@ const ResultCard: React.FC<Props> = ({
 
   return (
     <article className="card">
-      {/* PRICE + SUMMARY */}
+      {/* HEADER */}
       <div className="card-header">
         <div className="header-left">
           <div className="option-label">Option {index + 1}</div>
@@ -238,7 +240,7 @@ const ResultCard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* DETAILS: hotel first, then flight */}
+      {/* DETAILS */}
       <div className="details-row">
         {showHotel ? (
           <>
@@ -266,7 +268,6 @@ const ResultCard: React.FC<Props> = ({
                     </div>
                   ) : null}
 
-                  {/* clickable +X more */}
                   {extraHotels.length > 0 && !showAllHotelsLocal && (
                     <button
                       type="button"
@@ -278,7 +279,6 @@ const ResultCard: React.FC<Props> = ({
                     </button>
                   )}
 
-                  {/* expanded hotel list */}
                   {showAllHotelsLocal && extraHotels.length > 0 && (
                     <ul className="hotel-extra-list">
                       {extraHotels.map((h: any, idx: number) => (
@@ -400,7 +400,7 @@ const ResultCard: React.FC<Props> = ({
               {carbon != null && (
                 <li>
                   <strong>Carbon estimate:</strong>{" "}
-                  {Math.round(Number(carbon))} kg CO₂
+                    {Math.round(Number(carbon))} kg CO₂
                   </li>
               )}
             </ul>
@@ -408,7 +408,7 @@ const ResultCard: React.FC<Props> = ({
         )}
       </div>
 
-      {/* FOOTER: compare + booking buttons */}
+      {/* FOOTER */}
       <div className="footer-row">
         <div className="footer-left">
           <button
@@ -425,7 +425,7 @@ const ResultCard: React.FC<Props> = ({
             rel="noreferrer"
             className="book-btn"
           >
-            ✈ Book flight
+            ✈ Google Flights
           </a>
 
           {showHotel && (
@@ -435,7 +435,7 @@ const ResultCard: React.FC<Props> = ({
               rel="noreferrer"
               className="book-btn hotel"
             >
-              🛏 Book hotel
+              🛏 Booking.com
             </a>
           )}
         </div>
@@ -446,40 +446,60 @@ const ResultCard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* EXTRA PROVIDERS ROW */}
+      {/* EXTRA PROVIDERS AS COLOURFUL TABS */}
       <div className="more-links">
-        <span className="more-label">More flight sites:</span>
-        <a
-          href={flightSkyscannerUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Skyscanner
-        </a>
-        <span>·</span>
-        <a href={flightKayakUrl} target="_blank" rel="noreferrer">
-          KAYAK
-        </a>
+        <div className="more-links-row">
+          <span className="more-label">More flight options</span>
+          <div className="more-chip-row">
+            <a
+              href={flightSkyscannerUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="more-chip flight"
+            >
+              Skyscanner
+            </a>
+            <a
+              href={flightKayakUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="more-chip flight"
+            >
+              KAYAK
+            </a>
+            <a
+              href={airlineSitesUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="more-chip flight alt"
+            >
+              Airline sites
+            </a>
+          </div>
+        </div>
+
         {showHotel && (
-          <>
-            <span className="sep">|</span>
-            <span className="more-label">More hotel sites:</span>
-            <a
-              href={hotelExpediaUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Expedia
-            </a>
-            <span>·</span>
-            <a
-              href={hotelHotelsUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Hotels.com
-            </a>
-          </>
+          <div className="more-links-row">
+            <span className="more-label">More hotel options</span>
+            <div className="more-chip-row">
+              <a
+                href={hotelExpediaUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="more-chip hotel"
+              >
+                Expedia
+              </a>
+              <a
+                href={hotelHotelsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="more-chip hotel alt"
+              >
+                Hotels.com
+              </a>
+            </div>
+          </div>
         )}
       </div>
 
@@ -688,24 +708,61 @@ const ResultCard: React.FC<Props> = ({
           color: #9ca3af;
         }
         .more-links {
-          margin-top: 4px;
+          margin-top: 8px;
+          padding-top: 6px;
+          border-top: 1px dashed rgba(148, 163, 184, 0.5);
+          display: grid;
+          gap: 6px;
+        }
+        .more-links-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+        }
+        .more-label {
           font-size: 12px;
-          color: #9ca3af;
+          font-weight: 700;
+          color: #e5e7eb;
+        }
+        .more-chip-row {
           display: flex;
           flex-wrap: wrap;
           gap: 6px;
+        }
+        .more-chip {
+          display: inline-flex;
           align-items: center;
-        }
-        .more-links a {
-          text-decoration: underline;
-          color: #e5e7eb;
-        }
-        .more-links .more-label {
+          justify-content: center;
+          padding: 5px 10px;
+          border-radius: 999px;
+          font-size: 12px;
           font-weight: 600;
+          text-decoration: none;
+          border: 1px solid transparent;
+          box-shadow: 0 2px 5px rgba(15, 23, 42, 0.4);
         }
-        .more-links .sep {
-          margin: 0 4px;
-          opacity: 0.7;
+        .more-chip.flight {
+          background: linear-gradient(135deg, #38bdf8, #6366f1);
+          color: #0f172a;
+        }
+        .more-chip.flight.alt {
+          background: #0f172a;
+          border-color: #38bdf8;
+          color: #e0f2fe;
+        }
+        .more-chip.hotel {
+          background: linear-gradient(135deg, #22c55e, #14b8a6);
+          color: #022c22;
+        }
+        .more-chip.hotel.alt {
+          background: #020617;
+          border-color: #22c55e;
+          color: #bbf7d0;
+        }
+        .more-chip:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 10px rgba(56, 189, 248, 0.5);
         }
         @media (max-width: 800px) {
           .card-header {
