@@ -470,12 +470,50 @@ export function AiDestinationCompare() {
         return;
       }
 
-      const res = (await aiCompareDestinations({
+      // Get raw response (untyped)
+      const raw: any = await aiCompareDestinations({
         destinations,
         month: month || undefined,
         home,
         days,
-      })) as CompareResponse;
+      });
+
+      // Coerce into our typed shape
+      const res: CompareResponse = {
+        comparisons: (raw?.comparisons || []).map((c: any): Comparison => {
+          let approxLevel: number | null = null;
+          if (c?.approx_cost_level !== undefined && c?.approx_cost_level !== null) {
+            if (typeof c.approx_cost_level === "number") {
+              approxLevel = c.approx_cost_level;
+            } else {
+              const parsed = Number(c.approx_cost_level);
+              approxLevel = Number.isFinite(parsed) ? parsed : null;
+            }
+          }
+          return {
+            name: c.name,
+            country: c.country,
+            best_for: c.best_for,
+            tagline: c.tagline,
+            overall_vibe: c.overall_vibe,
+            pros: c.pros,
+            cons: c.cons,
+            approx_cost_level: approxLevel,
+            approx_cost_text: c.approx_cost_text,
+            weather_summary: c.weather_summary,
+            best_months: c.best_months,
+            dining_and_local_eats: c.dining_and_local_eats,
+            hotels_and_areas: c.hotels_and_areas,
+            entertainment_and_nightlife: c.entertainment_and_nightlife,
+            family_friendly: c.family_friendly,
+            kids_activities: c.kids_activities,
+            safety_tips: c.safety_tips,
+            currency: c.currency,
+            typical_daily_budget: c.typical_daily_budget,
+            airports: c.airports,
+          };
+        }),
+      };
 
       setData(res.comparisons || []);
     } catch (err: any) {
@@ -531,7 +569,8 @@ export function AiDestinationCompare() {
         style={{
           display: "grid",
           gap: 10,
-          gridTemplateColumns: "minmax(0, 2.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr)",
+          gridTemplateColumns:
+            "minmax(0, 2.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr)",
           alignItems: "end",
         }}
       >
