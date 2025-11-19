@@ -407,8 +407,8 @@ export default function Page() {
     else if (sort === "flexible")
       items.sort(
         (a, b) =>
-          (a.flight?.refundable ? 0 : 1) -
-            (b.flight?.refundable ? 0 : 1) || basis(a)! - basis(b)!
+          (a.flight?.refundable ? 0 : 1) - (b.flight?.refundable ? 0 : 1) ||
+          basis(a)! - basis(b)!
       );
     else items.sort((a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!);
 
@@ -1280,6 +1280,17 @@ export default function Page() {
           <ResultsArea />
         </>
       )}
+
+      {/* Global font + smoothing for sharper text */}
+      <style jsx global>{`
+        html,
+        body {
+          font-family: system-ui, -apple-system, BlinkMacSystemFont,
+            "Segoe UI", sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+      `}</style>
     </div>
   );
 }

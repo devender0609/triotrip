@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 type Props = {
   pkg: any;
@@ -126,6 +126,12 @@ const ResultCard: React.FC<Props> = ({
 
   const hotels = Array.isArray(pkg.hotels) ? pkg.hotels : [];
   const primaryHotel = showHotel && hotels.length ? hotels[0] : null;
+  const extraHotels = showHotel && hotels.length > 1 ? hotels.slice(1) : [];
+
+  // Local toggle for expanding hotel list
+  const [showAllHotelsLocal, setShowAllHotelsLocal] = useState(
+    showAllHotels || false
+  );
 
   const isCompared = comparedIds.includes(id);
 
@@ -141,6 +147,7 @@ const ResultCard: React.FC<Props> = ({
     pkg.return_date ||
     pkg.return;
 
+  // Main booking URLs
   const flightQueryParts = [
     `Flights from ${originCode} to ${destCode}`,
     departDate ? `on ${departDate}` : "",
@@ -175,6 +182,16 @@ const ResultCard: React.FC<Props> = ({
   )}`;
   if (hotelCheckIn) hotelBookingUrl += `&checkin=${hotelCheckIn}`;
   if (hotelCheckOut) hotelBookingUrl += `&checkout=${hotelCheckOut}`;
+
+  // Extra booking options (simple searches)
+  const flightKayakUrl = `https://www.kayak.com/flights/${originCode}-${destCode}`;
+  const flightSkyscannerUrl = `https://www.skyscanner.com/transport/flights/${originCode.toLowerCase()}/${destCode.toLowerCase()}/`;
+  const hotelExpediaUrl = `https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(
+    hotelCity
+  )}`;
+  const hotelHotelsUrl = `https://www.hotels.com/search.do?destination=${encodeURIComponent(
+    hotelCity
+  )}`;
 
   return (
     <article className="card">
@@ -248,11 +265,42 @@ const ResultCard: React.FC<Props> = ({
                       {fmtMoney(hotelTotal, currency)} total hotel
                     </div>
                   ) : null}
-                  {showAllHotels && hotels.length > 1 && (
-                    <div className="hotel-extra">
-                      + {hotels.length - 1} more option
-                      {hotels.length - 1 > 1 ? "s" : ""} in this bundle
-                    </div>
+
+                  {/* clickable +X more */}
+                  {extraHotels.length > 0 && !showAllHotelsLocal && (
+                    <button
+                      type="button"
+                      className="hotel-more-btn"
+                      onClick={() => setShowAllHotelsLocal(true)}
+                    >
+                      + {extraHotels.length} more hotel option
+                      {extraHotels.length > 1 ? "s" : ""} in this bundle
+                    </button>
+                  )}
+
+                  {/* expanded hotel list */}
+                  {showAllHotelsLocal && extraHotels.length > 0 && (
+                    <ul className="hotel-extra-list">
+                      {extraHotels.map((h: any, idx: number) => (
+                        <li key={idx}>
+                          <span className="hotel-extra-name">
+                            {h.name || `Extra hotel ${idx + 1}`}
+                          </span>
+                          {h.stars && (
+                            <span className="hotel-extra-meta">
+                              {" "}
+                              • ⭐ {h.stars}
+                            </span>
+                          )}
+                          {h.area && (
+                            <span className="hotel-extra-meta">
+                              {" "}
+                              • 📍 {h.area}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </>
               ) : (
@@ -353,7 +401,7 @@ const ResultCard: React.FC<Props> = ({
                 <li>
                   <strong>Carbon estimate:</strong>{" "}
                   {Math.round(Number(carbon))} kg CO₂
-                </li>
+                  </li>
               )}
             </ul>
           </div>
@@ -398,6 +446,43 @@ const ResultCard: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* EXTRA PROVIDERS ROW */}
+      <div className="more-links">
+        <span className="more-label">More flight sites:</span>
+        <a
+          href={flightSkyscannerUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Skyscanner
+        </a>
+        <span>·</span>
+        <a href={flightKayakUrl} target="_blank" rel="noreferrer">
+          KAYAK
+        </a>
+        {showHotel && (
+          <>
+            <span className="sep">|</span>
+            <span className="more-label">More hotel sites:</span>
+            <a
+              href={hotelExpediaUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Expedia
+            </a>
+            <span>·</span>
+            <a
+              href={hotelHotelsUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Hotels.com
+            </a>
+          </>
+        )}
+      </div>
+
       <style jsx>{`
         .card {
           background: #020617;
@@ -408,6 +493,8 @@ const ResultCard: React.FC<Props> = ({
           display: grid;
           gap: 12px;
           box-shadow: 0 6px 18px rgba(15, 23, 42, 0.45);
+          font-family: system-ui, -apple-system, BlinkMacSystemFont,
+            "Segoe UI", sans-serif;
         }
         .card-header {
           display: flex;
@@ -524,10 +611,34 @@ const ResultCard: React.FC<Props> = ({
           color: #e5e7eb;
           font-weight: 600;
         }
-        .hotel-extra {
+        .hotel-more-btn {
+          margin-top: 4px;
+          padding: 4px 0;
+          background: transparent;
+          border: none;
+          color: #38bdf8;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: underline;
+        }
+        .hotel-more-btn:hover {
+          color: #0ea5e9;
+        }
+        .hotel-extra-list {
+          margin: 4px 0 0;
+          padding-left: 18px;
           font-size: 12px;
           color: #9ca3af;
-          margin-top: 4px;
+          display: grid;
+          gap: 2px;
+        }
+        .hotel-extra-name {
+          font-weight: 600;
+          color: #e5e7eb;
+        }
+        .hotel-extra-meta {
+          color: #9ca3af;
         }
         .footer-row {
           display: flex;
@@ -575,6 +686,26 @@ const ResultCard: React.FC<Props> = ({
         .small-note {
           font-size: 11px;
           color: #9ca3af;
+        }
+        .more-links {
+          margin-top: 4px;
+          font-size: 12px;
+          color: #9ca3af;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          align-items: center;
+        }
+        .more-links a {
+          text-decoration: underline;
+          color: #e5e7eb;
+        }
+        .more-links .more-label {
+          font-weight: 600;
+        }
+        .more-links .sep {
+          margin: 0 4px;
+          opacity: 0.7;
         }
         @media (max-width: 800px) {
           .card-header {
