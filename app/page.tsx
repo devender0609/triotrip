@@ -46,8 +46,8 @@ function cityFromDisplay(txt: string) {
 }
 function nightsBetween(a?: string, b?: string) {
   if (!a || !b) return 0;
-  const A = new Date(a).getTime(),
-    B = new Date(b).getTime();
+  const A = new Date(a).getTime();
+  const B = new Date(b).getTime();
   if (!Number.isFinite(A) || !Number.isFinite(B)) return 0;
   return Math.max(0, Math.round((B - A) / 86400000));
 }
@@ -124,9 +124,11 @@ export default function Page() {
   useEffect(() => {
     if (!includeHotel) setSortBasis("flightOnly");
   }, [includeHotel]);
+
   useEffect(() => {
     if (!roundTrip) setReturnDate("");
   }, [roundTrip]);
+
   useEffect(() => {
     if (!includeHotel) return;
     if (departDate && hotelCheckIn && hotelCheckIn < departDate)
@@ -285,9 +287,6 @@ export default function Page() {
       }
       if (body.currency) setCurrency(body.currency);
       setMaxStops(body.maxStops as 0 | 1 | 2);
-
-      // We do not know the pretty display city from AI, but
-      // ExploreSavorTabs will now infer it from these results.
     } catch (err: any) {
       console.error("handleAiSearchComplete error", err);
       setError(err?.message || "AI search failed");
@@ -484,7 +483,6 @@ export default function Page() {
 
       if (rawCity) {
         let c = String(rawCity);
-        // Strip airport codes / extra pieces
         if (c.includes("—")) {
           const parts = c.split("—").map((s) => s.trim());
           c = parts[parts.length - 1];
@@ -689,10 +687,26 @@ export default function Page() {
                 </span>
               )}
             </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                opacity: 0.9,
+                marginTop: 2,
+              }}
+            >
+              These are shortcuts picked from your live{" "}
+              <strong>flight + hotel bundles</strong>:
+              <strong> best overall</strong>, <strong>best budget</strong>, and{" "}
+              <strong>best comfort</strong>. Scroll down to see the full card
+              details for these picks and every other option.
+            </div>
+
             <ul
               style={{
-                margin: 0,
-                paddingLeft: 18,
+                margin: 4,
+                marginLeft: 18,
+                paddingLeft: 0,
                 fontSize: 14,
               }}
             >
@@ -819,23 +833,46 @@ export default function Page() {
         </button>
       </div>
 
+      {/* COLORFUL CENTERED INTRO CARD */}
       {mode === "none" && (
         <div
           style={{
-            padding: 16,
-            borderRadius: 16,
-            border: "1px dashed #cbd5e1",
-            background: "#f8fafc",
-            color: "#475569",
-            fontSize: 14,
+            padding: 32,
+            borderRadius: 24,
+            border: "1px solid rgba(129,140,248,0.35)",
+            background:
+              "linear-gradient(135deg, rgba(56,189,248,0.12), rgba(129,140,248,0.14), rgba(236,72,153,0.10))",
+            color: "#0f172a",
+            fontSize: 18,
+            fontWeight: 600,
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 12,
           }}
         >
-          Choose <strong>AI Trip Planning</strong> or{" "}
-          <strong>Manual Search</strong> above to get started.
+          <div style={{ fontSize: 28 }}>🧳 Ready to plan a trip?</div>
+          <div>
+            Choose <strong>AI Trip Planning</strong> for a smart itinerary and
+            top picks, or <strong>Manual Search</strong> to fine-tune every
+            detail yourself.
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              opacity: 0.8,
+              marginTop: 4,
+            }}
+          >
+            You can switch tabs anytime — results stay separate for AI and
+            Manual modes.
+          </div>
         </div>
       )}
 
-      {/* AI MODE: results now ABOVE “Compare destinations with AI” */}
+      {/* AI MODE */}
       {mode === "ai" && (
         <>
           <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
