@@ -111,13 +111,13 @@ export default function Page() {
   const [subPanelOpen, setSubPanelOpen] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
-  // Results (shared, but cleared when mode changes)
+  // Results (shared for AI + manual)
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
 
-  // AI Top-3 (based on results)
+  // AI Top-3 (based on current results)
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
 
@@ -156,7 +156,7 @@ export default function Page() {
     });
   }, [children]);
 
-  // IMPORTANT: clear results when switching between AI / Manual
+  // Clear results / errors when switching between AI and Manual
   useEffect(() => {
     setResults(null);
     setError(null);
@@ -178,7 +178,7 @@ export default function Page() {
     });
   }
 
-  /** AI → shared results */
+  /** AI search completed → pull city & results */
   async function handleAiSearchComplete(payload: {
     searchParams: any;
     searchResult: any;
@@ -254,7 +254,7 @@ export default function Page() {
       setComparedIds([]);
       setError(null);
 
-      // sync manual form
+      // Sync manual form (codes)
       if (origin) setOriginCode(origin);
       if (destination) setDestCode(destination);
       setRoundTrip(roundTrip);
@@ -285,6 +285,9 @@ export default function Page() {
       }
       if (body.currency) setCurrency(body.currency);
       setMaxStops(body.maxStops as 0 | 1 | 2);
+
+      // We do not know the pretty display city from AI, but
+      // ExploreSavorTabs will now infer it from these results.
     } catch (err: any) {
       console.error("handleAiSearchComplete error", err);
       setError(err?.message || "AI search failed");
@@ -358,7 +361,7 @@ export default function Page() {
     }
   }
 
-  // AI Top-3 whenever results change (within current mode)
+  // AI Top-3 whenever results change
   useEffect(() => {
     if (!results || results.length === 0) {
       setAiTop3(null);
@@ -461,8 +464,45 @@ export default function Page() {
     }
   }
 
+  // NEW: derive the city for Explore/Savor/Misc
+  function getExploreCity(): string {
+    const fromDisplay = cityFromDisplay(destDisplay);
+    if (fromDisplay && fromDisplay.toLowerCase() !== "destination") {
+      return fromDisplay;
+    }
+
+    if (results && results.length > 0) {
+      const p = results[0] || {};
+      let rawCity: string | undefined =
+        p.destinationCity ||
+        p.city ||
+        p.destinationName ||
+        p.destination_full_name ||
+        p.destination ||
+        p.destinationCode ||
+        "";
+
+      if (rawCity) {
+        let c = String(rawCity);
+        // Strip airport codes / extra pieces
+        if (c.includes("—")) {
+          const parts = c.split("—").map((s) => s.trim());
+          c = parts[parts.length - 1];
+        }
+        if (c.includes(",")) {
+          c = c.split(",")[0].trim();
+        }
+        if (c.length > 0) return c;
+      }
+    }
+
+    return "your destination";
+  }
+
   const ResultsArea: React.FC = () => {
     if (!showControls && !results && !error) return null;
+
+    const exploreCity = getExploreCity();
 
     return (
       <>
@@ -530,10 +570,7 @@ export default function Page() {
                   marginTop: 8,
                 }}
               >
-                <ExploreSavorTabs
-                  city={cityFromDisplay(destDisplay) || "Destination"}
-                  active={subTab}
-                />
+                <ExploreSavorTabs city={exploreCity} active={subTab} />
               </div>
             )}
           </>
@@ -677,8 +714,7 @@ export default function Page() {
                 const destText =
                   pkg.destination ||
                   pkg.destinationName ||
-                  cityFromDisplay(destDisplay) ||
-                  "Option";
+                  getExploreCity();
 
                 return (
                   <li key={key}>
@@ -799,12 +835,12 @@ export default function Page() {
         </div>
       )}
 
-      {/* AI MODE */}
+      {/* AI MODE: results now ABOVE “Compare destinations with AI” */}
       {mode === "ai" && (
         <>
           <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
-          <AiDestinationCompare />
           <ResultsArea />
+          <AiDestinationCompare />
         </>
       )}
 
