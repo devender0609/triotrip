@@ -5,7 +5,7 @@ import Image from "next/image";
 import AuthBar from "./AuthBar";
 import React from "react";
 
-/** Top header: TrioTrip brand (no underline), Saved/Login (elegant pills), Currency with flag + live saved count */
+/** Top header: TrioTrip brand (no underline), Login (elegant pill), Currency with flag + live saved count */
 export default function Header() {
   const [currency, setCurrency] = React.useState<string>(() => {
     if (typeof window === "undefined") return "USD";
@@ -76,14 +76,16 @@ export default function Header() {
       </Link>
 
       <nav className="nav" aria-label="Main">
-        {/* Auth (Login/Logout) styled as elegant pill(s) */}
+        {/* Auth (Login) styled as elegant pill(s). Saved pill is hidden via CSS. */}
         <div className="auth-wrap">
           <AuthBar />
         </div>
 
         {/* Currency with flag */}
         <div className="currency pill">
-          <span aria-hidden className="flag">{flag(currency)}</span>
+          <span aria-hidden className="flag">
+            {flag(currency)}
+          </span>
           <select
             aria-label="Currency"
             value={currency}
@@ -159,6 +161,12 @@ export default function Header() {
         .auth-wrap {
           display: flex;
           align-items: center;
+        }
+
+        /* Hide the first control inside AuthBar (the Saved pill),
+           keeping Login and anything else visible */
+        :global(.auth-wrap > *:first-child) {
+          display: none !important;
         }
 
         .currency {
