@@ -28,6 +28,7 @@ function extractIATA(display: string): string {
   if (m) return m[1];
   return "";
 }
+
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -35,6 +36,7 @@ function plusDays(iso: string, days: number) {
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
 function cityFromDisplay(txt: string) {
   if (!txt) return "";
   const parts = txt
@@ -44,6 +46,7 @@ function cityFromDisplay(txt: string) {
   if (parts.length >= 2) return parts[1];
   return txt.split(",")[0].trim();
 }
+
 function nightsBetween(a?: string, b?: string) {
   if (!a || !b) return 0;
   const A = new Date(a).getTime();
@@ -51,6 +54,7 @@ function nightsBetween(a?: string, b?: string) {
   if (!Number.isFinite(A) || !Number.isFinite(B)) return 0;
   return Math.max(0, Math.round((B - A) / 86400000));
 }
+
 const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
@@ -91,7 +95,7 @@ export default function Page() {
     return () => window.removeEventListener("triptrio:currency", handler);
   }, []);
 
-  // Filters / hotel
+  // Filters / hotel (manual/AI shared)
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
@@ -111,13 +115,13 @@ export default function Page() {
   const [subPanelOpen, setSubPanelOpen] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
-  // Results (shared for AI + manual)
+  // Results
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
 
-  // AI Top-3 (based on current results)
+  // AI Top-3 summary
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
 
@@ -158,7 +162,7 @@ export default function Page() {
     });
   }, [children]);
 
-  // Clear results / errors when switching between AI and Manual
+  // Clear results when switching modes
   useEffect(() => {
     setResults(null);
     setError(null);
@@ -180,7 +184,7 @@ export default function Page() {
     });
   }
 
-  /** AI search completed → pull city & results */
+  /** When AI trip planner finishes parsing + planning, run the real search */
   async function handleAiSearchComplete(payload: {
     searchParams: any;
     searchResult: any;
@@ -256,7 +260,7 @@ export default function Page() {
       setComparedIds([]);
       setError(null);
 
-      // Sync manual form (codes)
+      // Sync manual form with AI params
       if (origin) setOriginCode(origin);
       if (destination) setDestCode(destination);
       setRoundTrip(roundTrip);
@@ -463,7 +467,6 @@ export default function Page() {
     }
   }
 
-  // NEW: derive the city for Explore/Savor/Misc
   function getExploreCity(): string {
     const fromDisplay = cityFromDisplay(destDisplay);
     if (fromDisplay && fromDisplay.toLowerCase() !== "destination") {
@@ -696,8 +699,8 @@ export default function Page() {
               }}
             >
               These are shortcuts picked from your live{" "}
-              <strong>flight + hotel bundles</strong>:
-              <strong> best overall</strong>, <strong>best budget</strong>, and{" "}
+              <strong>flight + hotel bundles</strong>:{" "}
+              <strong>best overall</strong>, <strong>best budget</strong>, and{" "}
               <strong>best comfort</strong>. Scroll down to see the full card
               details for these picks and every other option.
             </div>
@@ -875,7 +878,9 @@ export default function Page() {
       {/* AI MODE */}
       {mode === "ai" && (
         <>
-          <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
+          <div className="ai-trip-wrapper">
+            <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
+          </div>
           <ResultsArea />
           <AiDestinationCompare />
         </>
@@ -1030,7 +1035,9 @@ export default function Page() {
                   onChange={(e) => setReturnDate(e.target.value)}
                   disabled={!roundTrip}
                   min={
-                    departDate ? plusDays(departDate, 1) : plusDays(todayLocal, 1)
+                    departDate
+                      ? plusDays(departDate, 1)
+                      : plusDays(todayLocal, 1)
                   }
                 />
               </div>
@@ -1359,7 +1366,7 @@ export default function Page() {
         </>
       )}
 
-      {/* Global font smoothing */}
+      {/* Global font rules */}
       <style jsx global>{`
         html,
         body {
@@ -1367,6 +1374,14 @@ export default function Page() {
             "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
+        }
+        .ai-trip-wrapper h2 {
+          font-size: 24px;
+          font-weight: 800;
+        }
+        .ai-trip-wrapper p {
+          font-size: 15px;
+          line-height: 1.5;
         }
       `}</style>
     </div>

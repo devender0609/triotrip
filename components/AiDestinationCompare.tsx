@@ -1,17 +1,22 @@
+// components/AiDestinationCompare.tsx
 "use client";
 
 import React, { useState } from "react";
 import { aiCompareDestinations } from "@/lib/api";
 
+// Feature flag so we can turn this section off if needed
+const AI_ENABLED =
+  process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
+  process.env.NEXT_PUBLIC_AI_ENABLED === "1";
+
 type Comparison = {
   name?: string;
-  approx_cost_level?: string | number;
+  overall_vibe?: string;
   weather_summary?: string;
   best_for?: string;
+  approx_cost_level?: string | number;
   pros?: string[];
   cons?: string[];
-  overall_vibe?: string;
-  links?: { label: string; url: string }[];
 };
 
 export function AiDestinationCompare() {
@@ -22,6 +27,12 @@ export function AiDestinationCompare() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comparisons, setComparisons] = useState<Comparison[] | null>(null);
+
+  if (!AI_ENABLED) {
+    // If AI is disabled, just don't render the section. This protects builds
+    // where NEXT_PUBLIC_AI_ENABLED is false or missing.
+    return null;
+  }
 
   async function handleCompare(e: React.FormEvent) {
     e.preventDefault();
@@ -39,18 +50,18 @@ export function AiDestinationCompare() {
 
     try {
       setLoading(true);
-      // Use loose typing to avoid TS issues if API changes shape
+
+      // Use loose typing so small API shape changes won't break the build.
       const raw: any = await aiCompareDestinations({
         destinations: destArray,
         month: month || undefined,
-        home,
         days: days || undefined,
+        home,
       } as any);
 
       const items: Comparison[] = Array.isArray(raw?.comparisons)
         ? raw.comparisons
         : [];
-
       setComparisons(items);
     } catch (err: any) {
       console.error("aiCompareDestinations error", err);
@@ -69,14 +80,15 @@ export function AiDestinationCompare() {
         borderRadius: 20,
         padding: 18,
         background:
-          "linear-gradient(120deg, #ecfeff, #eef2ff, #fdf2ff)", // light aqua/indigo/pink
+          "linear-gradient(120deg, #ecfeff, #eef2ff, #fdf2ff)", // light gradient like Figure 2
         border: "1px solid rgba(59,130,246,0.35)",
         boxShadow: "0 10px 25px rgba(15,23,42,0.10)",
       }}
     >
+      {/* HEADER */}
       <h2
         style={{
-          fontSize: 20,
+          fontSize: 22,
           fontWeight: 800,
           color: "#0f172a",
           marginBottom: 4,
@@ -86,9 +98,10 @@ export function AiDestinationCompare() {
       </h2>
       <p
         style={{
-          fontSize: 14,
+          fontSize: 15,
           color: "#334155",
           marginBottom: 12,
+          maxWidth: 900,
         }}
       >
         Drop in a few places and we’ll compare them for typical cost, weather,
@@ -97,6 +110,7 @@ export function AiDestinationCompare() {
         deciding <em>where</em> to go before you book.
       </p>
 
+      {/* FORM */}
       <form
         onSubmit={handleCompare}
         style={{
@@ -114,21 +128,21 @@ export function AiDestinationCompare() {
               color: "#0f172a",
               marginBottom: 4,
               display: "block",
-              fontSize: 14,
+              fontSize: 15,
             }}
           >
             Destinations (comma-separated)
           </label>
           <input
             type="text"
-            placeholder="Bali, Thailand, Hawaii"
+            placeholder="Bali, Hawaii, Costa Rica"
             value={destinationsText}
             onChange={(e) => setDestinationsText(e.target.value)}
             style={{
               width: "100%",
               borderRadius: 12,
               border: "1px solid #e2e8f0",
-              padding: "10px 12px",
+              padding: "11px 13px",
               fontSize: 15,
             }}
           />
@@ -141,7 +155,7 @@ export function AiDestinationCompare() {
               color: "#0f172a",
               marginBottom: 4,
               display: "block",
-              fontSize: 14,
+              fontSize: 15,
             }}
           >
             Month
@@ -155,7 +169,7 @@ export function AiDestinationCompare() {
               width: "100%",
               borderRadius: 12,
               border: "1px solid #e2e8f0",
-              padding: "10px 12px",
+              padding: "11px 13px",
               fontSize: 15,
             }}
           />
@@ -168,7 +182,7 @@ export function AiDestinationCompare() {
               color: "#0f172a",
               marginBottom: 4,
               display: "block",
-              fontSize: 14,
+              fontSize: 15,
             }}
           >
             Days
@@ -183,7 +197,7 @@ export function AiDestinationCompare() {
               width: "100%",
               borderRadius: 12,
               border: "1px solid #e2e8f0",
-              padding: "10px 12px",
+              padding: "11px 13px",
               fontSize: 15,
             }}
           />
@@ -196,7 +210,7 @@ export function AiDestinationCompare() {
               color: "#0f172a",
               marginBottom: 4,
               display: "block",
-              fontSize: 14,
+              fontSize: 15,
             }}
           >
             Home city / airport
@@ -210,7 +224,7 @@ export function AiDestinationCompare() {
               width: "100%",
               borderRadius: 12,
               border: "1px solid #e2e8f0",
-              padding: "10px 12px",
+              padding: "11px 13px",
               fontSize: 15,
             }}
           />
@@ -226,16 +240,17 @@ export function AiDestinationCompare() {
             type="submit"
             disabled={loading}
             style={{
-              padding: "10px 20px",
+              padding: "11px 22px",
               borderRadius: 999,
               border: "none",
               background:
                 "linear-gradient(135deg,#0ea5e9,#6366f1,#ec4899)",
               color: "#ffffff",
               fontWeight: 800,
-              fontSize: 14,
+              fontSize: 15,
               cursor: "pointer",
               boxShadow: "0 8px 18px rgba(37,99,235,0.35)",
+              opacity: loading ? 0.8 : 1,
             }}
           >
             {loading ? "Comparing…" : "Compare these places"}
@@ -259,6 +274,7 @@ export function AiDestinationCompare() {
         </div>
       )}
 
+      {/* SIMPLE CARDS – FIGURE-2 STYLE */}
       {comparisons && comparisons.length > 0 && (
         <div
           style={{
@@ -272,48 +288,62 @@ export function AiDestinationCompare() {
               key={idx}
               style={{
                 borderRadius: 16,
-                background: "rgba(255,255,255,0.9)",
-                border: "1px solid rgba(148,163,184,0.5)",
-                padding: 12,
+                background: "#ffffff",
+                border: "1px solid rgba(148,163,184,0.6)",
+                padding: 14,
               }}
             >
+              {/* City name */}
               <div
                 style={{
-                  fontWeight: 700,
-                  fontSize: 16,
+                  fontWeight: 800,
+                  fontSize: 18,
                   marginBottom: 4,
                   color: "#0f172a",
                 }}
               >
                 {c.name || `Destination ${idx + 1}`}
               </div>
+
+              {/* One-line vibe/summary */}
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   color: "#475569",
-                  marginBottom: 4,
+                  marginBottom: 6,
                 }}
               >
-                {c.overall_vibe || c.weather_summary || c.best_for}
+                {c.overall_vibe ||
+                  c.weather_summary ||
+                  c.best_for ||
+                  "No summary available yet."}
               </div>
-              {typeof c.approx_cost_level !== "undefined" && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#0f172a",
-                    marginBottom: 4,
-                  }}
-                >
-                  💰 Approx. cost level:{" "}
-                  <strong>{String(c.approx_cost_level)}</strong>
-                </div>
-              )}
+
+              {/* Cost line */}
+              {typeof c.approx_cost_level !== "undefined" &&
+                c.approx_cost_level !== null && (
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "#0f172a",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <span role="img" aria-label="money">
+                      💰
+                    </span>{" "}
+                    Approx. cost level:{" "}
+                    <strong>{String(c.approx_cost_level)}</strong>
+                  </div>
+                )}
+
+              {/* Pros & cons on single lines */}
               {c.pros && c.pros.length > 0 && (
                 <div
                   style={{
-                    fontSize: 12,
-                    marginBottom: 4,
-                    color: "#16a34a",
+                    fontSize: 13,
+                    marginBottom: 3,
+                    color: "#15803d",
                   }}
                 >
                   <strong>Pros:</strong> {c.pros.join(" • ")}
@@ -322,42 +352,12 @@ export function AiDestinationCompare() {
               {c.cons && c.cons.length > 0 && (
                 <div
                   style={{
-                    fontSize: 12,
-                    marginBottom: 4,
+                    fontSize: 13,
+                    marginBottom: 2,
                     color: "#b91c1c",
                   }}
                 >
                   <strong>Cons:</strong> {c.cons.join(" • ")}
-                </div>
-              )}
-              {c.links && c.links.length > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 6,
-                    marginTop: 4,
-                  }}
-                >
-                  {c.links.map((lnk, i) => (
-                    <a
-                      key={i}
-                      href={lnk.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        fontSize: 12,
-                        padding: "6px 10px",
-                        borderRadius: 999,
-                        background: "#e0f2fe",
-                        color: "#0f172a",
-                        textDecoration: "none",
-                        border: "1px solid #bae6fd",
-                      }}
-                    >
-                      {lnk.label}
-                    </a>
-                  ))}
                 </div>
               )}
             </div>
