@@ -24,7 +24,12 @@ function list(value: any): string[] {
     .filter(Boolean);
 }
 
-export function AiDestinationCompare() {
+type Props = {
+  /** Selected currency from the top of the page, e.g. "USD", "EUR" */
+  currency: string;
+};
+
+export function AiDestinationCompare({ currency }: Props) {
   const [destinationsText, setDestinationsText] = useState("");
   const [month, setMonth] = useState("");
   const [days, setDays] = useState(7);
@@ -59,6 +64,8 @@ export function AiDestinationCompare() {
         month: month || undefined,
         days: days || undefined,
         home,
+        // Tell the AI which currency to use for costs
+        currency: currency || undefined,
       } as any);
 
       const arr: any[] = Array.isArray(raw?.comparisons)
@@ -109,7 +116,8 @@ export function AiDestinationCompare() {
         }}
       >
         Type a few places you&apos;re considering and we&apos;ll outline cost,
-        vibe, weather, and practical details side-by-side.
+        vibe, weather, and practical details side-by-side. Prices are shown in{" "}
+        <strong>{currency || "your selected currency"}</strong>.
       </p>
 
       {/* FORM ROW */}
@@ -320,9 +328,11 @@ export function AiDestinationCompare() {
             const dailyBudget = str(
               c.typical_daily_budget ?? c.daily_budget
             );
-            const currency = str(
+            const rawCurrency = str(
               c.currency ?? c.currency_code ?? c.currency_name
             );
+            const displayCurrency = currency || rawCurrency || "";
+
             const dining = str(
               c.dining_and_local_eats ??
                 c.dining_local ??
@@ -504,7 +514,7 @@ export function AiDestinationCompare() {
                     </div>
                   )}
 
-                  {(approxCost || dailyBudget || currency) && (
+                  {(approxCost || dailyBudget || displayCurrency) && (
                     <div>
                       <div
                         style={{
@@ -514,17 +524,21 @@ export function AiDestinationCompare() {
                           color: "#a5b4fc",
                         }}
                       >
-                        APPROXIMATE COST
+                        APPROXIMATE COST{" "}
+                        {displayCurrency
+                          ? `(in ${displayCurrency})`
+                          : "(cost info)"}
                       </div>
                       {approxCost && <div>{approxCost}</div>}
                       {dailyBudget && (
                         <div>
-                          <strong>Typical daily budget:</strong> {dailyBudget}
+                          <strong>Typical daily budget:</strong>{" "}
+                          {dailyBudget}
                         </div>
                       )}
-                      {currency && (
+                      {displayCurrency && (
                         <div>
-                          <strong>Currency:</strong> {currency}
+                          <strong>Currency:</strong> {displayCurrency}
                         </div>
                       )}
                     </div>

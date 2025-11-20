@@ -423,7 +423,7 @@ export default function Page() {
       items.sort(
         (a, b) =>
           (a.flight?.refundable ? 0 : 1) - (b.flight?.refundable ? 0 : 1) ||
-          basis(a)! - basis(b)!
+          basis(a)! - basis(b)!,
       );
     else items.sort((a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!);
 
@@ -882,7 +882,8 @@ export default function Page() {
             <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
           </div>
           <ResultsArea />
-          <AiDestinationCompare />
+          {/* now passes currency down */}
+          <AiDestinationCompare currency={currency} />
         </>
       )}
 
