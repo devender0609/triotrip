@@ -3,12 +3,10 @@
 import React, { useState } from "react";
 import { aiCompareDestinations } from "@/lib/api";
 
-// Simple feature flag – if AI is disabled, hide this section
 const AI_ENABLED =
   process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_AI_ENABLED === "1";
 
-// Small helpers to read flexible AI fields safely
 function str(value: any, fallback = ""): string {
   if (Array.isArray(value)) return value.join(" ");
   if (value == null) return fallback;
@@ -25,7 +23,6 @@ function list(value: any): string[] {
 }
 
 type Props = {
-  /** Selected currency from the top of the page, e.g. "USD", "EUR" */
   currency: string;
 };
 
@@ -43,7 +40,7 @@ export function AiDestinationCompare({ currency }: Props) {
   async function handleCompare(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setComparisons(null);
+    setComparisons(null); // overwrite previous results
 
     const destArray = destinationsText
       .split(",")
@@ -58,13 +55,11 @@ export function AiDestinationCompare({ currency }: Props) {
     try {
       setLoading(true);
 
-      // Call the API loosely typed so minor schema changes don't break the build
       const raw: any = await aiCompareDestinations({
         destinations: destArray,
         month: month || undefined,
         days: days || undefined,
         home,
-        // Tell the AI which currency to use for costs
         currency: currency || undefined,
       } as any);
 
@@ -85,42 +80,51 @@ export function AiDestinationCompare({ currency }: Props) {
     }
   }
 
+  function handleReset() {
+    setDestinationsText("");
+    setMonth("");
+    setDays(7);
+    setHome("");
+    setError(null);
+    setComparisons(null); // hide cards
+  }
+
   return (
     <section
       style={{
-        marginTop: 24,
+        marginTop: 28,
         borderRadius: 20,
-        padding: 20,
+        padding: 22,
         background: "#020617",
         border: "1px solid #1f2937",
         boxShadow: "0 24px 60px rgba(15,23,42,0.9)",
         color: "#e5e7eb",
       }}
     >
-      {/* HEADER */}
       <h2
         style={{
-          fontSize: 22,
+          fontSize: 24,
           fontWeight: 800,
-          marginBottom: 4,
+          marginBottom: 6,
         }}
       >
         Compare destinations with AI 🌍
       </h2>
       <p
         style={{
-          fontSize: 14,
+          fontSize: 15,
           color: "#cbd5f5",
           marginBottom: 14,
           maxWidth: 900,
         }}
       >
-        Type a few places you&apos;re considering and we&apos;ll outline cost,
-        vibe, weather, and practical details side-by-side. Prices are shown in{" "}
+        Drop in a few places you&apos;re considering and we&apos;ll compare
+        typical cost, weather, hotels, family-friendliness, safety and more.
+        Prices are shown in{" "}
         <strong>{currency || "your selected currency"}</strong>.
       </p>
 
-      {/* FORM ROW */}
+      {/* Form row */}
       <form
         onSubmit={handleCompare}
         style={{
@@ -135,13 +139,13 @@ export function AiDestinationCompare({ currency }: Props) {
           <label
             style={{
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: 14,
               marginBottom: 4,
               display: "block",
               color: "#e5e7eb",
             }}
           >
-            Destinations to compare
+            Destinations (comma-separated)
           </label>
           <input
             type="text"
@@ -153,7 +157,7 @@ export function AiDestinationCompare({ currency }: Props) {
               borderRadius: 10,
               border: "1px solid #334155",
               padding: "10px 12px",
-              fontSize: 14,
+              fontSize: 15,
               background: "#020617",
               color: "#e5e7eb",
             }}
@@ -164,13 +168,13 @@ export function AiDestinationCompare({ currency }: Props) {
           <label
             style={{
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: 14,
               marginBottom: 4,
               display: "block",
               color: "#e5e7eb",
             }}
           >
-            When are you going?
+            Month
           </label>
           <input
             type="text"
@@ -182,7 +186,7 @@ export function AiDestinationCompare({ currency }: Props) {
               borderRadius: 10,
               border: "1px solid #334155",
               padding: "10px 12px",
-              fontSize: 14,
+              fontSize: 15,
               background: "#020617",
               color: "#e5e7eb",
             }}
@@ -193,7 +197,7 @@ export function AiDestinationCompare({ currency }: Props) {
           <label
             style={{
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: 14,
               marginBottom: 4,
               display: "block",
               color: "#e5e7eb",
@@ -212,7 +216,7 @@ export function AiDestinationCompare({ currency }: Props) {
               borderRadius: 10,
               border: "1px solid #334155",
               padding: "10px 12px",
-              fontSize: 14,
+              fontSize: 15,
               background: "#020617",
               color: "#e5e7eb",
             }}
@@ -223,13 +227,13 @@ export function AiDestinationCompare({ currency }: Props) {
           <label
             style={{
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: 14,
               marginBottom: 4,
               display: "block",
               color: "#e5e7eb",
             }}
           >
-            Home airport / city
+            Home city / airport
           </label>
           <input
             type="text"
@@ -241,14 +245,22 @@ export function AiDestinationCompare({ currency }: Props) {
               borderRadius: 10,
               border: "1px solid #334155",
               padding: "10px 12px",
-              fontSize: 14,
+              fontSize: 15,
               background: "#020617",
               color: "#e5e7eb",
             }}
           />
         </div>
 
-        <div style={{ alignSelf: "stretch", display: "flex" }}>
+        <div
+          style={{
+            alignSelf: "stretch",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-end",
+            gap: 6,
+          }}
+        >
           <button
             type="submit"
             disabled={loading}
@@ -270,6 +282,23 @@ export function AiDestinationCompare({ currency }: Props) {
           >
             {loading ? "Comparing…" : "Compare destinations"}
           </button>
+          <button
+            type="button"
+            onClick={handleReset}
+            style={{
+              alignSelf: "flex-end",
+              padding: "6px 14px",
+              borderRadius: 999,
+              border: "1px solid #4b5563",
+              background: "#020617",
+              color: "#e5e7eb",
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            Reset
+          </button>
         </div>
       </form>
 
@@ -287,7 +316,6 @@ export function AiDestinationCompare({ currency }: Props) {
         </div>
       )}
 
-      {/* COMPARISON COLUMNS */}
       {comparisons && comparisons.length > 0 && (
         <div
           style={{
@@ -363,7 +391,6 @@ export function AiDestinationCompare({ currency }: Props) {
               ? c.airports
               : [];
 
-            const googleCity = encodeURIComponent(String(name));
             const makeLink = (q: string) =>
               `https://www.google.com/search?q=${encodeURIComponent(
                 q
@@ -401,7 +428,7 @@ export function AiDestinationCompare({ currency }: Props) {
                   <div style={{ display: "flex", flexDirection: "column" }}>
                     <span
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         background: "#0369a1",
                         padding: "4px 8px",
                         borderRadius: 999,
@@ -412,7 +439,7 @@ export function AiDestinationCompare({ currency }: Props) {
                     </span>
                     <span
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         background: "#111827",
                         padding: "4px 8px",
                         borderRadius: 999,
@@ -450,7 +477,7 @@ export function AiDestinationCompare({ currency }: Props) {
                           style={{
                             listStyle: "disc",
                             paddingLeft: 16,
-                            fontSize: 12,
+                            fontSize: 13,
                             color: "#e5e7eb",
                           }}
                         >
@@ -476,7 +503,7 @@ export function AiDestinationCompare({ currency }: Props) {
                           style={{
                             listStyle: "disc",
                             paddingLeft: 16,
-                            fontSize: 12,
+                            fontSize: 13,
                             color: "#fee2e2",
                           }}
                         >
@@ -489,13 +516,13 @@ export function AiDestinationCompare({ currency }: Props) {
                   </div>
                 )}
 
-                {/* INFO BLOCKS */}
+                {/* Info blocks */}
                 <div
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr",
                     gap: 6,
-                    fontSize: 12,
+                    fontSize: 13,
                   }}
                 >
                   {weatherBest && (
@@ -504,7 +531,7 @@ export function AiDestinationCompare({ currency }: Props) {
                         style={{
                           fontWeight: 700,
                           letterSpacing: 0.03,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#a5b4fc",
                         }}
                       >
@@ -520,14 +547,14 @@ export function AiDestinationCompare({ currency }: Props) {
                         style={{
                           fontWeight: 700,
                           letterSpacing: 0.03,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#a5b4fc",
                         }}
                       >
                         APPROXIMATE COST{" "}
                         {displayCurrency
                           ? `(in ${displayCurrency})`
-                          : "(cost info)"}
+                          : ""}
                       </div>
                       {approxCost && <div>{approxCost}</div>}
                       {dailyBudget && (
@@ -550,7 +577,7 @@ export function AiDestinationCompare({ currency }: Props) {
                         style={{
                           fontWeight: 700,
                           letterSpacing: 0.03,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#a5b4fc",
                         }}
                       >
@@ -566,7 +593,7 @@ export function AiDestinationCompare({ currency }: Props) {
                         style={{
                           fontWeight: 700,
                           letterSpacing: 0.03,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#a5b4fc",
                         }}
                       >
@@ -582,7 +609,7 @@ export function AiDestinationCompare({ currency }: Props) {
                         style={{
                           fontWeight: 700,
                           letterSpacing: 0.03,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#a5b4fc",
                         }}
                       >
@@ -598,7 +625,7 @@ export function AiDestinationCompare({ currency }: Props) {
                         style={{
                           fontWeight: 700,
                           letterSpacing: 0.03,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#a5b4fc",
                         }}
                       >
@@ -614,7 +641,7 @@ export function AiDestinationCompare({ currency }: Props) {
                         style={{
                           fontWeight: 700,
                           letterSpacing: 0.03,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#a5b4fc",
                         }}
                       >
@@ -630,7 +657,7 @@ export function AiDestinationCompare({ currency }: Props) {
                         style={{
                           fontWeight: 700,
                           letterSpacing: 0.03,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#a5b4fc",
                         }}
                       >
@@ -640,14 +667,13 @@ export function AiDestinationCompare({ currency }: Props) {
                     </div>
                   )}
 
-                  {/* AIRPORT PILLS */}
                   {airports.length > 0 && (
                     <div>
                       <div
                         style={{
                           fontWeight: 700,
                           letterSpacing: 0.03,
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#a5b4fc",
                           marginBottom: 4,
                         }}
@@ -679,7 +705,7 @@ export function AiDestinationCompare({ currency }: Props) {
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 padding: "6px 10px",
                                 borderRadius: 999,
                                 border: "1px solid #334155",
@@ -698,14 +724,14 @@ export function AiDestinationCompare({ currency }: Props) {
                   )}
                 </div>
 
-                {/* BOTTOM QUICK LINKS */}
+                {/* Quick links */}
                 <div
                   style={{
                     display: "flex",
                     flexWrap: "wrap",
                     gap: 6,
                     marginTop: 10,
-                    fontSize: 11,
+                    fontSize: 12,
                   }}
                 >
                   <a

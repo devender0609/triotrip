@@ -162,13 +162,19 @@ export default function Page() {
     });
   }, [children]);
 
-  // Clear results when switching modes
-  useEffect(() => {
+  // Clear results helper (used by both AI and manual searches + reset)
+  function clearResults() {
     setResults(null);
     setError(null);
     setShowControls(false);
     setComparedIds([]);
     setAiTop3(null);
+    setAiTop3Loading(false);
+  }
+
+  // Clear results when switching modes
+  useEffect(() => {
+    clearResults();
   }, [mode]);
 
   function swapOriginDest() {
@@ -191,6 +197,7 @@ export default function Page() {
     planning: any;
   }) {
     try {
+      clearResults(); // overwrite previous AI results
       const sp = payload?.searchParams || {};
 
       const origin = sp.origin;
@@ -299,9 +306,7 @@ export default function Page() {
 
   async function runSearch() {
     setLoading(true);
-    setError(null);
-    setResults(null);
-    setAiTop3(null);
+    clearResults(); // overwrite previous manual results
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
@@ -447,7 +452,7 @@ export default function Page() {
     color: "#334155",
     display: "block",
     marginBottom: 6,
-    fontSize: 16,
+    fontSize: 17,
   };
   const sInput: React.CSSProperties = {
     height: 46,
@@ -456,7 +461,7 @@ export default function Page() {
     borderRadius: 12,
     width: "100%",
     background: "#fff",
-    fontSize: 16,
+    fontSize: 17,
   };
 
   function clickSubTab(tab: SubTab) {
@@ -551,7 +556,7 @@ export default function Page() {
                   background: #fff;
                   border: 1px solid #e2e8f0;
                   cursor: pointer;
-                  font-size: 13px;
+                  font-size: 15px;
                 }
                 .subtab.on {
                   background: #0ea5e9;
@@ -630,11 +635,11 @@ export default function Page() {
             </button>
             <style jsx>{`
               .chip {
-                padding: 6px 10px;
+                padding: 7px 12px;
                 border-radius: 999px;
                 border: 1px solid #e2e8f0;
                 background: #ffffff;
-                font-size: 13px;
+                font-size: 15px;
                 cursor: pointer;
               }
               .chip.on {
@@ -655,7 +660,7 @@ export default function Page() {
               padding: 10,
               borderRadius: 10,
               marginTop: 8,
-              fontSize: 13,
+              fontSize: 14,
             }}
           >
             ⚠ {error}
@@ -675,12 +680,12 @@ export default function Page() {
               marginTop: 8,
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>
               ✨ AI Top 3 Picks
               {aiTop3Loading && (
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     marginLeft: 8,
                     opacity: 0.8,
                     fontWeight: 400,
@@ -693,7 +698,7 @@ export default function Page() {
 
             <div
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 opacity: 0.9,
                 marginTop: 2,
               }}
@@ -802,7 +807,7 @@ export default function Page() {
           onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
           style={{
             flex: 1,
-            padding: 10,
+            padding: 12,
             borderRadius: 999,
             border: "1px solid #e2e8f0",
             background:
@@ -811,7 +816,7 @@ export default function Page() {
                 : "#ffffff",
             color: mode === "ai" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 16,
+            fontSize: 18,
             cursor: "pointer",
           }}
         >
@@ -822,13 +827,13 @@ export default function Page() {
           onClick={() => setMode((m) => (m === "manual" ? "none" : "manual"))}
           style={{
             flex: 1,
-            padding: 10,
+            padding: 12,
             borderRadius: 999,
             border: "1px solid #e2e8f0",
             background: mode === "manual" ? "#0f172a" : "#ffffff",
             color: mode === "manual" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 16,
+            fontSize: 18,
             cursor: "pointer",
           }}
         >
@@ -864,7 +869,7 @@ export default function Page() {
           </div>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 14,
               opacity: 0.8,
               marginTop: 4,
             }}
@@ -880,9 +885,32 @@ export default function Page() {
         <>
           <div className="ai-trip-wrapper">
             <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
+
+            {/* Reset button for AI trip results */}
+            <div
+              style={{
+                marginTop: 10,
+                textAlign: "right",
+              }}
+            >
+              <button
+                type="button"
+                onClick={clearResults}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 12,
+                  border: "1px solid #e2e8f0",
+                  background: "#ffffff",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: "pointer",
+                }}
+              >
+                Reset AI trip results
+              </button>
+            </div>
           </div>
           <ResultsArea />
-          {/* now passes currency down */}
           <AiDestinationCompare currency={currency} />
         </>
       )}
@@ -1115,7 +1143,7 @@ export default function Page() {
                         style={{
                           padding: "8px 10px",
                           fontWeight: 700,
-                          fontSize: 13,
+                          fontSize: 14,
                           display: "inline-block",
                         }}
                       >
@@ -1144,7 +1172,7 @@ export default function Page() {
                           borderRadius: 12,
                           margin: 6,
                           padding: "0 8px",
-                          fontSize: 14,
+                          fontSize: 15,
                         }}
                       />
                     </div>
@@ -1206,7 +1234,7 @@ export default function Page() {
                 />
                 <label
                   htmlFor="include-hotel"
-                  style={{ fontWeight: 700, fontSize: 14 }}
+                  style={{ fontWeight: 700, fontSize: 15 }}
                 >
                   Include hotel
                 </label>
@@ -1224,14 +1252,36 @@ export default function Page() {
                     fontWeight: 800,
                     marginTop: 8,
                     marginRight: 8,
-                    fontSize: 14,
+                    fontSize: 15,
                   }}
                 >
                   {loading ? "Searching..." : "Search"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => location.reload()}
+                  onClick={() => {
+                    // full manual reset
+                    setOriginCode("");
+                    setOriginDisplay("");
+                    setDestCode("");
+                    setDestDisplay("");
+                    setRoundTrip(true);
+                    setDepartDate("");
+                    setReturnDate("");
+                    setAdults(1);
+                    setChildren(0);
+                    setInfants(0);
+                    setChildAges([]);
+                    setCabin("ECONOMY");
+                    setMaxStops(2);
+                    setIncludeHotel(false);
+                    setHotelCheckIn("");
+                    setHotelCheckOut("");
+                    setMinHotelStar(0);
+                    setMinBudget("");
+                    setMaxBudget("");
+                    clearResults();
+                  }}
                   title="Reset all fields and results"
                   style={{
                     padding: "10px 16px",
@@ -1240,7 +1290,7 @@ export default function Page() {
                     background: "#fff",
                     fontWeight: 800,
                     marginTop: 8,
-                    fontSize: 14,
+                    fontSize: 15,
                   }}
                 >
                   Reset
@@ -1336,7 +1386,7 @@ export default function Page() {
                             ? "#60a5fa"
                             : "#e2e8f0"
                         }`,
-                        fontSize: 13,
+                        fontSize: 14,
                       }}
                     >
                       Flight only
@@ -1352,7 +1402,7 @@ export default function Page() {
                             ? "#60a5fa"
                             : "#e2e8f0"
                         }`,
-                        fontSize: 13,
+                        fontSize: 14,
                       }}
                     >
                       Bundle total
@@ -1375,14 +1425,24 @@ export default function Page() {
             "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
+          font-size: 16px;
         }
+
+        button,
+        input,
+        select,
+        textarea {
+          font-family: inherit;
+        }
+
         .ai-trip-wrapper h2 {
-          font-size: 24px;
+          font-size: 26px;
           font-weight: 800;
         }
+
         .ai-trip-wrapper p {
-          font-size: 15px;
-          line-height: 1.5;
+          font-size: 16px;
+          line-height: 1.55;
         }
       `}</style>
     </div>
