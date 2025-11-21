@@ -75,73 +75,167 @@ function nightsBetween(a?: string, b?: string) {
 const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
-/**
- * Pick a hero image that loosely matches the destination city vibe.
- */
-function getHeroImage(city: string) {
+// --- Hero image helpers ---
+
+type HeroImage = { url: string; alt: string };
+
+/** Multiple images per city for a mini-carousel */
+function getHeroImages(city: string): HeroImage[] {
   const c = city.toLowerCase();
 
   if (c.includes("las vegas")) {
-    return {
-      url: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=1600&q=80",
-      alt: "Las Vegas Strip and casinos at night",
-    };
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=1600&q=80",
+        alt: "Las Vegas Strip and casinos at night",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1516496636080-14fb876e029d?auto=format&fit=crop&w=1600&q=80",
+        alt: "Las Vegas neon hotel signs",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1546412414-8035e1776c9c?auto=format&fit=crop&w=1600&q=80",
+        alt: "Las Vegas skyline at dusk",
+      },
+    ];
   }
 
   if (c.includes("miami")) {
-    return {
-      url: "https://images.unsplash.com/photo-1517898717281-8e4385f1c4a2?auto=format&fit=crop&w=1600&q=80",
-      alt: "Miami beach and oceanfront skyline",
-    };
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1517898717281-8e4385f1c4a2?auto=format&fit=crop&w=1600&q=80",
+        alt: "Miami beach and oceanfront skyline",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1600&q=80",
+        alt: "Palm trees and sunset in Miami",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1499952127939-9bbf5af6c51c?auto=format&fit=crop&w=1600&q=80",
+        alt: "Art Deco buildings in Miami Beach",
+      },
+    ];
   }
 
   if (c.includes("agra")) {
-    return {
-      url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
-      alt: "Taj Mahal in Agra",
-    };
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
+        alt: "Taj Mahal in Agra",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=1600&q=80",
+        alt: "Pathway leading to Taj Mahal",
+      },
+    ];
   }
 
   if (c.includes("boston")) {
-    return {
-      url: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1600&q=80",
-      alt: "Boston skyline and harbor",
-    };
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1600&q=80",
+        alt: "Boston skyline and harbor",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1581351123004-757df051db8c?auto=format&fit=crop&w=1600&q=80",
+        alt: "Boston skyline at sunset",
+      },
+    ];
   }
 
   if (c.includes("new york") || c.includes("nyc")) {
-    return {
-      url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1600&q=80",
-      alt: "New York City skyline",
-    };
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1600&q=80",
+        alt: "New York City skyline",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1600&q=80",
+        alt: "Brooklyn Bridge and Manhattan",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1528353518104-dbd48bee7bc9?auto=format&fit=crop&w=1600&q=80",
+        alt: "Times Square at night",
+      },
+    ];
   }
 
   if (c.includes("paris")) {
-    return {
-      url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80",
-      alt: "Eiffel Tower and Paris skyline",
-    };
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80",
+        alt: "Eiffel Tower and Paris skyline",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=1600&q=80",
+        alt: "Street view in Paris with cafes",
+      },
+    ];
   }
 
   if (c.includes("london")) {
-    return {
-      url: "https://images.unsplash.com/photo-1473951574080-01fe45ec8643?auto=format&fit=crop&w=1600&q=80",
-      alt: "London skyline with Big Ben",
-    };
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1473951574080-01fe45ec8643?auto=format&fit=crop&w=1600&q=80",
+        alt: "London skyline with Big Ben",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1486299267070-83823f5448dd?auto=format&fit=crop&w=1600&q=80",
+        alt: "Tower Bridge in London",
+      },
+    ];
   }
 
   if (c.includes("hawaii") || c.includes("honolulu") || c.includes("maui")) {
-    return {
-      url: "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=1600&q=80",
-      alt: "Tropical beach in Hawaii with palm trees",
-    };
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=1600&q=80",
+        alt: "Tropical beach in Hawaii with palm trees",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1528722828814-77b9b83aafb2?auto=format&fit=crop&w=1600&q=80",
+        alt: "Ocean waves and cliffs in Hawaii",
+      },
+    ];
   }
 
   // Generic scenic fallback
-  return {
-    url: "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=1600&q=80",
-    alt: "Scenic travel destination",
-  };
+  return [
+    {
+      url: "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=1600&q=80",
+      alt: "Scenic travel destination",
+    },
+  ];
+}
+
+/** Map city to country + emoji flag for the banner */
+function cityToCountry(city: string): { country: string; flag: string } {
+  const c = city.toLowerCase();
+
+  if (c.includes("las vegas") || c.includes("miami") || c.includes("boston")) {
+    return { country: "United States", flag: "🇺🇸" };
+  }
+  if (c.includes("new york")) {
+    return { country: "United States", flag: "🇺🇸" };
+  }
+  if (c.includes("san francisco") || c.includes("los angeles")) {
+    return { country: "United States", flag: "🇺🇸" };
+  }
+  if (c.includes("agra") || c.includes("delhi") || c.includes("new delhi")) {
+    return { country: "India", flag: "🇮🇳" };
+  }
+  if (c.includes("paris")) {
+    return { country: "France", flag: "🇫🇷" };
+  }
+  if (c.includes("london")) {
+    return { country: "United Kingdom", flag: "🇬🇧" };
+  }
+  if (c.includes("honolulu") || c.includes("maui") || c.includes("hawaii")) {
+    return { country: "United States", flag: "🇺🇸" };
+  }
+
+  // fallback
+  return { country: "Destination", flag: "🌍" };
 }
 
 export default function Page() {
@@ -149,6 +243,9 @@ export default function Page() {
 
   // 🔁 Key to force-remount AiTripPlanner (for full reset)
   const [aiResetKey, setAiResetKey] = useState(0);
+
+  // Hero carousel index
+  const [heroImageIndex, setHeroImageIndex] = useState(0);
 
   // Places & dates (manual)
   const [originCode, setOriginCode] = useState("");
@@ -254,6 +351,11 @@ export default function Page() {
       return copy;
     });
   }, [children]);
+
+  // Reset hero carousel whenever destination / results change
+  useEffect(() => {
+    setHeroImageIndex(0);
+  }, [results, destDisplay]);
 
   // Helper to clear / reset results (used for resets + mode switching)
   function clearResults() {
@@ -1030,7 +1132,7 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Hero image directly under AI Trip Planner */}
+          {/* Hero carousel directly under AI Trip Planner */}
           {results && results.length > 0 && (
             <div style={{ marginTop: 16 }}>
               {(() => {
@@ -1097,20 +1199,117 @@ export default function Page() {
                   }
                 }
 
-                const hero = getHeroImage(cityGuess);
+                const images = getHeroImages(cityGuess);
+                const safeIndex =
+                  images.length > 0
+                    ? heroImageIndex % images.length
+                    : 0;
+                const current = images[safeIndex] || images[0];
+                const { country, flag } = cityToCountry(cityGuess);
 
                 return (
-                  <img
-                    src={hero.url}
-                    alt={hero.alt}
+                  <div
                     style={{
-                      width: "100%",
-                      maxHeight: 260,
-                      objectFit: "cover",
+                      position: "relative",
                       borderRadius: 18,
-                      display: "block",
+                      overflow: "hidden",
+                      cursor: "pointer",
                     }}
-                  />
+                    onClick={() => {
+                      setSubTab("explore");
+                      setSubPanelOpen(true);
+                    }}
+                    title="Click to open Explore tips for this destination"
+                  >
+                    <img
+                      key={`${cityGuess}-${safeIndex}`}
+                      src={current.url}
+                      alt={current.alt}
+                      className="hero-image"
+                      style={{
+                        width: "100%",
+                        maxHeight: 260,
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+
+                    {/* Banner with city + country + flag */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 16,
+                        top: 16,
+                        padding: "8px 14px",
+                        borderRadius: 999,
+                        background:
+                          "rgba(15,23,42,0.78)",
+                        color: "#f9fafb",
+                        fontWeight: 700,
+                        fontSize: 16,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontSize: 20 }}>{flag}</span>
+                      <span>
+                        {cityGuess} • {country}
+                      </span>
+                    </div>
+
+                    {/* Hint for Explore */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: 16,
+                        bottom: 16,
+                        padding: "6px 10px",
+                        borderRadius: 999,
+                        background: "rgba(15,23,42,0.75)",
+                        color: "#e5e7eb",
+                        fontSize: 13,
+                      }}
+                    >
+                      Click to open Explore →
+                    </div>
+
+                    {/* Carousel dots */}
+                    {images.length > 1 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: "50%",
+                          bottom: 10,
+                          transform: "translateX(-50%)",
+                          display: "flex",
+                          gap: 8,
+                        }}
+                      >
+                        {images.map((_, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setHeroImageIndex(idx);
+                            }}
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: "50%",
+                              border: "none",
+                              background:
+                                idx === safeIndex
+                                  ? "#f97316"
+                                  : "rgba(148,163,184,0.9)",
+                              cursor: "pointer",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 );
               })()}
             </div>
@@ -1627,7 +1826,7 @@ export default function Page() {
         </>
       )}
 
-      {/* Global typography overrides for clearer / larger text */}
+      {/* Global typography + hero animation */}
       <style jsx global>{`
         html,
         body {
@@ -1666,6 +1865,21 @@ export default function Page() {
         .ai-trip-wrapper button {
           font-size: 18px;
           font-weight: 800;
+        }
+
+        .hero-image {
+          animation: fadeInHero 0.6s ease-in-out;
+        }
+
+        @keyframes fadeInHero {
+          from {
+            opacity: 0;
+            transform: scale(1.02);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
       `}</style>
     </div>
