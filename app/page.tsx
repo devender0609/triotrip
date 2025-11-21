@@ -9,26 +9,41 @@ import ExploreSavorTabs from "@/components/ExploreSavorTabs";
 import AiTripPlanner from "../components/AiTripPlanner";
 import { AiDestinationCompare } from "../components/AiDestinationCompare";
 
+// --- Types for various controls ---
+
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
+
+/**
+ * Determines whether "Top-3" or "All" results are shown in the main list.
+ */
 type ListTab = "top3" | "all";
+
+/**
+ * Sub tabs for Explore / Savor / Misc (destination guides).
+ */
 type SubTab = "explore" | "savor" | "misc";
 
+// Precompute local date string with timezone offset to avoid Next build issues
 const todayLocal = new Date(
   Date.now() - new Date().getTimezoneOffset() * 60000
 )
   .toISOString()
   .slice(0, 10);
 
+/** Extract a 3-letter IATA code from display text such as "Austin (AUS) — Austin–Bergstrom Intl" */
 function extractIATA(display: string): string {
   const s = String(display || "").toUpperCase().trim();
+  // Look for "(XXX)"
   let m = /\(([A-Z]{3})\)/.exec(s);
   if (m) return m[1];
+  // Look for "XXX " at start
   m = /^([A-Z]{3})\b/.exec(s);
   if (m) return m[1];
   return "";
 }
 
+/** Add days to an ISO date string safely */
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -37,6 +52,7 @@ function plusDays(iso: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Rough city extraction from a display string like "Austin (AUS) — Austin–Bergstrom Intl" or "Boston, MA" */
 function cityFromDisplay(txt: string) {
   if (!txt) return "";
   const parts = txt
@@ -47,6 +63,7 @@ function cityFromDisplay(txt: string) {
   return txt.split(",")[0].trim();
 }
 
+/** integer nights between dates */
 function nightsBetween(a?: string, b?: string) {
   if (!a || !b) return 0;
   const A = new Date(a).getTime();
@@ -57,6 +74,75 @@ function nightsBetween(a?: string, b?: string) {
 
 const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
+
+/**
+ * Pick a hero image that loosely matches the destination city vibe.
+ */
+function getHeroImage(city: string) {
+  const c = city.toLowerCase();
+
+  if (c.includes("las vegas")) {
+    return {
+      url: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=1600&q=80",
+      alt: "Las Vegas Strip and casinos at night",
+    };
+  }
+
+  if (c.includes("miami")) {
+    return {
+      url: "https://images.unsplash.com/photo-1517898717281-8e4385f1c4a2?auto=format&fit=crop&w=1600&q=80",
+      alt: "Miami beach and oceanfront skyline",
+    };
+  }
+
+  if (c.includes("agra")) {
+    return {
+      url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
+      alt: "Taj Mahal in Agra",
+    };
+  }
+
+  if (c.includes("boston")) {
+    return {
+      url: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1600&q=80",
+      alt: "Boston skyline and harbor",
+    };
+  }
+
+  if (c.includes("new york") || c.includes("nyc")) {
+    return {
+      url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1600&q=80",
+      alt: "New York City skyline",
+    };
+  }
+
+  if (c.includes("paris")) {
+    return {
+      url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80",
+      alt: "Eiffel Tower and Paris skyline",
+    };
+  }
+
+  if (c.includes("london")) {
+    return {
+      url: "https://images.unsplash.com/photo-1473951574080-01fe45ec8643?auto=format&fit=crop&w=1600&q=80",
+      alt: "London skyline with Big Ben",
+    };
+  }
+
+  if (c.includes("hawaii") || c.includes("honolulu") || c.includes("maui")) {
+    return {
+      url: "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=1600&q=80",
+      alt: "Tropical beach in Hawaii with palm trees",
+    };
+  }
+
+  // Generic scenic fallback
+  return {
+    url: "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=1600&q=80",
+    alt: "Scenic travel destination",
+  };
+}
 
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
@@ -80,13 +166,15 @@ export default function Page() {
   // Cabin
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
-  // Currency
+  // Currency (synced with header)
   const [currency, setCurrency] = useState("USD");
   useEffect(() => {
     try {
       const cur = localStorage.getItem("triptrio:currency");
       if (cur) setCurrency(cur);
-    } catch {}
+    } catch {
+      // ignore
+    }
     const handler = (e: any) =>
       setCurrency(
         e?.detail || localStorage.getItem("triptrio:currency") || "USD"
@@ -95,7 +183,7 @@ export default function Page() {
     return () => window.removeEventListener("triptrio:currency", handler);
   }, []);
 
-  // Filters / hotel (manual/AI shared)
+  // Filters / hotels
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
@@ -104,55 +192,57 @@ export default function Page() {
   const [minBudget, setMinBudget] = useState<string>("");
   const [maxBudget, setMaxBudget] = useState<string>("");
 
-  // Sort / tabs
+  // Sorting / view
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">(
     "flightOnly"
   );
   const [listTab, setListTab] = useState<ListTab>("all");
 
+  // Explore / Savor / Misc
   const [subTab, setSubTab] = useState<SubTab>("explore");
   const [subPanelOpen, setSubPanelOpen] = useState(false);
-  const [showControls, setShowControls] = useState(false);
 
-  // Results
+  // Results & state
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
+  const [showControls, setShowControls] = useState(false);
 
   // AI Top-3 summary
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
 
   useEffect(() => {
-    if (!includeHotel) setSortBasis("flightOnly");
+    if (!includeHotel) {
+      setSortBasis("flightOnly");
+    }
   }, [includeHotel]);
 
   useEffect(() => {
-    if (!roundTrip) setReturnDate("");
+    if (!roundTrip) {
+      setReturnDate("");
+    }
   }, [roundTrip]);
 
   useEffect(() => {
     if (!includeHotel) return;
-    if (departDate && hotelCheckIn && hotelCheckIn < departDate)
+
+    if (departDate && hotelCheckIn && hotelCheckIn < departDate) {
       setHotelCheckIn(departDate);
+    }
+
     if (hotelCheckIn && hotelCheckOut && hotelCheckOut <= hotelCheckIn) {
       const d = new Date(hotelCheckIn);
       d.setDate(d.getDate() + 1);
       setHotelCheckOut(d.toISOString().slice(0, 10));
     }
+
     if (roundTrip && returnDate && hotelCheckOut && hotelCheckOut > returnDate) {
       setHotelCheckOut(returnDate);
     }
-  }, [
-    includeHotel,
-    departDate,
-    returnDate,
-    hotelCheckIn,
-    hotelCheckOut,
-    roundTrip,
-  ]);
+  }, [includeHotel, departDate, returnDate, hotelCheckIn, hotelCheckOut, roundTrip]);
 
   useEffect(() => {
     setChildAges((prev) => {
@@ -162,13 +252,21 @@ export default function Page() {
     });
   }, [children]);
 
-  // Clear results when switching modes
-  useEffect(() => {
+  // Helper to clear / reset results (used for resets + mode switching)
+  function clearResults() {
     setResults(null);
     setError(null);
     setShowControls(false);
     setComparedIds([]);
     setAiTop3(null);
+    setAiTop3Loading(false);
+    setSubPanelOpen(false);
+    setListTab("all");
+  }
+
+  // Clear results whenever mode changes
+  useEffect(() => {
+    clearResults();
   }, [mode]);
 
   function swapOriginDest() {
@@ -184,13 +282,17 @@ export default function Page() {
     });
   }
 
-  /** When AI trip planner finishes parsing + planning, run the real search */
+  /**
+   * Called when AiTripPlanner finishes constructing search parameters
+   * and wants to run the real /api/search under the hood.
+   */
   async function handleAiSearchComplete(payload: {
     searchParams: any;
     searchResult: any;
     planning: any;
   }) {
     try {
+      clearResults();
       const sp = payload?.searchParams || {};
 
       const origin = sp.origin;
@@ -223,10 +325,8 @@ export default function Page() {
         hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
         hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
-        minBudget:
-          typeof sp.minBudget === "number" ? sp.minBudget : undefined,
-        maxBudget:
-          typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
+        minBudget: typeof sp.minBudget === "number" ? sp.minBudget : undefined,
+        maxBudget: typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
         currency: sp.currency || currency,
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
@@ -260,7 +360,7 @@ export default function Page() {
       setComparedIds([]);
       setError(null);
 
-      // Sync manual form with AI params
+      // Synchronize manual form with AI search
       if (origin) setOriginCode(origin);
       if (destination) setDestCode(destination);
       setRoundTrip(roundTrip);
@@ -297,19 +397,20 @@ export default function Page() {
     }
   }
 
+  /** Manual search */
   async function runSearch() {
     setLoading(true);
-    setError(null);
-    setResults(null);
-    setAiTop3(null);
+    clearResults();
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
-      if (!origin || !destination)
+      if (!origin || !destination) {
         throw new Error("Please select origin and destination.");
+      }
       if (!departDate) throw new Error("Please pick a departure date.");
-      if (roundTrip && !returnDate)
+      if (roundTrip && !returnDate) {
         throw new Error("Please pick a return date.");
+      }
 
       const payload = {
         id: undefined as any,
@@ -364,7 +465,7 @@ export default function Page() {
     }
   }
 
-  // AI Top-3 whenever results change
+  // AI Top-3 summary call
   useEffect(() => {
     if (!results || results.length === 0) {
       setAiTop3(null);
@@ -393,6 +494,7 @@ export default function Page() {
   const sortedResults = useMemo(() => {
     if (!results) return null;
     const items = [...results];
+
     const flightPrice = (p: any) =>
       num(p.flight_total) ??
       num(p.total_cost_flight) ??
@@ -413,19 +515,26 @@ export default function Page() {
       );
       return Number.isFinite(sum) ? sum : 9e9;
     };
+
     const basis = (p: any) =>
       sortBasis === "bundle" ? bundleTotal(p) : flightPrice(p);
 
-    if (sort === "cheapest") items.sort((a, b) => basis(a)! - basis(b)!);
-    else if (sort === "fastest")
+    if (sort === "cheapest") {
+      items.sort((a, b) => basis(a)! - basis(b)!);
+    } else if (sort === "fastest") {
       items.sort((a, b) => outDur(a)! - outDur(b)!);
-    else if (sort === "flexible")
+    } else if (sort === "flexible") {
       items.sort(
         (a, b) =>
           (a.flight?.refundable ? 0 : 1) - (b.flight?.refundable ? 0 : 1) ||
           basis(a)! - basis(b)!,
       );
-    else items.sort((a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!);
+    } else {
+      // "best"
+      items.sort(
+        (a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!,
+      );
+    }
 
     return items;
   }, [results, sort, sortBasis]);
@@ -442,12 +551,13 @@ export default function Page() {
     );
   }
 
+  // Slightly larger label + input styles for better legibility
   const sLabel: React.CSSProperties = {
     fontWeight: 600,
     color: "#334155",
     display: "block",
     marginBottom: 6,
-    fontSize: 16,
+    fontSize: 18,
   };
   const sInput: React.CSSProperties = {
     height: 46,
@@ -456,17 +566,22 @@ export default function Page() {
     borderRadius: 12,
     width: "100%",
     background: "#fff",
-    fontSize: 16,
+    fontSize: 17,
   };
 
   function clickSubTab(tab: SubTab) {
-    if (tab === subTab) setSubPanelOpen((v) => !v);
-    else {
+    if (tab === subTab) {
+      // clicking the same tab toggles open/closed
+      setSubPanelOpen((v) => !v);
+    } else {
       setSubTab(tab);
       setSubPanelOpen(true);
     }
   }
 
+  /**
+   * Infer the "city" to pass to Explore/Savor/Misc
+   */
   function getExploreCity(): string {
     const fromDisplay = cityFromDisplay(destDisplay);
     if (fromDisplay && fromDisplay.toLowerCase() !== "destination") {
@@ -507,7 +622,7 @@ export default function Page() {
 
     return (
       <>
-        {/* Explore / Savor / Misc tabs */}
+        {/* Explore / Savor / Misc */}
         {showControls && (
           <>
             <div
@@ -546,12 +661,12 @@ export default function Page() {
               </button>
               <style jsx>{`
                 .subtab {
-                  padding: 8px 12px;
+                  padding: 8px 14px;
                   border-radius: 999px;
                   background: #fff;
                   border: 1px solid #e2e8f0;
                   cursor: pointer;
-                  font-size: 13px;
+                  font-size: 16px;
                 }
                 .subtab.on {
                   background: #0ea5e9;
@@ -585,7 +700,7 @@ export default function Page() {
               gap: 8,
               alignItems: "center",
               flexWrap: "wrap",
-              marginTop: 8,
+              marginTop: 10,
             }}
           >
             <button
@@ -630,11 +745,11 @@ export default function Page() {
             </button>
             <style jsx>{`
               .chip {
-                padding: 6px 10px;
+                padding: 8px 14px;
                 border-radius: 999px;
                 border: 1px solid #e2e8f0;
                 background: #ffffff;
-                font-size: 13px;
+                font-size: 16px;
                 cursor: pointer;
               }
               .chip.on {
@@ -655,32 +770,32 @@ export default function Page() {
               padding: 10,
               borderRadius: 10,
               marginTop: 8,
-              fontSize: 13,
+              fontSize: 15,
             }}
           >
             ⚠ {error}
           </div>
         )}
 
-        {/* AI Top-3 summary */}
+        {/* AI Top-3 summary explanation */}
         {aiTop3 && results && results.length > 0 && (
           <div
             style={{
               background: "#0f172a",
               color: "white",
               borderRadius: 16,
-              padding: 12,
+              padding: 14,
               display: "grid",
               gap: 6,
-              marginTop: 8,
+              marginTop: 10,
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: 16 }}>
-              ✨ AI Top 3 Picks
+            <div style={{ fontWeight: 700, fontSize: 20 }}>
+              ✨ AI’s top picks
               {aiTop3Loading && (
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 14,
                     marginLeft: 8,
                     opacity: 0.8,
                     fontWeight: 400,
@@ -693,7 +808,7 @@ export default function Page() {
 
             <div
               style={{
-                fontSize: 13,
+                fontSize: 15,
                 opacity: 0.9,
                 marginTop: 2,
               }}
@@ -708,9 +823,9 @@ export default function Page() {
             <ul
               style={{
                 margin: 4,
-                marginLeft: 18,
+                marginLeft: 20,
                 paddingLeft: 0,
-                fontSize: 14,
+                fontSize: 15,
               }}
             >
               {["best_overall", "best_budget", "best_comfort"].map((key) => {
@@ -748,7 +863,7 @@ export default function Page() {
 
         {/* Result cards */}
         {(shown?.length ?? 0) > 0 && (
-          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+          <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             {shown.map((pkg, i) => (
               <ResultCard
                 key={pkg.id || i}
@@ -787,8 +902,8 @@ export default function Page() {
   };
 
   return (
-    <div style={{ padding: 12, display: "grid", gap: 14 }}>
-      {/* TOP MODE TABS */}
+    <div style={{ padding: 12, display: "grid", gap: 16 }}>
+      {/* TOP TABS */}
       <div
         style={{
           display: "flex",
@@ -802,7 +917,7 @@ export default function Page() {
           onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
           style={{
             flex: 1,
-            padding: 10,
+            padding: 14,
             borderRadius: 999,
             border: "1px solid #e2e8f0",
             background:
@@ -811,7 +926,7 @@ export default function Page() {
                 : "#ffffff",
             color: mode === "ai" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 16,
+            fontSize: 19,
             cursor: "pointer",
           }}
         >
@@ -822,13 +937,13 @@ export default function Page() {
           onClick={() => setMode((m) => (m === "manual" ? "none" : "manual"))}
           style={{
             flex: 1,
-            padding: 10,
+            padding: 14,
             borderRadius: 999,
             border: "1px solid #e2e8f0",
             background: mode === "manual" ? "#0f172a" : "#ffffff",
             color: mode === "manual" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 16,
+            fontSize: 19,
             cursor: "pointer",
           }}
         >
@@ -836,7 +951,7 @@ export default function Page() {
         </button>
       </div>
 
-      {/* COLORFUL CENTERED INTRO CARD */}
+      {/* CENTERED INTRO WHEN NO MODE SELECTED */}
       {mode === "none" && (
         <div
           style={{
@@ -856,7 +971,7 @@ export default function Page() {
             marginTop: 12,
           }}
         >
-          <div style={{ fontSize: 28 }}>🧳 Ready to plan a trip?</div>
+          <div style={{ fontSize: 30 }}>🧳 Ready to plan a trip?</div>
           <div>
             Choose <strong>AI Trip Planning</strong> for a smart itinerary and
             top picks, or <strong>Manual Search</strong> to fine-tune every
@@ -864,7 +979,7 @@ export default function Page() {
           </div>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 15,
               opacity: 0.8,
               marginTop: 4,
             }}
@@ -880,10 +995,71 @@ export default function Page() {
         <>
           <div className="ai-trip-wrapper">
             <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
+
+            {/* Reset button for AI results */}
+            <div
+              style={{
+                marginTop: 10,
+                textAlign: "right",
+              }}
+            >
+              <button
+                type="button"
+                onClick={clearResults}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 12,
+                  border: "1px solid #e2e8f0",
+                  background: "#ffffff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: "pointer",
+                }}
+              >
+                Reset AI trip results
+              </button>
+            </div>
           </div>
+
+          {/* Hero image directly under AI Trip Planner */}
+          {results && results.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              {(() => {
+                const p = results[0] || {};
+                const rawCity =
+                  p.destinationCity ||
+                  p.destinationName ||
+                  p.city ||
+                  p.destination ||
+                  destDisplay ||
+                  "your destination";
+
+                const city =
+                  typeof rawCity === "string"
+                    ? rawCity.split(",")[0]
+                    : "your destination";
+                const hero = getHeroImage(city);
+
+                return (
+                  <img
+                    src={hero.url}
+                    alt={hero.alt}
+                    style={{
+                      width: "100%",
+                      maxHeight: 260,
+                      objectFit: "cover",
+                      borderRadius: 18,
+                      display: "block",
+                    }}
+                  />
+                );
+              })()}
+            </div>
+          )}
+
           <ResultsArea />
-          {/* now passes currency down */}
-          <AiDestinationCompare currency={currency} />
+          {/* Compare Destinations with AI (no currency prop) */}
+          <AiDestinationCompare />
         </>
       )}
 
@@ -897,7 +1073,7 @@ export default function Page() {
               borderRadius: 16,
               padding: 16,
               display: "grid",
-              gap: 14,
+              gap: 16,
             }}
             onSubmit={(e) => {
               e.preventDefault();
@@ -946,7 +1122,7 @@ export default function Page() {
                     border: "1px solid #e2e8f0",
                     background: "#fff",
                     cursor: "pointer",
-                    fontSize: 18,
+                    fontSize: 20,
                   }}
                 >
                   ⇄
@@ -995,6 +1171,7 @@ export default function Page() {
                       border: `1px solid ${
                         roundTrip ? "#e2e8f0" : "#60a5fa"
                       }`,
+                      fontSize: 15,
                     }}
                   >
                     One-way
@@ -1008,6 +1185,7 @@ export default function Page() {
                       border: `1px solid ${
                         roundTrip ? "#60a5fa" : "#e2e8f0"
                       }`,
+                      fontSize: 15,
                     }}
                   >
                     Round-trip
@@ -1115,7 +1293,7 @@ export default function Page() {
                         style={{
                           padding: "8px 10px",
                           fontWeight: 700,
-                          fontSize: 13,
+                          fontSize: 14,
                           display: "inline-block",
                         }}
                       >
@@ -1144,7 +1322,7 @@ export default function Page() {
                           borderRadius: 12,
                           margin: 6,
                           padding: "0 8px",
-                          fontSize: 14,
+                          fontSize: 15,
                         }}
                       />
                     </div>
@@ -1169,7 +1347,9 @@ export default function Page() {
                   onChange={(e) => setCabin(e.target.value as Cabin)}
                 >
                   <option value="ECONOMY">Economy</option>
-                  <option value="PREMIUM_ECONOMY">Premium Economy</option>
+                  <option value="PREMIUM_ECONOMY">
+                    Premium Economy
+                  </option>
                   <option value="BUSINESS">Business</option>
                   <option value="FIRST">First</option>
                 </select>
@@ -1206,7 +1386,7 @@ export default function Page() {
                 />
                 <label
                   htmlFor="include-hotel"
-                  style={{ fontWeight: 700, fontSize: 14 }}
+                  style={{ fontWeight: 700, fontSize: 16 }}
                 >
                   Include hotel
                 </label>
@@ -1224,14 +1404,35 @@ export default function Page() {
                     fontWeight: 800,
                     marginTop: 8,
                     marginRight: 8,
-                    fontSize: 14,
+                    fontSize: 16,
                   }}
                 >
                   {loading ? "Searching..." : "Search"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => location.reload()}
+                  onClick={() => {
+                    setOriginCode("");
+                    setOriginDisplay("");
+                    setDestCode("");
+                    setDestDisplay("");
+                    setRoundTrip(true);
+                    setDepartDate("");
+                    setReturnDate("");
+                    setAdults(1);
+                    setChildren(0);
+                    setInfants(0);
+                    setChildAges([]);
+                    setCabin("ECONOMY");
+                    setMaxStops(2);
+                    setIncludeHotel(false);
+                    setHotelCheckIn("");
+                    setHotelCheckOut("");
+                    setMinHotelStar(0);
+                    setMinBudget("");
+                    setMaxBudget("");
+                    clearResults();
+                  }}
                   title="Reset all fields and results"
                   style={{
                     padding: "10px 16px",
@@ -1240,7 +1441,7 @@ export default function Page() {
                     background: "#fff",
                     fontWeight: 800,
                     marginTop: 8,
-                    fontSize: 14,
+                    fontSize: 16,
                   }}
                 >
                   Reset
@@ -1336,7 +1537,7 @@ export default function Page() {
                             ? "#60a5fa"
                             : "#e2e8f0"
                         }`,
-                        fontSize: 13,
+                        fontSize: 15,
                       }}
                     >
                       Flight only
@@ -1352,7 +1553,7 @@ export default function Page() {
                             ? "#60a5fa"
                             : "#e2e8f0"
                         }`,
-                        fontSize: 13,
+                        fontSize: 15,
                       }}
                     >
                       Bundle total
@@ -1367,7 +1568,7 @@ export default function Page() {
         </>
       )}
 
-      {/* Global font rules */}
+      {/* Global typography overrides for clearer / larger text */}
       <style jsx global>{`
         html,
         body {
@@ -1375,14 +1576,37 @@ export default function Page() {
             "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
+          font-size: 18px;
         }
+
+        button,
+        input,
+        select,
+        textarea {
+          font-family: inherit;
+        }
+
+        .ai-trip-wrapper {
+          font-size: 18px;
+        }
+
         .ai-trip-wrapper h2 {
-          font-size: 24px;
+          font-size: 30px;
           font-weight: 800;
         }
+
         .ai-trip-wrapper p {
-          font-size: 15px;
-          line-height: 1.5;
+          font-size: 18px;
+          line-height: 1.6;
+        }
+
+        .ai-trip-wrapper textarea {
+          font-size: 17px;
+        }
+
+        .ai-trip-wrapper button {
+          font-size: 18px;
+          font-weight: 800;
         }
       `}</style>
     </div>
