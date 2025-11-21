@@ -147,6 +147,9 @@ function getHeroImage(city: string) {
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
 
+  // 🔁 Key to force-remount AiTripPlanner (for full reset)
+  const [aiResetKey, setAiResetKey] = useState(0);
+
   // Places & dates (manual)
   const [originCode, setOriginCode] = useState("");
   const [originDisplay, setOriginDisplay] = useState("");
@@ -994,7 +997,10 @@ export default function Page() {
       {mode === "ai" && (
         <>
           <div className="ai-trip-wrapper">
-            <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
+            <AiTripPlanner
+              key={aiResetKey} // 🔥 full reset when aiResetKey changes
+              onSearchComplete={handleAiSearchComplete}
+            />
 
             {/* Reset button for AI results */}
             <div
@@ -1005,7 +1011,10 @@ export default function Page() {
             >
               <button
                 type="button"
-                onClick={clearResults}
+                onClick={() => {
+                  clearResults();
+                  setAiResetKey((k) => k + 1); // 🔥 forces internal AiTripPlanner reset
+                }}
                 style={{
                   padding: "8px 16px",
                   borderRadius: 12,
@@ -1026,19 +1035,33 @@ export default function Page() {
             <div style={{ marginTop: 16 }}>
               {(() => {
                 const p = results[0] || {};
-                const rawCity =
-                  p.destinationCity ||
-                  p.destinationName ||
-                  p.city ||
-                  p.destination ||
-                  destDisplay ||
-                  "your destination";
 
-                const city =
-                  typeof rawCity === "string"
-                    ? rawCity.split(",")[0]
-                    : "your destination";
-                const hero = getHeroImage(city);
+                // 🔍 improved city extraction for hero
+                let cityGuess = "";
+
+                cityGuess =
+                  p.destinationCity ||
+                  p.city ||
+                  p.destinationName ||
+                  p.destination_full_name ||
+                  p.destination ||
+                  "";
+
+                // fallback to manual destination display
+                if (!cityGuess && destDisplay) {
+                  cityGuess = destDisplay.replace(/\(.*?\)/, "").trim();
+                }
+
+                if (!cityGuess) cityGuess = "destination";
+
+                // final cleanup: strip long airport / comma parts
+                cityGuess = cityGuess
+                  .split("—")[0]
+                  .trim()
+                  .split(",")[0]
+                  .trim();
+
+                const hero = getHeroImage(cityGuess);
 
                 return (
                   <img
@@ -1058,7 +1081,7 @@ export default function Page() {
           )}
 
           <ResultsArea />
-          {/* Compare Destinations with AI (no currency prop) */}
+          {/* Compare Destinations with AI */}
           <AiDestinationCompare />
         </>
       )}
