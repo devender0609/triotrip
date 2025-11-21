@@ -1036,10 +1036,8 @@ export default function Page() {
               {(() => {
                 const p = results[0] || {};
 
-                // 🔍 improved city extraction for hero
-                let cityGuess = "";
-
-                cityGuess =
+                // 🔍 try multiple fields from the result
+                let cityGuess: string =
                   p.destinationCity ||
                   p.city ||
                   p.destinationName ||
@@ -1047,19 +1045,57 @@ export default function Page() {
                   p.destination ||
                   "";
 
-                // fallback to manual destination display
+                // fallback to manual destination display text
                 if (!cityGuess && destDisplay) {
                   cityGuess = destDisplay.replace(/\(.*?\)/, "").trim();
                 }
 
                 if (!cityGuess) cityGuess = "destination";
 
-                // final cleanup: strip long airport / comma parts
-                cityGuess = cityGuess
-                  .split("—")[0]
-                  .trim()
-                  .split(",")[0]
-                  .trim();
+                // strip long "—", "," parts (airport details, states)
+                cityGuess = cityGuess.split("—")[0].trim();
+                cityGuess = cityGuess.split(",")[0].trim();
+
+                // 🛫 if it's just a 3-letter IATA code like "BOS", map to a real city
+                const upper = cityGuess.toUpperCase();
+                if (/^[A-Z]{3}$/.test(upper)) {
+                  switch (upper) {
+                    case "BOS":
+                      cityGuess = "Boston";
+                      break;
+                    case "MIA":
+                      cityGuess = "Miami";
+                      break;
+                    case "LAS":
+                      cityGuess = "Las Vegas";
+                      break;
+                    case "JFK":
+                    case "LGA":
+                    case "EWR":
+                    case "NYC":
+                      cityGuess = "New York";
+                      break;
+                    case "LAX":
+                      cityGuess = "Los Angeles";
+                      break;
+                    case "SFO":
+                      cityGuess = "San Francisco";
+                      break;
+                    case "DEL":
+                      cityGuess = "New Delhi";
+                      break;
+                    case "AGR":
+                      cityGuess = "Agra";
+                      break;
+                    case "HNL":
+                      cityGuess = "Honolulu";
+                      break;
+                    default:
+                      // if we don't recognize the code, just pass it through
+                      cityGuess = upper;
+                      break;
+                  }
+                }
 
                 const hero = getHeroImage(cityGuess);
 
