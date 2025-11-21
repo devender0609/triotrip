@@ -58,73 +58,6 @@ function nightsBetween(a?: string, b?: string) {
 const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
-/** Pick a hero image that matches destination city vibe */
-function getHeroImage(city: string) {
-  const c = city.toLowerCase();
-
-  if (c.includes("las vegas")) {
-    return {
-      url: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=1600&q=80",
-      alt: "Las Vegas Strip and casinos at night",
-    };
-  }
-
-  if (c.includes("miami")) {
-    return {
-      url: "https://images.unsplash.com/photo-1517898717281-8e4385f1c4a2?auto=format&fit=crop&w=1600&q=80",
-      alt: "Miami beach and oceanfront skyline",
-    };
-  }
-
-  if (c.includes("agra")) {
-    return {
-      url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
-      alt: "Taj Mahal in Agra",
-    };
-  }
-
-  if (c.includes("boston")) {
-    return {
-      url: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1600&q=80",
-      alt: "Boston skyline and harbor",
-    };
-  }
-
-  if (c.includes("new york") || c.includes("nyc")) {
-    return {
-      url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1600&q=80",
-      alt: "New York City skyline",
-    };
-  }
-
-  if (c.includes("paris")) {
-    return {
-      url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80",
-      alt: "Eiffel Tower and Paris skyline",
-    };
-  }
-
-  if (c.includes("london")) {
-    return {
-      url: "https://images.unsplash.com/photo-1473951574080-01fe45ec8643?auto=format&fit=crop&w=1600&q=80",
-      alt: "London skyline with Big Ben",
-    };
-  }
-
-  if (c.includes("hawaii") || c.includes("honolulu") || c.includes("maui")) {
-    return {
-      url: "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=1600&q=80",
-      alt: "Tropical beach in Hawaii with palm trees",
-    };
-  }
-
-  // fallback generic travel hero
-  return {
-    url: "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=1600&q=80",
-    alt: "Scenic travel destination",
-  };
-}
-
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
 
@@ -162,7 +95,7 @@ export default function Page() {
     return () => window.removeEventListener("triptrio:currency", handler);
   }, []);
 
-  // Filters / hotel
+  // Filters / hotel (manual/AI shared)
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
@@ -229,21 +162,13 @@ export default function Page() {
     });
   }, [children]);
 
-  // Clear results helper (used by both AI + manual + reset)
-  function clearResults() {
+  // Clear results when switching modes
+  useEffect(() => {
     setResults(null);
     setError(null);
     setShowControls(false);
     setComparedIds([]);
     setAiTop3(null);
-    setAiTop3Loading(false);
-    setSubPanelOpen(false);
-    setListTab("all");
-  }
-
-  // Also clear when switching modes
-  useEffect(() => {
-    clearResults();
   }, [mode]);
 
   function swapOriginDest() {
@@ -259,13 +184,13 @@ export default function Page() {
     });
   }
 
+  /** When AI trip planner finishes parsing + planning, run the real search */
   async function handleAiSearchComplete(payload: {
     searchParams: any;
     searchResult: any;
     planning: any;
   }) {
     try {
-      clearResults();
       const sp = payload?.searchParams || {};
 
       const origin = sp.origin;
@@ -335,7 +260,7 @@ export default function Page() {
       setComparedIds([]);
       setError(null);
 
-      // sync manual form
+      // Sync manual form with AI params
       if (origin) setOriginCode(origin);
       if (destination) setDestCode(destination);
       setRoundTrip(roundTrip);
@@ -374,7 +299,9 @@ export default function Page() {
 
   async function runSearch() {
     setLoading(true);
-    clearResults();
+    setError(null);
+    setResults(null);
+    setAiTop3(null);
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
@@ -437,6 +364,7 @@ export default function Page() {
     }
   }
 
+  // AI Top-3 whenever results change
   useEffect(() => {
     if (!results || results.length === 0) {
       setAiTop3(null);
@@ -465,7 +393,6 @@ export default function Page() {
   const sortedResults = useMemo(() => {
     if (!results) return null;
     const items = [...results];
-
     const flightPrice = (p: any) =>
       num(p.flight_total) ??
       num(p.total_cost_flight) ??
@@ -486,7 +413,6 @@ export default function Page() {
       );
       return Number.isFinite(sum) ? sum : 9e9;
     };
-
     const basis = (p: any) =>
       sortBasis === "bundle" ? bundleTotal(p) : flightPrice(p);
 
@@ -521,7 +447,7 @@ export default function Page() {
     color: "#334155",
     display: "block",
     marginBottom: 6,
-    fontSize: 18,
+    fontSize: 16,
   };
   const sInput: React.CSSProperties = {
     height: 46,
@@ -530,7 +456,7 @@ export default function Page() {
     borderRadius: 12,
     width: "100%",
     background: "#fff",
-    fontSize: 17,
+    fontSize: 16,
   };
 
   function clickSubTab(tab: SubTab) {
@@ -581,7 +507,7 @@ export default function Page() {
 
     return (
       <>
-        {/* Explore / Savor / Misc */}
+        {/* Explore / Savor / Misc tabs */}
         {showControls && (
           <>
             <div
@@ -620,12 +546,12 @@ export default function Page() {
               </button>
               <style jsx>{`
                 .subtab {
-                  padding: 8px 14px;
+                  padding: 8px 12px;
                   border-radius: 999px;
                   background: #fff;
                   border: 1px solid #e2e8f0;
                   cursor: pointer;
-                  font-size: 16px;
+                  font-size: 13px;
                 }
                 .subtab.on {
                   background: #0ea5e9;
@@ -659,7 +585,7 @@ export default function Page() {
               gap: 8,
               alignItems: "center",
               flexWrap: "wrap",
-              marginTop: 10,
+              marginTop: 8,
             }}
           >
             <button
@@ -704,11 +630,11 @@ export default function Page() {
             </button>
             <style jsx>{`
               .chip {
-                padding: 8px 14px;
+                padding: 6px 10px;
                 border-radius: 999px;
                 border: 1px solid #e2e8f0;
                 background: #ffffff;
-                font-size: 16px;
+                font-size: 13px;
                 cursor: pointer;
               }
               .chip.on {
@@ -729,7 +655,7 @@ export default function Page() {
               padding: 10,
               borderRadius: 10,
               marginTop: 8,
-              fontSize: 15,
+              fontSize: 13,
             }}
           >
             ⚠ {error}
@@ -743,18 +669,18 @@ export default function Page() {
               background: "#0f172a",
               color: "white",
               borderRadius: 16,
-              padding: 14,
+              padding: 12,
               display: "grid",
               gap: 6,
-              marginTop: 10,
+              marginTop: 8,
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: 20 }}>
-              ✨ AI’s top picks
+            <div style={{ fontWeight: 700, fontSize: 16 }}>
+              ✨ AI Top 3 Picks
               {aiTop3Loading && (
                 <span
                   style={{
-                    fontSize: 14,
+                    fontSize: 12,
                     marginLeft: 8,
                     opacity: 0.8,
                     fontWeight: 400,
@@ -767,7 +693,7 @@ export default function Page() {
 
             <div
               style={{
-                fontSize: 15,
+                fontSize: 13,
                 opacity: 0.9,
                 marginTop: 2,
               }}
@@ -782,9 +708,9 @@ export default function Page() {
             <ul
               style={{
                 margin: 4,
-                marginLeft: 20,
+                marginLeft: 18,
                 paddingLeft: 0,
-                fontSize: 15,
+                fontSize: 14,
               }}
             >
               {["best_overall", "best_budget", "best_comfort"].map((key) => {
@@ -822,7 +748,7 @@ export default function Page() {
 
         {/* Result cards */}
         {(shown?.length ?? 0) > 0 && (
-          <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             {shown.map((pkg, i) => (
               <ResultCard
                 key={pkg.id || i}
@@ -861,8 +787,8 @@ export default function Page() {
   };
 
   return (
-    <div style={{ padding: 12, display: "grid", gap: 16 }}>
-      {/* TOP TABS */}
+    <div style={{ padding: 12, display: "grid", gap: 14 }}>
+      {/* TOP MODE TABS */}
       <div
         style={{
           display: "flex",
@@ -876,7 +802,7 @@ export default function Page() {
           onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
           style={{
             flex: 1,
-            padding: 14,
+            padding: 10,
             borderRadius: 999,
             border: "1px solid #e2e8f0",
             background:
@@ -885,7 +811,7 @@ export default function Page() {
                 : "#ffffff",
             color: mode === "ai" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 19,
+            fontSize: 16,
             cursor: "pointer",
           }}
         >
@@ -896,13 +822,13 @@ export default function Page() {
           onClick={() => setMode((m) => (m === "manual" ? "none" : "manual"))}
           style={{
             flex: 1,
-            padding: 14,
+            padding: 10,
             borderRadius: 999,
             border: "1px solid #e2e8f0",
             background: mode === "manual" ? "#0f172a" : "#ffffff",
             color: mode === "manual" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 19,
+            fontSize: 16,
             cursor: "pointer",
           }}
         >
@@ -910,7 +836,7 @@ export default function Page() {
         </button>
       </div>
 
-      {/* CENTERED INTRO WHEN NO MODE SELECTED */}
+      {/* COLORFUL CENTERED INTRO CARD */}
       {mode === "none" && (
         <div
           style={{
@@ -930,7 +856,7 @@ export default function Page() {
             marginTop: 12,
           }}
         >
-          <div style={{ fontSize: 30 }}>🧳 Ready to plan a trip?</div>
+          <div style={{ fontSize: 28 }}>🧳 Ready to plan a trip?</div>
           <div>
             Choose <strong>AI Trip Planning</strong> for a smart itinerary and
             top picks, or <strong>Manual Search</strong> to fine-tune every
@@ -938,7 +864,7 @@ export default function Page() {
           </div>
           <div
             style={{
-              fontSize: 15,
+              fontSize: 13,
               opacity: 0.8,
               marginTop: 4,
             }}
@@ -954,69 +880,9 @@ export default function Page() {
         <>
           <div className="ai-trip-wrapper">
             <AiTripPlanner onSearchComplete={handleAiSearchComplete} />
-
-            {/* Reset button for AI results */}
-            <div
-              style={{
-                marginTop: 10,
-                textAlign: "right",
-              }}
-            >
-              <button
-                type="button"
-                onClick={clearResults}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 12,
-                  border: "1px solid #e2e8f0",
-                  background: "#ffffff",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: "pointer",
-                }}
-              >
-                Reset AI trip results
-              </button>
-            </div>
           </div>
-
-          {/* Hero image directly under Generate AI Trip */}
-          {results && results.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              {(() => {
-                const p = results[0] || {};
-                const rawCity =
-                  p.destinationCity ||
-                  p.destinationName ||
-                  p.city ||
-                  p.destination ||
-                  destDisplay ||
-                  "your destination";
-
-                const city =
-                  typeof rawCity === "string"
-                    ? rawCity.split(",")[0]
-                    : "your destination";
-                const hero = getHeroImage(city);
-
-                return (
-                  <img
-                    src={hero.url}
-                    alt={hero.alt}
-                    style={{
-                      width: "100%",
-                      maxHeight: 260,
-                      objectFit: "cover",
-                      borderRadius: 18,
-                      display: "block",
-                    }}
-                  />
-                );
-              })()}
-            </div>
-          )}
-
           <ResultsArea />
+          {/* now passes currency down */}
           <AiDestinationCompare currency={currency} />
         </>
       )}
@@ -1031,7 +897,7 @@ export default function Page() {
               borderRadius: 16,
               padding: 16,
               display: "grid",
-              gap: 16,
+              gap: 14,
             }}
             onSubmit={(e) => {
               e.preventDefault();
@@ -1080,7 +946,7 @@ export default function Page() {
                     border: "1px solid #e2e8f0",
                     background: "#fff",
                     cursor: "pointer",
-                    fontSize: 20,
+                    fontSize: 18,
                   }}
                 >
                   ⇄
@@ -1129,7 +995,6 @@ export default function Page() {
                       border: `1px solid ${
                         roundTrip ? "#e2e8f0" : "#60a5fa"
                       }`,
-                      fontSize: 15,
                     }}
                   >
                     One-way
@@ -1143,7 +1008,6 @@ export default function Page() {
                       border: `1px solid ${
                         roundTrip ? "#60a5fa" : "#e2e8f0"
                       }`,
-                      fontSize: 15,
                     }}
                   >
                     Round-trip
@@ -1251,7 +1115,7 @@ export default function Page() {
                         style={{
                           padding: "8px 10px",
                           fontWeight: 700,
-                          fontSize: 14,
+                          fontSize: 13,
                           display: "inline-block",
                         }}
                       >
@@ -1280,7 +1144,7 @@ export default function Page() {
                           borderRadius: 12,
                           margin: 6,
                           padding: "0 8px",
-                          fontSize: 15,
+                          fontSize: 14,
                         }}
                       />
                     </div>
@@ -1305,9 +1169,7 @@ export default function Page() {
                   onChange={(e) => setCabin(e.target.value as Cabin)}
                 >
                   <option value="ECONOMY">Economy</option>
-                  <option value="PREMIUM_ECONOMY">
-                    Premium Economy
-                  </option>
+                  <option value="PREMIUM_ECONOMY">Premium Economy</option>
                   <option value="BUSINESS">Business</option>
                   <option value="FIRST">First</option>
                 </select>
@@ -1344,7 +1206,7 @@ export default function Page() {
                 />
                 <label
                   htmlFor="include-hotel"
-                  style={{ fontWeight: 700, fontSize: 16 }}
+                  style={{ fontWeight: 700, fontSize: 14 }}
                 >
                   Include hotel
                 </label>
@@ -1362,35 +1224,14 @@ export default function Page() {
                     fontWeight: 800,
                     marginTop: 8,
                     marginRight: 8,
-                    fontSize: 16,
+                    fontSize: 14,
                   }}
                 >
                   {loading ? "Searching..." : "Search"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setOriginCode("");
-                    setOriginDisplay("");
-                    setDestCode("");
-                    setDestDisplay("");
-                    setRoundTrip(true);
-                    setDepartDate("");
-                    setReturnDate("");
-                    setAdults(1);
-                    setChildren(0);
-                    setInfants(0);
-                    setChildAges([]);
-                    setCabin("ECONOMY");
-                    setMaxStops(2);
-                    setIncludeHotel(false);
-                    setHotelCheckIn("");
-                    setHotelCheckOut("");
-                    setMinHotelStar(0);
-                    setMinBudget("");
-                    setMaxBudget("");
-                    clearResults();
-                  }}
+                  onClick={() => location.reload()}
                   title="Reset all fields and results"
                   style={{
                     padding: "10px 16px",
@@ -1399,7 +1240,7 @@ export default function Page() {
                     background: "#fff",
                     fontWeight: 800,
                     marginTop: 8,
-                    fontSize: 16,
+                    fontSize: 14,
                   }}
                 >
                   Reset
@@ -1495,7 +1336,7 @@ export default function Page() {
                             ? "#60a5fa"
                             : "#e2e8f0"
                         }`,
-                        fontSize: 15,
+                        fontSize: 13,
                       }}
                     >
                       Flight only
@@ -1511,7 +1352,7 @@ export default function Page() {
                             ? "#60a5fa"
                             : "#e2e8f0"
                         }`,
-                        fontSize: 15,
+                        fontSize: 13,
                       }}
                     >
                       Bundle total
@@ -1526,7 +1367,7 @@ export default function Page() {
         </>
       )}
 
-      {/* Global typography */}
+      {/* Global font rules */}
       <style jsx global>{`
         html,
         body {
@@ -1534,37 +1375,14 @@ export default function Page() {
             "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
-          font-size: 18px;
         }
-
-        button,
-        input,
-        select,
-        textarea {
-          font-family: inherit;
-        }
-
-        .ai-trip-wrapper {
-          font-size: 18px;
-        }
-
         .ai-trip-wrapper h2 {
-          font-size: 30px;
+          font-size: 24px;
           font-weight: 800;
         }
-
         .ai-trip-wrapper p {
-          font-size: 18px;
-          line-height: 1.6;
-        }
-
-        .ai-trip-wrapper textarea {
-          font-size: 17px;
-        }
-
-        .ai-trip-wrapper button {
-          font-size: 18px;
-          font-weight: 800;
+          font-size: 15px;
+          line-height: 1.5;
         }
       `}</style>
     </div>
