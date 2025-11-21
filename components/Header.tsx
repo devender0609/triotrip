@@ -2,47 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import AuthBar from "./AuthBar";
 import React from "react";
 
-/** Top header: TrioTrip brand (no underline), Login (elegant pill), Currency with flag + live saved count */
+/** Top header: TrioTrip brand, Login pill, Currency with flag (no Saved) */
 export default function Header() {
   const [currency, setCurrency] = React.useState<string>(() => {
     if (typeof window === "undefined") return "USD";
     return window.localStorage.getItem("triptrio:currency") || "USD";
   });
-
-  const [savedCount, setSavedCount] = React.useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    try {
-      const raw = window.localStorage.getItem("triptrio:saved-count");
-      return raw ? parseInt(raw, 10) || 0 : 0;
-    } catch {
-      return 0;
-    }
-  });
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onSaved = (e: Event) => {
-      const ce = e as CustomEvent<number>;
-      if (typeof ce.detail === "number") setSavedCount(ce.detail);
-      else {
-        try {
-          const raw = window.localStorage.getItem("triptrio:saved-count");
-          setSavedCount(raw ? parseInt(raw, 10) || 0 : 0);
-        } catch {
-          // ignore
-        }
-      }
-    };
-    window.addEventListener("triptrio:saved-count", onSaved as EventListener);
-    return () =>
-      window.removeEventListener(
-        "triptrio:saved-count",
-        onSaved as EventListener
-      );
-  }, []);
 
   const currencies = ["USD", "EUR", "INR", "AED", "THB"];
 
@@ -76,20 +43,29 @@ export default function Header() {
       </Link>
 
       <nav className="nav" aria-label="Main">
-        {/* Auth (Login) styled as elegant pill(s). Saved pill is hidden via CSS. */}
-        <div className="auth-wrap">
-          <AuthBar />
-        </div>
+        {/* Simple Login pill (no Saved) */}
+        <Link href="/login" className="pill login-pill">
+          <span>Login</span>
+        </Link>
 
         {/* Currency with flag */}
-        <div className="currency pill">
+        <div className="pill currency-pill">
           <span aria-hidden className="flag">
             {flag(currency)}
           </span>
           <select
             aria-label="Currency"
             value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setCurrency(value);
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("triptrio:currency", value);
+                window.dispatchEvent(
+                  new CustomEvent("triptrio:currency", { detail: value })
+                );
+              }
+            }}
             className="currency-select"
           >
             {currencies.map((c) => (
@@ -158,18 +134,13 @@ export default function Header() {
           box-shadow: 0 1px 0 rgba(15, 23, 42, 0.4);
         }
 
-        .auth-wrap {
-          display: flex;
-          align-items: center;
+        .login-pill {
+          font-size: 13px;
+          font-weight: 600;
+          text-decoration: none;
         }
 
-        /* Hide the first control inside AuthBar (the Saved pill),
-           keeping Login and anything else visible */
-        :global(.auth-wrap > *:first-child) {
-          display: none !important;
-        }
-
-        .currency {
+        .currency-pill {
           font-size: 13px;
           font-weight: 600;
         }

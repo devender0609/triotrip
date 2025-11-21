@@ -58,45 +58,63 @@ function nightsBetween(a?: string, b?: string) {
 const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
-// --- small helpers ---------------------------------------------------------
-
+/** Pick a hero image that matches destination city vibe */
 function getHeroImage(city: string) {
   const c = city.toLowerCase();
 
   if (c.includes("las vegas")) {
     return {
       url: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=1600&q=80",
-      alt: "Las Vegas Strip at night",
+      alt: "Las Vegas Strip and casinos at night",
     };
   }
+
+  if (c.includes("miami")) {
+    return {
+      url: "https://images.unsplash.com/photo-1517898717281-8e4385f1c4a2?auto=format&fit=crop&w=1600&q=80",
+      alt: "Miami beach and oceanfront skyline",
+    };
+  }
+
+  if (c.includes("agra")) {
+    return {
+      url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
+      alt: "Taj Mahal in Agra",
+    };
+  }
+
   if (c.includes("boston")) {
     return {
       url: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1600&q=80",
       alt: "Boston skyline and harbor",
     };
   }
-  if (c.includes("new york") || c === "nyc") {
+
+  if (c.includes("new york") || c.includes("nyc")) {
     return {
       url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1600&q=80",
       alt: "New York City skyline",
     };
   }
+
   if (c.includes("paris")) {
     return {
       url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80",
-      alt: "Eiffel Tower in Paris",
+      alt: "Eiffel Tower and Paris skyline",
     };
   }
+
   if (c.includes("london")) {
     return {
       url: "https://images.unsplash.com/photo-1473951574080-01fe45ec8643?auto=format&fit=crop&w=1600&q=80",
       alt: "London skyline with Big Ben",
     };
   }
-  if (c.includes("hawaii") || c.includes("honolulu")) {
+
+  if (c.includes("hawaii") || c.includes("honolulu") || c.includes("maui")) {
     return {
       url: "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=1600&q=80",
-      alt: "Hawaii beach and palm trees",
+      alt: "Tropical beach in Hawaii with palm trees",
     };
   }
 
@@ -106,8 +124,6 @@ function getHeroImage(city: string) {
     alt: "Scenic travel destination",
   };
 }
-
-// ---------------------------------------------------------------------------
 
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
@@ -213,7 +229,7 @@ export default function Page() {
     });
   }, [children]);
 
-  // Clear results helper (used by both AI and manual + reset)
+  // Clear results helper (used by both AI + manual + reset)
   function clearResults() {
     setResults(null);
     setError(null);
@@ -249,7 +265,7 @@ export default function Page() {
     planning: any;
   }) {
     try {
-      clearResults(); // overwrite previous AI results
+      clearResults();
       const sp = payload?.searchParams || {};
 
       const origin = sp.origin;
@@ -319,7 +335,7 @@ export default function Page() {
       setComparedIds([]);
       setError(null);
 
-      // sync manual form with AI params
+      // sync manual form
       if (origin) setOriginCode(origin);
       if (destination) setDestCode(destination);
       setRoundTrip(roundTrip);
@@ -358,7 +374,7 @@ export default function Page() {
 
   async function runSearch() {
     setLoading(true);
-    clearResults(); // overwrite previous manual results
+    clearResults();
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
@@ -562,7 +578,6 @@ export default function Page() {
     if (!showControls && !results && !error) return null;
 
     const exploreCity = getExploreCity();
-    const hero = getHeroImage(exploreCity);
 
     return (
       <>
@@ -718,23 +733,6 @@ export default function Page() {
             }}
           >
             ⚠ {error}
-          </div>
-        )}
-
-        {/* Hero image for AI mode */}
-        {mode === "ai" && results && results.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <img
-              src={hero.url}
-              alt={hero.alt}
-              style={{
-                width: "100%",
-                maxHeight: 260,
-                objectFit: "cover",
-                borderRadius: 18,
-                display: "block",
-              }}
-            />
           </div>
         )}
 
@@ -981,6 +979,42 @@ export default function Page() {
               </button>
             </div>
           </div>
+
+          {/* Hero image directly under Generate AI Trip */}
+          {results && results.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              {(() => {
+                const p = results[0] || {};
+                const rawCity =
+                  p.destinationCity ||
+                  p.destinationName ||
+                  p.city ||
+                  p.destination ||
+                  destDisplay ||
+                  "your destination";
+
+                const city =
+                  typeof rawCity === "string"
+                    ? rawCity.split(",")[0]
+                    : "your destination";
+                const hero = getHeroImage(city);
+
+                return (
+                  <img
+                    src={hero.url}
+                    alt={hero.alt}
+                    style={{
+                      width: "100%",
+                      maxHeight: 260,
+                      objectFit: "cover",
+                      borderRadius: 18,
+                      display: "block",
+                    }}
+                  />
+                );
+              })()}
+            </div>
+          )}
 
           <ResultsArea />
           <AiDestinationCompare currency={currency} />
@@ -1271,7 +1305,9 @@ export default function Page() {
                   onChange={(e) => setCabin(e.target.value as Cabin)}
                 >
                   <option value="ECONOMY">Economy</option>
-                  <option value="PREMIUM_ECONOMY">Premium Economy</option>
+                  <option value="PREMIUM_ECONOMY">
+                    Premium Economy
+                  </option>
                   <option value="BUSINESS">Business</option>
                   <option value="FIRST">First</option>
                 </select>
@@ -1498,7 +1534,7 @@ export default function Page() {
             "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
-          font-size: 17px;
+          font-size: 18px;
         }
 
         button,
@@ -1508,14 +1544,27 @@ export default function Page() {
           font-family: inherit;
         }
 
+        .ai-trip-wrapper {
+          font-size: 18px;
+        }
+
         .ai-trip-wrapper h2 {
-          font-size: 28px;
+          font-size: 30px;
           font-weight: 800;
         }
 
         .ai-trip-wrapper p {
-          font-size: 17px;
+          font-size: 18px;
           line-height: 1.6;
+        }
+
+        .ai-trip-wrapper textarea {
+          font-size: 17px;
+        }
+
+        .ai-trip-wrapper button {
+          font-size: 18px;
+          font-weight: 800;
         }
       `}</style>
     </div>
