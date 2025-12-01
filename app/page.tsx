@@ -180,7 +180,7 @@ function getHeroImages(city: string): HeroImage[] {
         alt: "London skyline with Big Ben",
       },
       {
-        url: "https://images.unsplash.com/photo-1486299267070-83823f5448dd?auto=format&fit=crop&w=1600&q=80",
+        url: "https://images.unsplash.com/photo-1486299267070-83823fe5af6c?auto=format&fit=crop&w=1600&q=80",
         alt: "Tower Bridge in London",
       },
     ];
@@ -1216,10 +1216,15 @@ export default function Page() {
                       cursor: "pointer",
                     }}
                     onClick={() => {
-                      setSubTab("explore");
-                      setSubPanelOpen(true);
+                      // 🔁 Toggle Explore panel on image click
+                      if (subTab === "explore" && subPanelOpen) {
+                        setSubPanelOpen(false);
+                      } else {
+                        setSubTab("explore");
+                        setSubPanelOpen(true);
+                      }
                     }}
-                    title="Click to open Explore tips for this destination"
+                    title="Click to toggle Explore tips for this destination"
                   >
                     <img
                       key={`${cityGuess}-${safeIndex}`}
@@ -1271,7 +1276,7 @@ export default function Page() {
                         fontSize: 13,
                       }}
                     >
-                      Click to open Explore →
+                      Click image to toggle Explore
                     </div>
 
                     {/* Carousel dots */}
