@@ -9,41 +9,26 @@ import ExploreSavorTabs from "@/components/ExploreSavorTabs";
 import AiTripPlanner from "../components/AiTripPlanner";
 import { AiDestinationCompare } from "../components/AiDestinationCompare";
 
-// --- Types for various controls ---
-
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
-
-/**
- * Determines whether "Top-3" or "All" results are shown in the main list.
- */
 type ListTab = "top3" | "all";
-
-/**
- * Sub tabs for Explore / Savor / Misc (destination guides).
- */
 type SubTab = "explore" | "savor" | "misc";
 
-// Precompute local date string with timezone offset to avoid Next build issues
 const todayLocal = new Date(
   Date.now() - new Date().getTimezoneOffset() * 60000
 )
   .toISOString()
   .slice(0, 10);
 
-/** Extract a 3-letter IATA code from display text such as "Austin (AUS) — Austin–Bergstrom Intl" */
 function extractIATA(display: string): string {
   const s = String(display || "").toUpperCase().trim();
-  // Look for "(XXX)"
   let m = /\(([A-Z]{3})\)/.exec(s);
   if (m) return m[1];
-  // Look for "XXX " at start
   m = /^([A-Z]{3})\b/.exec(s);
   if (m) return m[1];
   return "";
 }
 
-/** Add days to an ISO date string safely */
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -52,7 +37,6 @@ function plusDays(iso: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-/** Rough city extraction from a display string like "Austin (AUS) — Austin–Bergstrom Intl" or "Boston, MA" */
 function cityFromDisplay(txt: string) {
   if (!txt) return "";
   const parts = txt
@@ -63,7 +47,6 @@ function cityFromDisplay(txt: string) {
   return txt.split(",")[0].trim();
 }
 
-/** integer nights between dates */
 function nightsBetween(a?: string, b?: string) {
   if (!a || !b) return 0;
   const A = new Date(a).getTime();
@@ -75,11 +58,10 @@ function nightsBetween(a?: string, b?: string) {
 const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
-// --- Hero image helpers ---
+// ----- Hero image + city helpers -----
 
 type HeroImage = { url: string; alt: string };
 
-/** Multiple images per city for a mini-carousel */
 function getHeroImages(city: string): HeroImage[] {
   const c = city.toLowerCase();
 
@@ -91,11 +73,7 @@ function getHeroImages(city: string): HeroImage[] {
       },
       {
         url: "https://images.unsplash.com/photo-1516496636080-14fb876e029d?auto=format&fit=crop&w=1600&q=80",
-        alt: "Las Vegas neon hotel signs",
-      },
-      {
-        url: "https://images.unsplash.com/photo-1546412414-8035e1776c9c?auto=format&fit=crop&w=1600&q=80",
-        alt: "Las Vegas skyline at dusk",
+        alt: "Neon hotel signs in Las Vegas",
       },
     ];
   }
@@ -109,10 +87,6 @@ function getHeroImages(city: string): HeroImage[] {
       {
         url: "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1600&q=80",
         alt: "Palm trees and sunset in Miami",
-      },
-      {
-        url: "https://images.unsplash.com/photo-1499952127939-9bbf5af6c51c?auto=format&fit=crop&w=1600&q=80",
-        alt: "Art Deco buildings in Miami Beach",
       },
     ];
   }
@@ -150,12 +124,8 @@ function getHeroImages(city: string): HeroImage[] {
         alt: "New York City skyline",
       },
       {
-        url: "https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1600&q=80",
-        alt: "Brooklyn Bridge and Manhattan",
-      },
-      {
         url: "https://images.unsplash.com/photo-1528353518104-dbd48bee7bc9?auto=format&fit=crop&w=1600&q=80",
-        alt: "Times Square at night",
+        alt: "Brooklyn Bridge and Manhattan",
       },
     ];
   }
@@ -165,23 +135,6 @@ function getHeroImages(city: string): HeroImage[] {
       {
         url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80",
         alt: "Eiffel Tower and Paris skyline",
-      },
-      {
-        url: "https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=1600&q=80",
-        alt: "Street view in Paris with cafes",
-      },
-    ];
-  }
-
-  if (c.includes("london")) {
-    return [
-      {
-        url: "https://images.unsplash.com/photo-1473951574080-01fe45ec8643?auto=format&fit=crop&w=1600&q=80",
-        alt: "London skyline with Big Ben",
-      },
-      {
-        url: "https://images.unsplash.com/photo-1486299267070-83823fe5af6c?auto=format&fit=crop&w=1600&q=80",
-        alt: "Tower Bridge in London",
       },
     ];
   }
@@ -199,7 +152,6 @@ function getHeroImages(city: string): HeroImage[] {
     ];
   }
 
-  // Generic scenic fallback
   return [
     {
       url: "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=1600&q=80",
@@ -208,46 +160,50 @@ function getHeroImages(city: string): HeroImage[] {
   ];
 }
 
-/** Map city to country + emoji flag for the banner */
+function cityGuideUrl(city: string): string {
+  const c = city.toLowerCase();
+
+  if (c.includes("las vegas"))
+    return "https://www.tripadvisor.com/Tourism-g45963-Las_Vegas_Nevada-Vacations.html";
+  if (c.includes("miami"))
+    return "https://www.tripadvisor.com/Tourism-g34438-Miami_Florida-Vacations.html";
+  if (c.includes("boston"))
+    return "https://www.tripadvisor.com/Tourism-g60745-Boston_Massachusetts-Vacations.html";
+  if (c.includes("new york"))
+    return "https://www.tripadvisor.com/Tourism-g60763-New_York_City_New_York-Vacations.html";
+  if (c.includes("agra"))
+    return "https://www.tripadvisor.com/Tourism-g297683-Agra_Agra_District_Uttar_Pradesh-Vacations.html";
+  if (c.includes("paris"))
+    return "https://www.tripadvisor.com/Tourism-g187147-Paris_Ile_de_France-Vacations.html";
+  if (c.includes("honolulu") || c.includes("hawaii"))
+    return "https://www.tripadvisor.com/Tourism-g60982-Honolulu_Oahu_Hawaii-Vacations.html";
+
+  return `https://www.google.com/search?q=${encodeURIComponent(
+    city + " travel guide"
+  )}`;
+}
+
 function cityToCountry(city: string): { country: string; flag: string } {
   const c = city.toLowerCase();
 
-  if (c.includes("las vegas") || c.includes("miami") || c.includes("boston")) {
+  if (c.includes("las vegas") || c.includes("miami") || c.includes("boston"))
     return { country: "United States", flag: "🇺🇸" };
-  }
-  if (c.includes("new york")) {
-    return { country: "United States", flag: "🇺🇸" };
-  }
-  if (c.includes("san francisco") || c.includes("los angeles")) {
-    return { country: "United States", flag: "🇺🇸" };
-  }
-  if (c.includes("agra") || c.includes("delhi") || c.includes("new delhi")) {
+  if (c.includes("new york")) return { country: "United States", flag: "🇺🇸" };
+  if (c.includes("agra") || c.includes("delhi"))
     return { country: "India", flag: "🇮🇳" };
-  }
-  if (c.includes("paris")) {
-    return { country: "France", flag: "🇫🇷" };
-  }
-  if (c.includes("london")) {
-    return { country: "United Kingdom", flag: "🇬🇧" };
-  }
-  if (c.includes("honolulu") || c.includes("maui") || c.includes("hawaii")) {
+  if (c.includes("paris")) return { country: "France", flag: "🇫🇷" };
+  if (c.includes("london")) return { country: "United Kingdom", flag: "🇬🇧" };
+  if (c.includes("honolulu") || c.includes("hawaii"))
     return { country: "United States", flag: "🇺🇸" };
-  }
 
-  // fallback
   return { country: "Destination", flag: "🌍" };
 }
 
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
-
-  // 🔁 Key to force-remount AiTripPlanner (for full reset)
   const [aiResetKey, setAiResetKey] = useState(0);
-
-  // Hero carousel index
   const [heroImageIndex, setHeroImageIndex] = useState(0);
 
-  // Places & dates (manual)
   const [originCode, setOriginCode] = useState("");
   const [originDisplay, setOriginDisplay] = useState("");
   const [destCode, setDestCode] = useState("");
@@ -256,25 +212,20 @@ export default function Page() {
   const [departDate, setDepartDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
 
-  // Pax
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [infants, setInfants] = useState(0);
   const [childAges, setChildAges] = useState<number[]>([]);
   const totalPax = adults + children + infants;
 
-  // Cabin
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
-  // Currency (synced with header)
   const [currency, setCurrency] = useState("USD");
   useEffect(() => {
     try {
       const cur = localStorage.getItem("triptrio:currency");
       if (cur) setCurrency(cur);
-    } catch {
-      // ignore
-    }
+    } catch {}
     const handler = (e: any) =>
       setCurrency(
         e?.detail || localStorage.getItem("triptrio:currency") || "USD"
@@ -283,7 +234,6 @@ export default function Page() {
     return () => window.removeEventListener("triptrio:currency", handler);
   }, []);
 
-  // Filters / hotels
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
@@ -292,38 +242,30 @@ export default function Page() {
   const [minBudget, setMinBudget] = useState<string>("");
   const [maxBudget, setMaxBudget] = useState<string>("");
 
-  // Sorting / view
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">(
     "flightOnly"
   );
   const [listTab, setListTab] = useState<ListTab>("all");
 
-  // Explore / Savor / Misc
   const [subTab, setSubTab] = useState<SubTab>("explore");
   const [subPanelOpen, setSubPanelOpen] = useState(false);
 
-  // Results & state
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(false);
 
-  // AI Top-3 summary
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
 
   useEffect(() => {
-    if (!includeHotel) {
-      setSortBasis("flightOnly");
-    }
+    if (!includeHotel) setSortBasis("flightOnly");
   }, [includeHotel]);
 
   useEffect(() => {
-    if (!roundTrip) {
-      setReturnDate("");
-    }
+    if (!roundTrip) setReturnDate("");
   }, [roundTrip]);
 
   useEffect(() => {
@@ -352,12 +294,10 @@ export default function Page() {
     });
   }, [children]);
 
-  // Reset hero carousel whenever destination / results change
   useEffect(() => {
     setHeroImageIndex(0);
   }, [results, destDisplay]);
 
-  // Helper to clear / reset results (used for resets + mode switching)
   function clearResults() {
     setResults(null);
     setError(null);
@@ -369,7 +309,6 @@ export default function Page() {
     setListTab("all");
   }
 
-  // Clear results whenever mode changes
   useEffect(() => {
     clearResults();
   }, [mode]);
@@ -387,10 +326,6 @@ export default function Page() {
     });
   }
 
-  /**
-   * Called when AiTripPlanner finishes constructing search parameters
-   * and wants to run the real /api/search under the hood.
-   */
   async function handleAiSearchComplete(payload: {
     searchParams: any;
     searchResult: any;
@@ -446,9 +381,7 @@ export default function Page() {
         cache: "no-store",
       });
       const j = await resp.json();
-      if (!resp.ok) {
-        throw new Error(j?.error || "Search failed");
-      }
+      if (!resp.ok) throw new Error(j?.error || "Search failed");
 
       const arr = Array.isArray(j.results) ? j.results : [];
       const withIds = arr.map((res: any, i: number) => ({
@@ -465,7 +398,6 @@ export default function Page() {
       setComparedIds([]);
       setError(null);
 
-      // Synchronize manual form with AI search
       if (origin) setOriginCode(origin);
       if (destination) setDestCode(destination);
       setRoundTrip(roundTrip);
@@ -502,20 +434,17 @@ export default function Page() {
     }
   }
 
-  /** Manual search */
   async function runSearch() {
     setLoading(true);
     clearResults();
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
-      if (!origin || !destination) {
+      if (!origin || !destination)
         throw new Error("Please select origin and destination.");
-      }
       if (!departDate) throw new Error("Please pick a departure date.");
-      if (roundTrip && !returnDate) {
+      if (roundTrip && !returnDate)
         throw new Error("Please pick a return date.");
-      }
 
       const payload = {
         id: undefined as any,
@@ -570,7 +499,6 @@ export default function Page() {
     }
   }
 
-  // AI Top-3 summary call
   useEffect(() => {
     if (!results || results.length === 0) {
       setAiTop3(null);
@@ -586,7 +514,6 @@ export default function Page() {
         });
         const data = await res.json();
         if (data.ok) setAiTop3(data.top3 || null);
-        else console.warn("AI top3 error:", data.error);
       } catch (e) {
         console.error("AI top3 fetch failed:", e);
       } finally {
@@ -635,7 +562,6 @@ export default function Page() {
           basis(a)! - basis(b)!,
       );
     } else {
-      // "best"
       items.sort(
         (a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!,
       );
@@ -656,7 +582,6 @@ export default function Page() {
     );
   }
 
-  // Slightly larger label + input styles for better legibility
   const sLabel: React.CSSProperties = {
     fontWeight: 600,
     color: "#334155",
@@ -665,28 +590,23 @@ export default function Page() {
     fontSize: 18,
   };
   const sInput: React.CSSProperties = {
-    height: 46,
-    padding: "0 12px",
+    height: 48,
+    padding: "0 14px",
     border: "1px solid #e2e8f0",
     borderRadius: 12,
     width: "100%",
     background: "#fff",
-    fontSize: 17,
+    fontSize: 18,
   };
 
   function clickSubTab(tab: SubTab) {
-    if (tab === subTab) {
-      // clicking the same tab toggles open/closed
-      setSubPanelOpen((v) => !v);
-    } else {
+    if (tab === subTab) setSubPanelOpen((v) => !v);
+    else {
       setSubTab(tab);
       setSubPanelOpen(true);
     }
   }
 
-  /**
-   * Infer the "city" to pass to Explore/Savor/Misc
-   */
   function getExploreCity(): string {
     const fromDisplay = cityFromDisplay(destDisplay);
     if (fromDisplay && fromDisplay.toLowerCase() !== "destination") {
@@ -710,9 +630,7 @@ export default function Page() {
           const parts = c.split("—").map((s) => s.trim());
           c = parts[parts.length - 1];
         }
-        if (c.includes(",")) {
-          c = c.split(",")[0].trim();
-        }
+        if (c.includes(",")) c = c.split(",")[0].trim();
         if (c.length > 0) return c;
       }
     }
@@ -727,7 +645,6 @@ export default function Page() {
 
     return (
       <>
-        {/* Explore / Savor / Misc */}
         {showControls && (
           <>
             <div
@@ -797,7 +714,6 @@ export default function Page() {
           </>
         )}
 
-        {/* Sort & view chips */}
         {showControls && (
           <div
             style={{
@@ -875,14 +791,13 @@ export default function Page() {
               padding: 10,
               borderRadius: 10,
               marginTop: 8,
-              fontSize: 15,
+              fontSize: 16,
             }}
           >
             ⚠ {error}
           </div>
         )}
 
-        {/* AI Top-3 summary explanation */}
         {aiTop3 && results && results.length > 0 && (
           <div
             style={{
@@ -895,7 +810,7 @@ export default function Page() {
               marginTop: 10,
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 22 }}>
               ✨ AI’s top picks
               {aiTop3Loading && (
                 <span
@@ -913,16 +828,16 @@ export default function Page() {
 
             <div
               style={{
-                fontSize: 15,
+                fontSize: 17,
                 opacity: 0.9,
                 marginTop: 2,
               }}
             >
-              These are shortcuts picked from your live{" "}
+              Shortcuts from your live{" "}
               <strong>flight + hotel bundles</strong>:{" "}
-              <strong>best overall</strong>, <strong>best budget</strong>, and{" "}
-              <strong>best comfort</strong>. Scroll down to see the full card
-              details for these picks and every other option.
+              <strong>best overall</strong>, <strong>best budget</strong>,{" "}
+              <strong>best comfort</strong>. Scroll down to see their full
+              cards and all other options.
             </div>
 
             <ul
@@ -930,7 +845,7 @@ export default function Page() {
                 margin: 4,
                 marginLeft: 20,
                 paddingLeft: 0,
-                fontSize: 15,
+                fontSize: 16,
               }}
             >
               {["best_overall", "best_budget", "best_comfort"].map((key) => {
@@ -966,7 +881,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* Result cards */}
         {(shown?.length ?? 0) > 0 && (
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             {shown.map((pkg, i) => (
@@ -989,7 +903,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* Compare panel */}
         {comparedIds.length >= 2 && (
           <ComparePanel
             items={(shown || []).filter((r: any) =>
@@ -1008,7 +921,6 @@ export default function Page() {
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 16 }}>
-      {/* TOP TABS */}
       <div
         style={{
           display: "flex",
@@ -1031,7 +943,7 @@ export default function Page() {
                 : "#ffffff",
             color: mode === "ai" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 19,
+            fontSize: 20,
             cursor: "pointer",
           }}
         >
@@ -1048,7 +960,7 @@ export default function Page() {
             background: mode === "manual" ? "#0f172a" : "#ffffff",
             color: mode === "manual" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 19,
+            fontSize: 20,
             cursor: "pointer",
           }}
         >
@@ -1056,7 +968,6 @@ export default function Page() {
         </button>
       </div>
 
-      {/* CENTERED INTRO WHEN NO MODE SELECTED */}
       {mode === "none" && (
         <div
           style={{
@@ -1066,7 +977,7 @@ export default function Page() {
             background:
               "linear-gradient(135deg, rgba(56,189,248,0.12), rgba(129,140,248,0.14), rgba(236,72,153,0.10))",
             color: "#0f172a",
-            fontSize: 18,
+            fontSize: 19,
             fontWeight: 600,
             textAlign: "center",
             display: "flex",
@@ -1076,7 +987,7 @@ export default function Page() {
             marginTop: 12,
           }}
         >
-          <div style={{ fontSize: 30 }}>🧳 Ready to plan a trip?</div>
+          <div style={{ fontSize: 32 }}>🧳 Ready to plan a trip?</div>
           <div>
             Choose <strong>AI Trip Planning</strong> for a smart itinerary and
             top picks, or <strong>Manual Search</strong> to fine-tune every
@@ -1084,7 +995,7 @@ export default function Page() {
           </div>
           <div
             style={{
-              fontSize: 15,
+              fontSize: 16,
               opacity: 0.8,
               marginTop: 4,
             }}
@@ -1095,16 +1006,11 @@ export default function Page() {
         </div>
       )}
 
-      {/* AI MODE */}
       {mode === "ai" && (
         <>
           <div className="ai-trip-wrapper">
-            <AiTripPlanner
-              key={aiResetKey} // 🔥 full reset when aiResetKey changes
-              onSearchComplete={handleAiSearchComplete}
-            />
+            <AiTripPlanner key={aiResetKey} onSearchComplete={handleAiSearchComplete} />
 
-            {/* Reset button for AI results */}
             <div
               style={{
                 marginTop: 10,
@@ -1115,7 +1021,7 @@ export default function Page() {
                 type="button"
                 onClick={() => {
                   clearResults();
-                  setAiResetKey((k) => k + 1); // 🔥 forces internal AiTripPlanner reset
+                  setAiResetKey((k) => k + 1);
                 }}
                 style={{
                   padding: "8px 16px",
@@ -1123,7 +1029,7 @@ export default function Page() {
                   border: "1px solid #e2e8f0",
                   background: "#ffffff",
                   fontWeight: 700,
-                  fontSize: 16,
+                  fontSize: 17,
                   cursor: "pointer",
                 }}
               >
@@ -1132,13 +1038,10 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Hero carousel directly under AI Trip Planner */}
           {results && results.length > 0 && (
             <div style={{ marginTop: 16 }}>
               {(() => {
                 const p = results[0] || {};
-
-                // 🔍 try multiple fields from the result
                 let cityGuess: string =
                   p.destinationCity ||
                   p.city ||
@@ -1147,18 +1050,14 @@ export default function Page() {
                   p.destination ||
                   "";
 
-                // fallback to manual destination display text
                 if (!cityGuess && destDisplay) {
                   cityGuess = destDisplay.replace(/\(.*?\)/, "").trim();
                 }
-
                 if (!cityGuess) cityGuess = "destination";
 
-                // strip long "—", "," parts (airport details, states)
                 cityGuess = cityGuess.split("—")[0].trim();
                 cityGuess = cityGuess.split(",")[0].trim();
 
-                // 🛫 if it's just a 3-letter IATA code like "BOS", map to a real city
                 const upper = cityGuess.toUpperCase();
                 if (/^[A-Z]{3}$/.test(upper)) {
                   switch (upper) {
@@ -1193,19 +1092,16 @@ export default function Page() {
                       cityGuess = "Honolulu";
                       break;
                     default:
-                      // if we don't recognize the code, just pass it through
                       cityGuess = upper;
-                      break;
                   }
                 }
 
                 const images = getHeroImages(cityGuess);
                 const safeIndex =
-                  images.length > 0
-                    ? heroImageIndex % images.length
-                    : 0;
+                  images.length > 0 ? heroImageIndex % images.length : 0;
                 const current = images[safeIndex] || images[0];
                 const { country, flag } = cityToCountry(cityGuess);
+                const guideUrl = cityGuideUrl(cityGuess);
 
                 return (
                   <div
@@ -1215,16 +1111,10 @@ export default function Page() {
                       overflow: "hidden",
                       cursor: "pointer",
                     }}
-                    onClick={() => {
-                      // 🔁 Toggle Explore panel on image click
-                      if (subTab === "explore" && subPanelOpen) {
-                        setSubPanelOpen(false);
-                      } else {
-                        setSubTab("explore");
-                        setSubPanelOpen(true);
-                      }
-                    }}
-                    title="Click to toggle Explore tips for this destination"
+                    onClick={() =>
+                      window.open(guideUrl, "_blank", "noopener,noreferrer")
+                    }
+                    title={`Open travel guide for ${cityGuess}`}
                   >
                     <img
                       key={`${cityGuess}-${safeIndex}`}
@@ -1239,7 +1129,6 @@ export default function Page() {
                       }}
                     />
 
-                    {/* Banner with city + country + flag */}
                     <div
                       style={{
                         position: "absolute",
@@ -1247,8 +1136,7 @@ export default function Page() {
                         top: 16,
                         padding: "8px 14px",
                         borderRadius: 999,
-                        background:
-                          "rgba(15,23,42,0.78)",
+                        background: "rgba(15,23,42,0.78)",
                         color: "#f9fafb",
                         fontWeight: 700,
                         fontSize: 16,
@@ -1263,23 +1151,26 @@ export default function Page() {
                       </span>
                     </div>
 
-                    {/* Hint for Explore */}
+                    {/* Option 2 badge: subtle “learn more” */}
                     <div
                       style={{
                         position: "absolute",
                         right: 16,
                         bottom: 16,
-                        padding: "6px 10px",
+                        padding: "6px 12px",
                         borderRadius: 999,
-                        background: "rgba(15,23,42,0.75)",
+                        background: "rgba(15,23,42,0.78)",
                         color: "#e5e7eb",
-                        fontSize: 13,
+                        fontSize: 14,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
                       }}
                     >
-                      Click image to toggle Explore
+                      <span>Learn about {cityGuess}</span>
+                      <span style={{ fontSize: 16 }}>↗</span>
                     </div>
 
-                    {/* Carousel dots */}
                     {images.length > 1 && (
                       <div
                         style={{
@@ -1321,12 +1212,10 @@ export default function Page() {
           )}
 
           <ResultsArea />
-          {/* Compare Destinations with AI */}
           <AiDestinationCompare />
         </>
       )}
 
-      {/* MANUAL MODE */}
       {mode === "manual" && (
         <>
           <form
@@ -1343,7 +1232,6 @@ export default function Page() {
               runSearch();
             }}
           >
-            {/* origin / destination */}
             <div
               style={{
                 display: "grid",
@@ -1407,7 +1295,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* trip / dates / pax */}
             <div
               style={{
                 display: "grid",
@@ -1530,7 +1417,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* child ages */}
             {children > 0 && (
               <div style={{ display: "grid", gap: 12 }}>
                 <div style={{ fontWeight: 700, color: "#334155" }}>
@@ -1594,7 +1480,6 @@ export default function Page() {
               </div>
             )}
 
-            {/* cabin / stops / hotel */}
             <div
               style={{
                 display: "grid",
@@ -1649,7 +1534,7 @@ export default function Page() {
                 />
                 <label
                   htmlFor="include-hotel"
-                  style={{ fontWeight: 700, fontSize: 16 }}
+                  style={{ fontWeight: 700, fontSize: 17 }}
                 >
                   Include hotel
                 </label>
@@ -1667,7 +1552,7 @@ export default function Page() {
                     fontWeight: 800,
                     marginTop: 8,
                     marginRight: 8,
-                    fontSize: 16,
+                    fontSize: 17,
                   }}
                 >
                   {loading ? "Searching..." : "Search"}
@@ -1704,7 +1589,7 @@ export default function Page() {
                     background: "#fff",
                     fontWeight: 800,
                     marginTop: 8,
-                    fontSize: 16,
+                    fontSize: 17,
                   }}
                 >
                   Reset
@@ -1831,7 +1716,6 @@ export default function Page() {
         </>
       )}
 
-      {/* Global typography + hero animation */}
       <style jsx global>{`
         html,
         body {
@@ -1839,7 +1723,7 @@ export default function Page() {
             "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
-          font-size: 18px;
+          font-size: 20px;
         }
 
         button,
@@ -1850,25 +1734,25 @@ export default function Page() {
         }
 
         .ai-trip-wrapper {
-          font-size: 18px;
+          font-size: 20px;
         }
 
         .ai-trip-wrapper h2 {
-          font-size: 30px;
+          font-size: 32px;
           font-weight: 800;
         }
 
         .ai-trip-wrapper p {
-          font-size: 18px;
+          font-size: 19px;
           line-height: 1.6;
         }
 
         .ai-trip-wrapper textarea {
-          font-size: 17px;
+          font-size: 18px;
         }
 
         .ai-trip-wrapper button {
-          font-size: 18px;
+          font-size: 19px;
           font-weight: 800;
         }
 
