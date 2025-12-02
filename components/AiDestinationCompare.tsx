@@ -58,10 +58,10 @@ export function AiDestinationCompare() {
           background: "#f8fafc",
         }}
       >
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
           AI Destination Compare (temporarily disabled)
         </h2>
-        <p style={{ fontSize: 14, color: "#475569" }}>
+        <p style={{ fontSize: 15, color: "#475569" }}>
           Once AI is enabled again, you&apos;ll be able to compare destinations
           side-by-side here.
         </p>
@@ -125,12 +125,14 @@ export function AiDestinationCompare() {
         padding: 20,
         display: "grid",
         gap: 12,
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
       }}
     >
-      <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 800 }}>
         Compare destinations with AI 🌍
       </h2>
-      <p style={{ fontSize: 14, opacity: 0.85 }}>
+      <p style={{ fontSize: 15, opacity: 0.9, maxWidth: 900, lineHeight: 1.5 }}>
         Not sure where to go? Enter a few places and we&apos;ll compare them for
         cost, weather, food, hotels, nightlife, family-friendliness, safety, and
         the best airports to use.
@@ -141,7 +143,7 @@ export function AiDestinationCompare() {
         onSubmit={handleCompare}
         style={{
           display: "grid",
-          gap: 8,
+          gap: 10,
           gridTemplateColumns: "2fr 1fr 1fr 1.5fr",
           alignItems: "center",
         }}
@@ -150,7 +152,7 @@ export function AiDestinationCompare() {
         <div style={{ gridColumn: "1 / -1" }}>
           <label
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
               display: "block",
               marginBottom: 4,
@@ -167,7 +169,7 @@ export function AiDestinationCompare() {
               padding: 10,
               borderRadius: 12,
               border: "1px solid #1e293b",
-              fontSize: 14,
+              fontSize: 15,
               color: "#0f172a",
             }}
           />
@@ -177,7 +179,7 @@ export function AiDestinationCompare() {
         <div>
           <label
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
               display: "block",
               marginBottom: 4,
@@ -193,7 +195,7 @@ export function AiDestinationCompare() {
               padding: 9,
               borderRadius: 12,
               border: "1px solid #1e293b",
-              fontSize: 14,
+              fontSize: 15,
               color: "#0f172a",
             }}
           >
@@ -209,7 +211,7 @@ export function AiDestinationCompare() {
         <div>
           <label
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
               display: "block",
               marginBottom: 4,
@@ -230,7 +232,7 @@ export function AiDestinationCompare() {
               padding: 9,
               borderRadius: 12,
               border: "1px solid #1e293b",
-              fontSize: 14,
+              fontSize: 15,
               color: "#0f172a",
             }}
           />
@@ -240,7 +242,7 @@ export function AiDestinationCompare() {
         <div>
           <label
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
               display: "block",
               marginBottom: 4,
@@ -257,7 +259,7 @@ export function AiDestinationCompare() {
               padding: 9,
               borderRadius: 12,
               border: "1px solid #1e293b",
-              fontSize: 14,
+              fontSize: 15,
               color: "#0f172a",
             }}
           />
@@ -271,10 +273,10 @@ export function AiDestinationCompare() {
             style={{
               width: "100%",
               borderRadius: 999,
-              padding: "9px 14px",
+              padding: "11px 16px",
               border: "none",
-              fontWeight: 600,
-              fontSize: 15,
+              fontWeight: 700,
+              fontSize: 16,
               cursor: loading ? "default" : "pointer",
               background:
                 "linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%)",
@@ -289,14 +291,14 @@ export function AiDestinationCompare() {
 
       {/* Error */}
       {error && (
-        <p style={{ color: "#fecaca", fontSize: 13 }}>❌ {error}</p>
+        <p style={{ color: "#fecaca", fontSize: 14 }}>❌ {error}</p>
       )}
 
       {/* Results */}
       {data && (
         <div
           style={{
-            marginTop: 8,
+            marginTop: 10,
             display: "grid",
             gap: 12,
             gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
@@ -358,7 +360,7 @@ function SectionRow({
       >
         {label}
       </div>
-      <div style={{ fontSize: 13, marginTop: 2 }}>{value}</div>
+      <div style={{ fontSize: 14, marginTop: 2 }}>{value}</div>
     </div>
   );
 }
@@ -373,7 +375,7 @@ function DestinationCard({ d }: { d: Comparison }) {
         background: "#020617",
         border: "1px solid #1e293b",
         padding: 14,
-        fontSize: 13,
+        fontSize: 14,
         display: "grid",
         gap: 6,
       }}
@@ -387,11 +389,11 @@ function DestinationCard({ d }: { d: Comparison }) {
           gap: 8,
         }}
       >
-        <h3 style={{ fontSize: 15, fontWeight: 700 }}>{d.name}</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 700 }}>{d.name}</h3>
         <span
           style={{
-            fontSize: 11,
-            padding: "2px 8px",
+            fontSize: 12,
+            padding: "3px 8px",
             borderRadius: 999,
             border: "1px solid #38bdf8",
             whiteSpace: "nowrap",
@@ -401,10 +403,10 @@ function DestinationCard({ d }: { d: Comparison }) {
         </span>
       </div>
 
-      <div style={{ fontSize: 13 }}>
+      <div>
         <strong>Best for:</strong> {d.best_for}
       </div>
-      <div style={{ fontSize: 13 }}>
+      <div>
         <strong>Weather:</strong> {d.weather_summary}
       </div>
 
@@ -488,7 +490,7 @@ function DestinationCard({ d }: { d: Comparison }) {
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
-                    fontSize: 12,
+                    fontSize: 13,
                     gap: 8,
                   }}
                 >
@@ -501,7 +503,7 @@ function DestinationCard({ d }: { d: Comparison }) {
                     {labelForRole(a.role)}
                   </span>
                 </div>
-                <div style={{ fontSize: 12, marginTop: 2 }}>
+                <div style={{ fontSize: 13, marginTop: 2 }}>
                   {a.reason}
                 </div>
               </div>
@@ -517,5 +519,5 @@ function DestinationCard({ d }: { d: Comparison }) {
   );
 }
 
-// ✅ default export added so both default and named imports work
+// ✅ default export so both default and named imports work
 export default AiDestinationCompare;
