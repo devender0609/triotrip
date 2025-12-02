@@ -65,45 +65,49 @@ type HeroImage = { url: string; alt: string };
 function getHeroImages(city: string): HeroImage[] {
   const c = city.toLowerCase();
 
-  if (c.includes("las vegas")) {
+  // LAS VEGAS – strip & casinos
+  if (c.includes("las vegas") || c.includes("lv")) {
     return [
       {
-        url: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=1600&q=80",
-        alt: "Las Vegas Strip and casinos at night",
+        url: "https://images.unsplash.com/photo-1516570161787-2fd917215a3d?auto=format&fit=crop&w=1600&q=80",
+        alt: "Las Vegas Strip hotels and casinos at night",
       },
       {
-        url: "https://images.unsplash.com/photo-1516496636080-14fb876e029d?auto=format&fit=crop&w=1600&q=80",
-        alt: "Neon hotel signs in Las Vegas",
+        url: "https://images.unsplash.com/photo-1517959105821-eaf2591984c2?auto=format&fit=crop&w=1600&q=80",
+        alt: "Las Vegas Strip skyline with neon lights",
       },
     ];
   }
 
+  // MIAMI – beaches & palm trees
   if (c.includes("miami")) {
     return [
       {
         url: "https://images.unsplash.com/photo-1517898717281-8e4385f1c4a2?auto=format&fit=crop&w=1600&q=80",
-        alt: "Miami beach and oceanfront skyline",
+        alt: "Miami South Beach with palm trees and ocean",
       },
       {
         url: "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1600&q=80",
-        alt: "Palm trees and sunset in Miami",
+        alt: "Art Deco buildings and palm trees in Miami",
       },
     ];
   }
 
-  if (c.includes("agra")) {
+  // NEW YORK – skyline & Times Square
+  if (c.includes("new york") || c.includes("nyc")) {
     return [
       {
-        url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
-        alt: "Taj Mahal in Agra",
+        url: "https://images.unsplash.com/photo-1534432182912-63863115e106?auto=format&fit=crop&w=1600&q=80",
+        alt: "New York City skyline with Empire State Building",
       },
       {
-        url: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=1600&q=80",
-        alt: "Pathway leading to Taj Mahal",
+        url: "https://images.unsplash.com/photo-1518300670681-9bb0e0cfb4a1?auto=format&fit=crop&w=1600&q=80",
+        alt: "Times Square in New York City at night",
       },
     ];
   }
 
+  // BOSTON – harbor & skyline
   if (c.includes("boston")) {
     return [
       {
@@ -112,33 +116,40 @@ function getHeroImages(city: string): HeroImage[] {
       },
       {
         url: "https://images.unsplash.com/photo-1581351123004-757df051db8c?auto=format&fit=crop&w=1600&q=80",
-        alt: "Boston skyline at sunset",
+        alt: "Boston cityscape at sunset",
       },
     ];
   }
 
-  if (c.includes("new york") || c.includes("nyc")) {
-    return [
-      {
-        url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1600&q=80",
-        alt: "New York City skyline",
-      },
-      {
-        url: "https://images.unsplash.com/photo-1528353518104-dbd48bee7bc9?auto=format&fit=crop&w=1600&q=80",
-        alt: "Brooklyn Bridge and Manhattan",
-      },
-    ];
-  }
-
+  // PARIS – Eiffel Tower
   if (c.includes("paris")) {
     return [
       {
         url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80",
         alt: "Eiffel Tower and Paris skyline",
       },
+      {
+        url: "https://images.unsplash.com/photo-1522098635838-0062c7a07a14?auto=format&fit=crop&w=1600&q=80",
+        alt: "Seine river with Eiffel Tower",
+      },
     ];
   }
 
+  // AGRA – Taj Mahal
+  if (c.includes("agra")) {
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
+        alt: "Taj Mahal in Agra at sunrise",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=1600&q=80",
+        alt: "Path to the Taj Mahal in Agra",
+      },
+    ];
+  }
+
+  // HAWAII / HONOLULU – beaches & cliffs
   if (c.includes("hawaii") || c.includes("honolulu") || c.includes("maui")) {
     return [
       {
@@ -147,15 +158,30 @@ function getHeroImages(city: string): HeroImage[] {
       },
       {
         url: "https://images.unsplash.com/photo-1528722828814-77b9b83aafb2?auto=format&fit=crop&w=1600&q=80",
-        alt: "Ocean waves and cliffs in Hawaii",
+        alt: "Ocean and cliffs in Hawaii",
       },
     ];
   }
 
+  // LONDON – Big Ben / Westminster
+  if (c.includes("london")) {
+    return [
+      {
+        url: "https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?auto=format&fit=crop&w=1600&q=80",
+        alt: "Big Ben and Houses of Parliament in London",
+      },
+      {
+        url: "https://images.unsplash.com/photo-1513639725746-c5d3e861f32a?auto=format&fit=crop&w=1600&q=80",
+        alt: "Tower Bridge in London at sunset",
+      },
+    ];
+  }
+
+  // FALLBACK – generic travel scenic
   return [
     {
       url: "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=1600&q=80",
-      alt: "Scenic travel destination",
+      alt: "Scenic travel destination with mountains and lake",
     },
   ];
 }
@@ -177,6 +203,8 @@ function cityGuideUrl(city: string): string {
     return "https://www.tripadvisor.com/Tourism-g187147-Paris_Ile_de_France-Vacations.html";
   if (c.includes("honolulu") || c.includes("hawaii"))
     return "https://www.tripadvisor.com/Tourism-g60982-Honolulu_Oahu_Hawaii-Vacations.html";
+  if (c.includes("london"))
+    return "https://www.tripadvisor.com/Tourism-g186338-London_England-Vacations.html";
 
   return `https://www.google.com/search?q=${encodeURIComponent(
     city + " travel guide"
@@ -688,7 +716,7 @@ export default function Page() {
                   background: #fff;
                   border: 1px solid #e2e8f0;
                   cursor: pointer;
-                  font-size: 16px;
+                  font-size: 17px;
                 }
                 .subtab.on {
                   background: #0ea5e9;
@@ -791,7 +819,7 @@ export default function Page() {
               padding: 10,
               borderRadius: 10,
               marginTop: 8,
-              fontSize: 16,
+              fontSize: 17,
             }}
           >
             ⚠ {error}
@@ -943,7 +971,7 @@ export default function Page() {
                 : "#ffffff",
             color: mode === "ai" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 20,
+            fontSize: 22,
             cursor: "pointer",
           }}
         >
@@ -960,7 +988,7 @@ export default function Page() {
             background: mode === "manual" ? "#0f172a" : "#ffffff",
             color: mode === "manual" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
-            fontSize: 20,
+            fontSize: 22,
             cursor: "pointer",
           }}
         >
@@ -977,7 +1005,7 @@ export default function Page() {
             background:
               "linear-gradient(135deg, rgba(56,189,248,0.12), rgba(129,140,248,0.14), rgba(236,72,153,0.10))",
             color: "#0f172a",
-            fontSize: 19,
+            fontSize: 20,
             fontWeight: 600,
             textAlign: "center",
             display: "flex",
@@ -987,7 +1015,7 @@ export default function Page() {
             marginTop: 12,
           }}
         >
-          <div style={{ fontSize: 32 }}>🧳 Ready to plan a trip?</div>
+          <div style={{ fontSize: 34 }}>🧳 Ready to plan a trip?</div>
           <div>
             Choose <strong>AI Trip Planning</strong> for a smart itinerary and
             top picks, or <strong>Manual Search</strong> to fine-tune every
@@ -995,7 +1023,7 @@ export default function Page() {
           </div>
           <div
             style={{
-              fontSize: 16,
+              fontSize: 17,
               opacity: 0.8,
               marginTop: 4,
             }}
@@ -1029,7 +1057,7 @@ export default function Page() {
                   border: "1px solid #e2e8f0",
                   background: "#ffffff",
                   fontWeight: 700,
-                  fontSize: 17,
+                  fontSize: 18,
                   cursor: "pointer",
                 }}
               >
@@ -1321,7 +1349,7 @@ export default function Page() {
                       border: `1px solid ${
                         roundTrip ? "#e2e8f0" : "#60a5fa"
                       }`,
-                      fontSize: 15,
+                      fontSize: 16,
                     }}
                   >
                     One-way
@@ -1335,7 +1363,7 @@ export default function Page() {
                       border: `1px solid ${
                         roundTrip ? "#60a5fa" : "#e2e8f0"
                       }`,
-                      fontSize: 15,
+                      fontSize: 16,
                     }}
                   >
                     Round-trip
@@ -1442,7 +1470,7 @@ export default function Page() {
                         style={{
                           padding: "8px 10px",
                           fontWeight: 700,
-                          fontSize: 14,
+                          fontSize: 15,
                           display: "inline-block",
                         }}
                       >
@@ -1471,7 +1499,7 @@ export default function Page() {
                           borderRadius: 12,
                           margin: 6,
                           padding: "0 8px",
-                          fontSize: 15,
+                          fontSize: 16,
                         }}
                       />
                     </div>
@@ -1534,7 +1562,7 @@ export default function Page() {
                 />
                 <label
                   htmlFor="include-hotel"
-                  style={{ fontWeight: 700, fontSize: 17 }}
+                  style={{ fontWeight: 700, fontSize: 18 }}
                 >
                   Include hotel
                 </label>
@@ -1552,7 +1580,7 @@ export default function Page() {
                     fontWeight: 800,
                     marginTop: 8,
                     marginRight: 8,
-                    fontSize: 17,
+                    fontSize: 18,
                   }}
                 >
                   {loading ? "Searching..." : "Search"}
@@ -1589,7 +1617,7 @@ export default function Page() {
                     background: "#fff",
                     fontWeight: 800,
                     marginTop: 8,
-                    fontSize: 17,
+                    fontSize: 18,
                   }}
                 >
                   Reset
@@ -1723,7 +1751,8 @@ export default function Page() {
             "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
-          font-size: 20px;
+          font-size: 22px; /* bigger base font */
+          color: #0f172a;
         }
 
         button,
@@ -1733,27 +1762,42 @@ export default function Page() {
           font-family: inherit;
         }
 
+        /* AI planner section */
         .ai-trip-wrapper {
-          font-size: 20px;
+          font-size: 22px;
         }
 
         .ai-trip-wrapper h2 {
-          font-size: 32px;
+          font-size: 34px;
           font-weight: 800;
         }
 
         .ai-trip-wrapper p {
-          font-size: 19px;
-          line-height: 1.6;
+          font-size: 20px;
+          line-height: 1.7;
         }
 
         .ai-trip-wrapper textarea {
-          font-size: 18px;
+          font-size: 19px;
         }
 
         .ai-trip-wrapper button {
-          font-size: 19px;
+          font-size: 20px;
           font-weight: 800;
+        }
+
+        /* Result card helpers (used inside ResultCard) */
+        .result-card-title {
+          font-size: 20px;
+          font-weight: 800;
+        }
+
+        .result-card-subtitle {
+          font-size: 18px;
+        }
+
+        .result-chip {
+          font-size: 16px;
         }
 
         .hero-image {
