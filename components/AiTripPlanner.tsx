@@ -32,23 +32,23 @@ type AiTripPlannerProps = {
 
 const containerStyle: React.CSSProperties = {
   marginTop: 8,
-  padding: 16,
+  padding: 20,
   borderRadius: 16,
   border: "1px solid #0f172a",
   background: "#020617",
   color: "#e5e7eb",
   display: "grid",
-  gap: 12,
+  gap: 16,
 };
 
 const boxTitle: React.CSSProperties = {
-  fontSize: 13,
+  fontSize: 16,
   fontWeight: 700,
-  marginBottom: 4,
+  marginBottom: 6,
 };
 
 const smallText: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 14,
   color: "#cbd5f5",
 };
 
@@ -57,13 +57,13 @@ const infoBarStyle: React.CSSProperties = {
   border: "1px solid rgba(56,189,248,0.5)",
   background:
     "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(8,47,73,0.95))",
-  padding: 10,
+  padding: 12,
 };
 
 const chipColGrid: React.CSSProperties = {
   display: "grid",
-  gap: 8,
-  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+  gap: 10,
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
 };
 
 const cardStyle: React.CSSProperties = {
@@ -71,24 +71,24 @@ const cardStyle: React.CSSProperties = {
   border: "1px solid rgba(30,64,175,0.6)",
   background:
     "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(12,74,110,0.9))",
-  padding: 10,
-  fontSize: 12,
+  padding: 12,
+  fontSize: 14,
 };
 
 const hotelCard: React.CSSProperties = {
   borderRadius: 16,
   border: "1px solid #1e293b",
   background: "#020617",
-  padding: 10,
-  fontSize: 12,
+  padding: 12,
+  fontSize: 14,
 };
 
 const dayCard: React.CSSProperties = {
   borderRadius: 16,
   border: "1px solid #1e293b",
   background: "#020617",
-  padding: 10,
-  fontSize: 12,
+  padding: 12,
+  fontSize: 14,
 };
 
 function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
@@ -111,11 +111,11 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     ];
 
     return (
-      <section style={{ display: "grid", gap: 8 }}>
+      <section style={{ display: "grid", gap: 10 }}>
         <div style={infoBarStyle}>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 18,
               fontWeight: 700,
               display: "flex",
               alignItems: "center",
@@ -139,7 +139,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
               <article key={key} style={cardStyle}>
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: 700,
                     letterSpacing: 0.4,
                     textTransform: "uppercase",
@@ -155,8 +155,8 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                 {value.title && (
                   <div
                     style={{
-                      marginTop: 4,
-                      fontSize: 13,
+                      marginTop: 6,
+                      fontSize: 16,
                       fontWeight: 700,
                       color: "#f9fafb",
                     }}
@@ -167,8 +167,8 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                 {value.reason && (
                   <p
                     style={{
-                      marginTop: 2,
-                      fontSize: 12,
+                      marginTop: 4,
+                      fontSize: 14,
                       color: "#e5e7eb",
                     }}
                   >
@@ -189,7 +189,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     if (!hotels.length) return null;
 
     return (
-      <section style={{ display: "grid", gap: 8, marginTop: 10 }}>
+      <section style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <div style={infoBarStyle}>
           <div style={boxTitle}>🏨 Hotel suggestions (AI)</div>
           <p style={smallText}>
@@ -211,7 +211,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
               <article key={i} style={hotelCard}>
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: 700,
                     letterSpacing: 0.4,
                     textTransform: "uppercase",
@@ -223,10 +223,10 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                 </div>
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 16,
                     fontWeight: 700,
                     color: "#f9fafb",
-                    marginBottom: 2,
+                    marginBottom: 4,
                   }}
                 >
                   {name}
@@ -235,23 +235,23 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                   <div
                     style={{
                       color: "#cbd5f5",
-                      fontSize: 12,
-                      marginBottom: 2,
+                      fontSize: 14,
+                      marginBottom: 4,
                     }}
                   >
                     📍 {area}
                   </div>
                 )}
                 {approx && (
-                  <div style={{ color: "#e5e7eb", fontSize: 12 }}>
+                  <div style={{ color: "#e5e7eb", fontSize: 14 }}>
                     <strong>Approx:</strong> {approx}
                   </div>
                 )}
                 {vibe && (
                   <p
                     style={{
-                      marginTop: 2,
-                      fontSize: 12,
+                      marginTop: 4,
+                      fontSize: 14,
                       color: "#e5e7eb",
                     }}
                   >
@@ -275,7 +275,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     if (!days.length) return null;
 
     return (
-      <section style={{ display: "grid", gap: 8, marginTop: 12 }}>
+      <section style={{ display: "grid", gap: 10, marginTop: 14 }}>
         <div style={infoBarStyle}>
           <div style={boxTitle}>📅 Suggested Itinerary</div>
           <p style={smallText}>
@@ -284,7 +284,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
           </p>
         </div>
 
-        <div style={{ display: "grid", gap: 8 }}>
+        <div style={{ display: "grid", gap: 10 }}>
           {days.map((day: any, i: number) => {
             const title = day.title || `Day ${i + 1}`;
             const summary = day.summary || day.overview || "";
@@ -303,12 +303,12 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                     justifyContent: "space-between",
                     gap: 8,
                     alignItems: "center",
-                    marginBottom: 4,
+                    marginBottom: 6,
                   }}
                 >
                   <div
                     style={{
-                      fontSize: 13,
+                      fontSize: 16,
                       fontWeight: 700,
                       color: "#f9fafb",
                     }}
@@ -318,10 +318,10 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                   {day.label && (
                     <span
                       style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         textTransform: "uppercase",
                         borderRadius: 999,
-                        padding: "2px 8px",
+                        padding: "2px 10px",
                         border: "1px solid rgba(16,185,129,0.6)",
                         background: "rgba(6,95,70,0.35)",
                         color: "#a7f3d0",
@@ -335,9 +335,9 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                 {summary && (
                   <p
                     style={{
-                      fontSize: 12,
+                      fontSize: 14,
                       color: "#e5e7eb",
-                      marginBottom: 4,
+                      marginBottom: 6,
                     }}
                   >
                     {summary}
@@ -351,7 +351,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                       paddingLeft: 0,
                       margin: 0,
                       display: "grid",
-                      gap: 3,
+                      gap: 4,
                     }}
                   >
                     {bullets.map((b: any, idx: number) => {
@@ -363,7 +363,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                               display: "flex",
                               alignItems: "flex-start",
                               gap: 6,
-                              fontSize: 11,
+                              fontSize: 14,
                               color: "#e5e7eb",
                             }}
                           >
@@ -381,15 +381,13 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                             display: "flex",
                             alignItems: "flex-start",
                             gap: 6,
-                            fontSize: 11,
+                            fontSize: 14,
                             color: "#e5e7eb",
                           }}
                         >
                           <span>{time ? "⏰" : "•"}</span>
                           <span>
-                            {time && (
-                              <strong>{time}: </strong>
-                            )}
+                            {time && <strong>{time}: </strong>}
                             {text}
                           </span>
                         </li>
@@ -459,10 +457,10 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
   return (
     <section style={containerStyle}>
       {/* HEADER */}
-      <div style={{ display: "grid", gap: 4 }}>
+      <div style={{ display: "grid", gap: 6 }}>
         <div
           style={{
-            fontSize: 18,
+            fontSize: 22,
             fontWeight: 800,
             display: "flex",
             alignItems: "center",
@@ -474,9 +472,9 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
         </div>
         <p
           style={{
-            fontSize: 12,
+            fontSize: 15,
             color: "#cbd5f5",
-            maxWidth: 640,
+            maxWidth: 720,
           }}
         >
           Tell us your trip idea in one sentence. We&apos;ll interpret it,
@@ -488,7 +486,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
       {/* INPUT + BUTTON */}
       <form
         onSubmit={handleSubmit}
-        style={{ display: "grid", gap: 8, marginTop: 4 }}
+        style={{ display: "grid", gap: 10, marginTop: 6 }}
       >
         <textarea
           value={prompt}
@@ -501,22 +499,22 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             border: "1px solid #1e293b",
             background: "#020617",
             color: "#f9fafb",
-            padding: 8,
-            fontSize: 13,
+            padding: 10,
+            fontSize: 15,
           }}
         />
         <button
           type="submit"
           disabled={loading || !prompt.trim()}
           style={{
-            padding: "10px 16px",
+            padding: "12px 18px",
             borderRadius: 999,
             border: "none",
             background:
               "linear-gradient(90deg, #0ea5e9, #6366f1, #ec4899)",
             color: "#fff",
             fontWeight: 700,
-            fontSize: 14,
+            fontSize: 16,
             cursor: loading || !prompt.trim() ? "default" : "pointer",
             opacity: loading || !prompt.trim() ? 0.6 : 1,
           }}
@@ -532,11 +530,11 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             borderRadius: 12,
             border: "1px solid rgba(251,191,36,0.6)",
             background: "rgba(251,191,36,0.12)",
-            padding: 8,
-            fontSize: 11,
+            padding: 10,
+            fontSize: 13,
             color: "#facc15",
             display: "flex",
-            gap: 6,
+            gap: 8,
           }}
         >
           <span>⚠️</span>
