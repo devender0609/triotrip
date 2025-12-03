@@ -5,37 +5,49 @@ import {
   Plane,
   Hotel,
   Clock,
-  ArrowRight,
   ExternalLink,
 } from "lucide-react";
 
+export interface ResultCardProps {
+  pkg: any;                 // your flight+hotel package object
+  index: number;
+  currency: string;
+  pax?: number;
+  showHotel?: boolean;
+  hotelNights?: number;
+  showAllHotels?: boolean;
+  comparedIds?: any[];
+  onToggleCompare?: (id: any) => void;
+  onSavedChangeGlobal?: () => void;
+}
+
 type CurrencyCode = string;
 
-// Very flexible types so we don't break your existing data
+// Flexible helper types – we don’t force your data to match exactly
 type FlightLeg = {
-  from?: string;          // e.g. "DEL"
-  to?: string;            // e.g. "CLT"
+  from?: string;
+  to?: string;
   departure?: string;     // formatted date+time
   arrival?: string;       // formatted date+time
-  airline?: string;       // e.g. "IndiGo"
-  flightNumber?: string;  // e.g. "6E-123"
-  duration?: string;      // e.g. "1h 45m"
+  airline?: string;
+  flightNumber?: string;
+  duration?: string;
 };
 
 type LayoverInfo = {
-  airport?: string;       // e.g. "CLT"
-  duration?: string;      // e.g. "2h 10m"
+  airport?: string;
+  duration?: string;
 };
 
 type FlightDirection = {
-  summary?: string;       // old string summary (kept as fallback)
-  legs?: FlightLeg[];     // detailed legs if available
+  summary?: string;
+  legs?: FlightLeg[];
   layovers?: LayoverInfo[];
 };
 
 type FlightInfo = {
   outbound?: FlightDirection;
-  inbound?: FlightDirection;      // return direction
+  inbound?: FlightDirection;
   cabin?: string;
   totalDuration?: string;
 };
@@ -44,49 +56,82 @@ type HotelBundle = {
   name?: string;
   priceText?: string;
   nightsText?: string;
-  hotels?: string[];             // list of hotel names
+  hotels?: string[];
 };
-
-export interface ResultCardProps {
-  option: {
-    id?: string | number;
-    title?: string;               // "Option 1"
-    priceText?: string;           // "₹325"
-    totalNightsText?: string;     // "5 nights hotel"
-    hotelBundle?: HotelBundle;
-    flight?: FlightInfo;
-  };
-  index: number;
-  currency: CurrencyCode;
-}
 
 const badgeBase =
   "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide";
-
 const pillButtonBase =
   "inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-md hover:shadow-lg transition-shadow duration-150";
-
 const chipBase =
   "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/80 text-slate-100 border border-slate-700/60";
 
-const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
-  const {
-    title,
-    priceText,
-    totalNightsText,
-    hotelBundle,
-    flight,
-  } = option;
+const ResultCard: React.FC<ResultCardProps> = ({
+  pkg,
+  index,
+  currency,
+  // we ignore the rest for layout, but they’re accepted so TS is happy
+}) => {
+  const currencyCode: CurrencyCode = currency || "USD";
 
-  const displayTitle = title || `Option ${index + 1}`;
-  const displayPrice = priceText || `${currency} — price TBD`;
-  const displayNights = totalNightsText || "Trip bundle";
+  // Try to pull common fields off your pkg object with fallbacks
+  const title: string =
+    pkg?.title ||
+    pkg?.label ||
+    pkg?.name ||
+    `Option ${index + 1}`;
 
-  const outbound = flight?.outbound;
-  const inbound = flight?.inbound;
-  const hasDetailedOutbound = outbound?.legs && outbound.legs.length > 0;
-  const hasDetailedInbound = inbound?.legs && inbound.legs.length > 0;
+  const priceText: string =
+    pkg?.priceText ||
+    pkg?.displayPrice ||
+    pkg?.totalPriceText ||
+    (pkg?.totalPrice ? `${currencyCode} ${pkg.totalPrice}` : "") ||
+    `${currencyCode} — price TBD`;
 
+  const totalNightsText: string =
+    pkg?.totalNightsText ||
+    (pkg?.nights ? `${pkg.nights} nights hotel` : "") ||
+    "Trip bundle";
+
+  const hotelBundle: HotelBundle = {
+    name:
+      pkg?.hotelBundle?.name ||
+      pkg?.hotelName ||
+      pkg?.primaryHotel ||
+      "Curated stay close to main attractions",
+    priceText:
+      pkg?.hotelBundle?.priceText ||
+      pkg?.hotelPriceText ||
+      pkg?.hotelPrice,
+    nightsText:
+      pkg?.hotelBundle?.nightsText ||
+      (pkg?.hotelNights ? `${pkg.hotelNights} nights` : undefined),
+    hotels:
+      pkg?.hotelBundle?.hotels ||
+      pkg?.hotels ||
+      pkg?.hotelOptions ||
+      [],
+  };
+
+  const flightRaw: FlightInfo =
+    pkg?.flight ||
+    pkg?.flightInfo ||
+    pkg?.flights ||
+    {};
+
+  const outbound: FlightDirection | undefined =
+    flightRaw.outbound || flightRaw["outboundFlight"];
+  const inbound: FlightDirection | undefined =
+    flightRaw.inbound || flightRaw["returnFlight"];
+
+  const hasDetailedOutbound =
+    outbound?.legs && outbound.legs.length > 0;
+  const hasDetailedInbound =
+    inbound?.legs && inbound.legs.length > 0;
+
+  const totalDuration = flightRaw.totalDuration || pkg?.totalDuration;
+
+  // External booking URLs – can be wired up later
   const googleFlightsUrl = "#";
   const bookingUrl = "#";
   const airlineSitesUrl = "#";
@@ -101,8 +146,9 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
       <div className="flex items-center justify-between px-5 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-sky-500 via-blue-500 to-pink-500 text-white">
         <div className="flex flex-col gap-1">
           <div className="text-xs sm:text-sm font-semibold uppercase tracking-[0.18em] text-white/80">
-            {displayTitle.toUpperCase()}
+            {String(title).toUpperCase()}
           </div>
+
           {hasDetailedOutbound && outbound?.legs && outbound.legs.length > 0 && (
             <div className="text-xs sm:text-sm flex flex-wrap items-center gap-x-3 gap-y-1 text-white/90">
               <span className="inline-flex items-center gap-1">
@@ -113,23 +159,26 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
                   {outbound.legs[outbound.legs.length - 1].to}
                 </span>
               </span>
-              {flight?.totalDuration && (
+              {totalDuration && (
                 <>
                   <span className="w-1 h-1 rounded-full bg-white/60" />
-                  <span>{flight.totalDuration}</span>
+                  <span>{totalDuration}</span>
                 </>
               )}
-              {outbound?.layovers && outbound.layovers.length > 0 && (
+              {outbound.layovers && outbound.layovers.length > 0 && (
                 <>
                   <span className="w-1 h-1 rounded-full bg-white/60" />
                   <span>
                     {outbound.layovers.length}{" "}
-                    {outbound.layovers.length === 1 ? "stop" : "stops"}
+                    {outbound.layovers.length === 1
+                      ? "stop"
+                      : "stops"}
                   </span>
                 </>
               )}
             </div>
           )}
+
           {!hasDetailedOutbound && outbound?.summary && (
             <div className="text-xs sm:text-sm text-white/90 flex items-center gap-2">
               <Plane className="w-3.5 h-3.5" />
@@ -140,13 +189,13 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
 
         <div className="flex flex-col items-end gap-1">
           <div className="text-lg sm:text-2xl font-extrabold drop-shadow-sm">
-            {displayPrice}
+            {priceText}
           </div>
           <div
             className={`${badgeBase} bg-white/15 border border-white/30 text-[11px] sm:text-xs`}
           >
             <Clock className="w-3.5 h-3.5 mr-1" />
-            {displayNights}
+            {totalNightsText}
           </div>
         </div>
       </div>
@@ -164,29 +213,30 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
 
           <div className="space-y-1.5 text-slate-100">
             <div className="font-semibold text-sm sm:text-base">
-              {hotelBundle?.name || "Curated stay close to main attractions"}
+              {hotelBundle.name}
             </div>
-            {hotelBundle?.priceText && (
+            {hotelBundle.priceText && (
               <div className="text-xs sm:text-sm text-emerald-300">
                 {hotelBundle.priceText}
               </div>
             )}
-            {hotelBundle?.nightsText && (
+            {hotelBundle.nightsText && (
               <div className="text-xs sm:text-sm text-slate-300">
                 {hotelBundle.nightsText}
               </div>
             )}
           </div>
 
-          {hotelBundle?.hotels && hotelBundle.hotels.length > 0 && (
-            <ul className="mt-4 space-y-1.5 text-xs sm:text-sm text-slate-100">
-              {hotelBundle.hotels.map((h, i) => (
-                <li key={i} className="list-disc ml-5">
-                  {h}
-                </li>
-              ))}
-            </ul>
-          )}
+          {hotelBundle.hotels &&
+            hotelBundle.hotels.length > 0 && (
+              <ul className="mt-4 space-y-1.5 text-xs sm:text-sm text-slate-100">
+                {hotelBundle.hotels.map((h: string, i: number) => (
+                  <li key={i} className="list-disc ml-5">
+                    {h}
+                  </li>
+                ))}
+              </ul>
+            )}
         </section>
 
         {/* FLIGHT DETAILS */}
@@ -200,7 +250,10 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
             {/* OUTBOUND */}
             {outbound && (
               <div className="space-y-1.5">
-                <p className="font-semibold text-slate-50">Outbound</p>
+                <p className="font-semibold text-slate-50">
+                  Outbound
+                </p>
+
                 {hasDetailedOutbound && outbound.legs && (
                   <>
                     {outbound.legs.map((leg, i) => (
@@ -211,7 +264,9 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-semibold">
                             {leg.from}{" "}
-                            <span className="mx-1 text-slate-300">→</span>
+                            <span className="mx-1 text-slate-300">
+                              →
+                            </span>
                             {leg.to}
                           </span>
                           {leg.airline && (
@@ -246,32 +301,41 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
                       </div>
                     ))}
 
-                    {outbound.layovers && outbound.layovers.length > 0 && (
-                      <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
-                        {outbound.layovers.map((l, i) => (
-                          <div key={i}>
-                            Layover in{" "}
-                            <span className="font-semibold">
-                              {l.airport}
-                            </span>
-                            {l.duration ? ` — ${l.duration}` : ""}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {outbound.layovers &&
+                      outbound.layovers.length > 0 && (
+                        <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
+                          {outbound.layovers.map((l, i) => (
+                            <div key={i}>
+                              Layover in{" "}
+                              <span className="font-semibold">
+                                {l.airport}
+                              </span>
+                              {l.duration
+                                ? ` — ${l.duration}`
+                                : ""}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                   </>
                 )}
 
-                {!hasDetailedOutbound && outbound.summary && (
-                  <p className="text-slate-100">{outbound.summary}</p>
-                )}
+                {!hasDetailedOutbound &&
+                  outbound.summary && (
+                    <p className="text-slate-100">
+                      {outbound.summary}
+                    </p>
+                  )}
               </div>
             )}
 
             {/* RETURN / INBOUND */}
             {inbound && (
               <div className="space-y-1.5 border-t border-slate-700/70 pt-3">
-                <p className="font-semibold text-slate-50">Return</p>
+                <p className="font-semibold text-slate-50">
+                  Return
+                </p>
+
                 {hasDetailedInbound && inbound.legs && (
                   <>
                     {inbound.legs.map((leg, i) => (
@@ -282,7 +346,9 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-semibold">
                             {leg.from}{" "}
-                            <span className="mx-1 text-slate-300">→</span>
+                            <span className="mx-1 text-slate-300">
+                              →
+                            </span>
                             {leg.to}
                           </span>
                           {leg.airline && (
@@ -317,38 +383,47 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
                       </div>
                     ))}
 
-                    {inbound.layovers && inbound.layovers.length > 0 && (
-                      <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
-                        {inbound.layovers.map((l, i) => (
-                          <div key={i}>
-                            Layover in{" "}
-                            <span className="font-semibold">
-                              {l.airport}
-                            </span>
-                            {l.duration ? ` — ${l.duration}` : ""}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {inbound.layovers &&
+                      inbound.layovers.length > 0 && (
+                        <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
+                          {inbound.layovers.map((l, i) => (
+                            <div key={i}>
+                              Layover in{" "}
+                              <span className="font-semibold">
+                                {l.airport}
+                              </span>
+                              {l.duration
+                                ? ` — ${l.duration}`
+                                : ""}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                   </>
                 )}
 
-                {!hasDetailedInbound && inbound.summary && (
-                  <p className="text-slate-100">{inbound.summary}</p>
-                )}
+                {!hasDetailedInbound &&
+                  inbound.summary && (
+                    <p className="text-slate-100">
+                      {inbound.summary}
+                    </p>
+                  )}
               </div>
             )}
 
-            {flight?.cabin && (
+            {flightRaw.cabin && (
               <p className="text-[11px] sm:text-xs text-slate-200">
-                <span className="font-semibold">Cabin:</span> {flight.cabin}
+                <span className="font-semibold">Cabin:</span>{" "}
+                {flightRaw.cabin}
               </p>
             )}
 
-            {flight?.totalDuration && (
+            {totalDuration && (
               <p className="text-[11px] sm:text-xs text-slate-200">
-                <span className="font-semibold">Total travel time:</span>{" "}
-                {flight.totalDuration}
+                <span className="font-semibold">
+                  Total travel time:
+                </span>{" "}
+                {totalDuration}
               </p>
             )}
           </div>
@@ -357,7 +432,10 @@ const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
 
       {/* ACTION ROWS */}
       <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 pb-3 sm:pb-4 pt-1">
-        <button className={`${pillButtonBase} bg-slate-800 text-slate-50`}>
+        <button
+          className={`${pillButtonBase} bg-slate-800 text-slate-50`}
+          type="button"
+        >
           Compare
         </button>
 
