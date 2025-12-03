@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 export interface ResultCardProps {
-  pkg: any;                 // your flight+hotel package object
+  pkg: any;                 // flight + hotel package
   index: number;
   currency: string;
   pax?: number;
@@ -23,12 +23,11 @@ export interface ResultCardProps {
 
 type CurrencyCode = string;
 
-// Flexible helper types – we don’t force your data to match exactly
 type FlightLeg = {
   from?: string;
   to?: string;
-  departure?: string;     // formatted date+time
-  arrival?: string;       // formatted date+time
+  departure?: string;
+  arrival?: string;
   airline?: string;
   flightNumber?: string;
   duration?: string;
@@ -70,68 +69,102 @@ const ResultCard: React.FC<ResultCardProps> = ({
   pkg,
   index,
   currency,
-  // we ignore the rest for layout, but they’re accepted so TS is happy
 }) => {
+  // Hard guard: if pkg is missing, don't render anything (prevents runtime crash)
+  if (!pkg) {
+    return null;
+  }
+
   const currencyCode: CurrencyCode = currency || "USD";
 
-  // Try to pull common fields off your pkg object with fallbacks
   const title: string =
-    pkg?.title ||
-    pkg?.label ||
-    pkg?.name ||
+    pkg.title ||
+    pkg.label ||
+    pkg.name ||
     `Option ${index + 1}`;
 
+  const totalPrice =
+    pkg.totalPrice ??
+    pkg.price ??
+    pkg.amount;
+
   const priceText: string =
-    pkg?.priceText ||
-    pkg?.displayPrice ||
-    pkg?.totalPriceText ||
-    (pkg?.totalPrice ? `${currencyCode} ${pkg.totalPrice}` : "") ||
-    `${currencyCode} — price TBD`;
+    pkg.priceText ||
+    pkg.displayPrice ||
+    pkg.totalPriceText ||
+    (totalPrice != null
+      ? `${currencyCode} ${String(totalPrice)}`
+      : `${currencyCode} — price TBD`);
 
   const totalNightsText: string =
-    pkg?.totalNightsText ||
-    (pkg?.nights ? `${pkg.nights} nights hotel` : "") ||
+    pkg.totalNightsText ||
+    (pkg.nights ? `${pkg.nights} nights hotel` : "") ||
     "Trip bundle";
+
+  const hotelBundleRaw: any =
+    pkg.hotelBundle || pkg.hotel || pkg.hotels || {};
 
   const hotelBundle: HotelBundle = {
     name:
-      pkg?.hotelBundle?.name ||
-      pkg?.hotelName ||
-      pkg?.primaryHotel ||
+      hotelBundleRaw.name ||
+      pkg.hotelName ||
+      pkg.primaryHotel ||
       "Curated stay close to main attractions",
     priceText:
-      pkg?.hotelBundle?.priceText ||
-      pkg?.hotelPriceText ||
-      pkg?.hotelPrice,
+      hotelBundleRaw.priceText ||
+      pkg.hotelPriceText ||
+      pkg.hotelPrice,
     nightsText:
-      pkg?.hotelBundle?.nightsText ||
-      (pkg?.hotelNights ? `${pkg.hotelNights} nights` : undefined),
-    hotels:
-      pkg?.hotelBundle?.hotels ||
-      pkg?.hotels ||
-      pkg?.hotelOptions ||
-      [],
+      hotelBundleRaw.nightsText ||
+      (pkg.hotelNights ? `${pkg.hotelNights} nights` : undefined),
+    hotels: Array.isArray(hotelBundleRaw.hotels)
+      ? hotelBundleRaw.hotels
+      : Array.isArray(pkg.hotels)
+      ? pkg.hotels
+      : [],
   };
 
   const flightRaw: FlightInfo =
-    pkg?.flight ||
-    pkg?.flightInfo ||
-    pkg?.flights ||
+    pkg.flight ||
+    pkg.flightInfo ||
+    pkg.flights ||
     {};
 
   const outbound: FlightDirection | undefined =
-    flightRaw.outbound || flightRaw["outboundFlight"];
+    (flightRaw as any).outbound ||
+    (flightRaw as any).outboundFlight ||
+    (pkg as any).outbound;
+
   const inbound: FlightDirection | undefined =
-    flightRaw.inbound || flightRaw["returnFlight"];
+    (flightRaw as any).inbound ||
+    (flightRaw as any).returnFlight ||
+    (pkg as any).inbound;
 
-  const hasDetailedOutbound =
-    outbound?.legs && outbound.legs.length > 0;
-  const hasDetailedInbound =
-    inbound?.legs && inbound.legs.length > 0;
+  const outboundLegs: FlightLeg[] = Array.isArray(outbound?.legs)
+    ? outbound!.legs!
+    : [];
+  const inboundLegs: FlightLeg[] = Array.isArray(inbound?.legs)
+    ? inbound!.legs!
+    : [];
 
-  const totalDuration = flightRaw.totalDuration || pkg?.totalDuration;
+  const outboundLayovers: LayoverInfo[] = Array.isArray(
+    outbound?.layovers,
+  )
+    ? outbound!.layovers!
+    : [];
+  const inboundLayovers: LayoverInfo[] = Array.isArray(inbound?.layovers)
+    ? inbound!.layovers!
+    : [];
 
-  // External booking URLs – can be wired up later
+  const hasDetailedOutbound = outboundLegs.length > 0;
+  const hasDetailedInbound = inboundLegs.length > 0;
+
+  const totalDuration =
+    flightRaw.totalDuration ||
+    (pkg as any).totalDuration;
+
+  const cabin = flightRaw.cabin || (pkg as any).cabin;
+
   const googleFlightsUrl = "#";
   const bookingUrl = "#";
   const airlineSitesUrl = "#";
@@ -149,14 +182,14 @@ const ResultCard: React.FC<ResultCardProps> = ({
             {String(title).toUpperCase()}
           </div>
 
-          {hasDetailedOutbound && outbound?.legs && outbound.legs.length > 0 && (
+          {hasDetailedOutbound && outboundLegs.length > 0 && (
             <div className="text-xs sm:text-sm flex flex-wrap items-center gap-x-3 gap-y-1 text-white/90">
               <span className="inline-flex items-center gap-1">
                 <Plane className="w-3.5 h-3.5" />
                 <span className="font-semibold">
-                  {outbound.legs[0].from}{" "}
+                  {outboundLegs[0]?.from}{" "}
                   <span className="mx-1">→</span>
-                  {outbound.legs[outbound.legs.length - 1].to}
+                  {outboundLegs[outboundLegs.length - 1]?.to}
                 </span>
               </span>
               {totalDuration && (
@@ -165,12 +198,12 @@ const ResultCard: React.FC<ResultCardProps> = ({
                   <span>{totalDuration}</span>
                 </>
               )}
-              {outbound.layovers && outbound.layovers.length > 0 && (
+              {outboundLayovers.length > 0 && (
                 <>
                   <span className="w-1 h-1 rounded-full bg-white/60" />
                   <span>
-                    {outbound.layovers.length}{" "}
-                    {outbound.layovers.length === 1
+                    {outboundLayovers.length}{" "}
+                    {outboundLayovers.length === 1
                       ? "stop"
                       : "stops"}
                   </span>
@@ -227,7 +260,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
             )}
           </div>
 
-          {hotelBundle.hotels &&
+          {Array.isArray(hotelBundle.hotels) &&
             hotelBundle.hotels.length > 0 && (
               <ul className="mt-4 space-y-1.5 text-xs sm:text-sm text-slate-100">
                 {hotelBundle.hotels.map((h: string, i: number) => (
@@ -254,9 +287,9 @@ const ResultCard: React.FC<ResultCardProps> = ({
                   Outbound
                 </p>
 
-                {hasDetailedOutbound && outbound.legs && (
+                {hasDetailedOutbound && outboundLegs.length > 0 ? (
                   <>
-                    {outbound.legs.map((leg, i) => (
+                    {outboundLegs.map((leg, i) => (
                       <div
                         key={i}
                         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2"
@@ -301,31 +334,29 @@ const ResultCard: React.FC<ResultCardProps> = ({
                       </div>
                     ))}
 
-                    {outbound.layovers &&
-                      outbound.layovers.length > 0 && (
-                        <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
-                          {outbound.layovers.map((l, i) => (
-                            <div key={i}>
-                              Layover in{" "}
-                              <span className="font-semibold">
-                                {l.airport}
-                              </span>
-                              {l.duration
-                                ? ` — ${l.duration}`
-                                : ""}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    {outboundLayovers.length > 0 && (
+                      <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
+                        {outboundLayovers.map((l, i) => (
+                          <div key={i}>
+                            Layover in{" "}
+                            <span className="font-semibold">
+                              {l.airport}
+                            </span>
+                            {l.duration ? ` — ${l.duration}` : ""}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </>
+                ) : outbound.summary ? (
+                  <p className="text-slate-100">
+                    {outbound.summary}
+                  </p>
+                ) : (
+                  <p className="text-slate-400">
+                    Flight details not available.
+                  </p>
                 )}
-
-                {!hasDetailedOutbound &&
-                  outbound.summary && (
-                    <p className="text-slate-100">
-                      {outbound.summary}
-                    </p>
-                  )}
               </div>
             )}
 
@@ -336,9 +367,9 @@ const ResultCard: React.FC<ResultCardProps> = ({
                   Return
                 </p>
 
-                {hasDetailedInbound && inbound.legs && (
+                {hasDetailedInbound && inboundLegs.length > 0 ? (
                   <>
-                    {inbound.legs.map((leg, i) => (
+                    {inboundLegs.map((leg, i) => (
                       <div
                         key={i}
                         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2"
@@ -383,38 +414,36 @@ const ResultCard: React.FC<ResultCardProps> = ({
                       </div>
                     ))}
 
-                    {inbound.layovers &&
-                      inbound.layovers.length > 0 && (
-                        <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
-                          {inbound.layovers.map((l, i) => (
-                            <div key={i}>
-                              Layover in{" "}
-                              <span className="font-semibold">
-                                {l.airport}
-                              </span>
-                              {l.duration
-                                ? ` — ${l.duration}`
-                                : ""}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    {inboundLayovers.length > 0 && (
+                      <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
+                        {inboundLayovers.map((l, i) => (
+                          <div key={i}>
+                            Layover in{" "}
+                            <span className="font-semibold">
+                              {l.airport}
+                            </span>
+                            {l.duration ? ` — ${l.duration}` : ""}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </>
+                ) : inbound.summary ? (
+                  <p className="text-slate-100">
+                    {inbound.summary}
+                  </p>
+                ) : (
+                  <p className="text-slate-400">
+                    Flight details not available.
+                  </p>
                 )}
-
-                {!hasDetailedInbound &&
-                  inbound.summary && (
-                    <p className="text-slate-100">
-                      {inbound.summary}
-                    </p>
-                  )}
               </div>
             )}
 
-            {flightRaw.cabin && (
+            {cabin && (
               <p className="text-[11px] sm:text-xs text-slate-200">
                 <span className="font-semibold">Cabin:</span>{" "}
-                {flightRaw.cabin}
+                {cabin}
               </p>
             )}
 
