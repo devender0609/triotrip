@@ -5,14 +5,53 @@ type Props = {
   active: "explore" | "savor" | "misc";
 };
 
+// Map common airport codes to real city names
+const airportCityMap: Record<string, string> = {
+  AUS: "Austin",
+  BOS: "Boston",
+  JFK: "New York",
+  LGA: "New York",
+  EWR: "New York",
+  DEL: "New Delhi",
+  BOM: "Mumbai",
+  LHR: "London",
+  LGW: "London",
+  CDG: "Paris",
+  AMS: "Amsterdam",
+  SFO: "San Francisco",
+  LAX: "Los Angeles",
+  ORD: "Chicago",
+  DAL: "Dallas",
+  DFW: "Dallas",
+  MIA: "Miami",
+  SEA: "Seattle",
+  LAS: "Las Vegas",
+  HNL: "Honolulu",
+};
+
+const resolveCityFromCode = (raw: string): string => {
+  if (!raw) return "your destination";
+  const trimmed = raw.trim();
+  const upper = trimmed.toUpperCase();
+
+  // If it's an IATA-style code and in our map, use mapped city
+  if (upper.length === 3 && airportCityMap[upper]) {
+    return airportCityMap[upper];
+  }
+
+  // Otherwise just use what we got, but nicer casing
+  return trimmed;
+};
+
 const normCity = (city: string) =>
   city && city !== "Destination" ? city : "your destination";
 
 const encodeCity = (city: string) => encodeURIComponent(city || "city");
 
 const ExploreSavorTabs: React.FC<Props> = ({ city, active }) => {
-  const cityName = normCity(city);
-  const q = encodeCity(cityName);
+  const resolvedCity = resolveCityFromCode(city);
+  const cityName = normCity(resolvedCity);
+  const q = encodeCity(resolvedCity);
 
   const chip = (label: string, href: string) => (
     <a
@@ -52,11 +91,11 @@ const ExploreSavorTabs: React.FC<Props> = ({ city, active }) => {
     const mapsNightlife = `https://www.google.com/maps/search/nightlife+in+${q}`;
     const tripNightlife = `https://www.tripadvisor.com/Search?q=${q}+nightlife`;
 
-    const wikiVoyage = `https://en.wikivoyage.org/wiki/${cityName.replace(
+    const wikiVoyage = `https://en.wikivoyage.org/wiki/${resolvedCity.replace(
       /\s+/g,
       "_"
     )}`;
-    const wiki = `https://en.wikipedia.org/wiki/${cityName.replace(
+    const wiki = `https://en.wikipedia.org/wiki/${resolvedCity.replace(
       /\s+/g,
       "_"
     )}`;
@@ -190,11 +229,11 @@ const ExploreSavorTabs: React.FC<Props> = ({ city, active }) => {
   }
 
   // misc
-  const wikiVoyage = `https://en.wikivoyage.org/wiki/${cityName.replace(
+  const wikiVoyage = `https://en.wikivoyage.org/wiki/${resolvedCity.replace(
     /\s+/g,
     "_"
   )}`;
-  const wiki = `https://en.wikipedia.org/wiki/${cityName.replace(
+  const wiki = `https://en.wikipedia.org/wiki/${resolvedCity.replace(
     /\s+/g,
     "_"
   )}`;
@@ -244,7 +283,7 @@ const ExploreSavorTabs: React.FC<Props> = ({ city, active }) => {
 const styles = `
   .es-root {
     display: grid;
-    gap: 10px;
+    gap: 12px;
     font-family: system-ui, -apple-system, BlinkMacSystemFont,
       "Segoe UI", sans-serif;
   }
@@ -252,7 +291,7 @@ const styles = `
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     color: #0f172a;
   }
@@ -271,23 +310,23 @@ const styles = `
     background: #facc15;
   }
   .es-title {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
   }
   .es-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
   }
   .es-card {
     background: #f8fafc;
-    border-radius: 18px;
+    border-radius: 20px;
     border: 1px solid #e2e8f0;
-    padding: 12px 14px;
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.05);
+    padding: 14px 16px;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
   }
   .es-card-title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     margin-bottom: 8px;
     color: #0f172a;
@@ -301,11 +340,11 @@ const styles = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 12px;
+    padding: 7px 14px;
     border-radius: 999px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #0f172a;
     text-decoration: none;

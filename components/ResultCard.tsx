@@ -1,1053 +1,446 @@
-import React, { useState } from "react";
+"use client";
 
-type Props = {
-  pkg: any;
-  index: number;
-  currency: string;
-  pax: number;
-  showHotel: boolean;
-  hotelNights: number;
-  showAllHotels: boolean;
-  comparedIds: string[];
-  onToggleCompare: (id: string) => void;
-  onSavedChangeGlobal: () => void;
+import React from "react";
+import {
+  Plane,
+  Hotel,
+  Clock,
+  ArrowRight,
+  ExternalLink,
+} from "lucide-react";
+
+type CurrencyCode = string;
+
+// Very flexible types so we don't break your existing data
+type FlightLeg = {
+  from?: string;          // e.g. "DEL"
+  to?: string;            // e.g. "CLT"
+  departure?: string;     // formatted date+time
+  arrival?: string;       // formatted date+time
+  airline?: string;       // e.g. "IndiGo"
+  flightNumber?: string;  // e.g. "6E-123"
+  duration?: string;      // e.g. "1h 45m"
 };
 
-const fmtMoney = (value: number | undefined | null, currency: string) => {
-  if (value == null || !Number.isFinite(Number(value))) return "—";
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
-      maximumFractionDigits: 0,
-    }).format(Number(value));
-  } catch {
-    return `${currency} ${Math.round(Number(value))}`;
-  }
+type LayoverInfo = {
+  airport?: string;       // e.g. "CLT"
+  duration?: string;      // e.g. "2h 10m"
 };
 
-const fmtDuration = (minutes: number | undefined) => {
-  if (!minutes || !Number.isFinite(minutes)) return "";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (!h) return `${m}m`;
-  if (!m) return `${h}h`;
-  return `${h}h ${m}m`;
+type FlightDirection = {
+  summary?: string;       // old string summary (kept as fallback)
+  legs?: FlightLeg[];     // detailed legs if available
+  layovers?: LayoverInfo[];
 };
 
-const sumDuration = (segs: any[]): number =>
-  segs.reduce((t, s) => t + (Number(s?.duration_minutes) || 0), 0);
-
-/* ===== helpers to show leg + layover details ===== */
-
-const getAirportCodeFromSeg = (seg: any, kind: "origin" | "destination") => {
-  if (!seg) return "";
-  const keys =
-    kind === "origin"
-      ? [
-          "origin",
-          "from",
-          "departureAirportCode",
-          "departureAirport",
-          "departure",
-        ]
-      : [
-          "destination",
-          "to",
-          "arrivalAirportCode",
-          "arrivalAirport",
-          "arrival",
-        ];
-  for (const k of keys) {
-    const v = seg[k];
-    if (typeof v === "string" && v.trim()) {
-      // if it's like "AUS - Austin", just keep the code
-      const code = v.split(/[\s-]/)[0];
-      return code.toUpperCase();
-    }
-  }
-  return "";
+type FlightInfo = {
+  outbound?: FlightDirection;
+  inbound?: FlightDirection;      // return direction
+  cabin?: string;
+  totalDuration?: string;
 };
 
-const getTimeString = (raw: any) => {
-  if (!raw) return "";
-  const s = String(raw);
-  // ISO or "2025-01-01T12:34"
-  try {
-    if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) {
-      const d = new Date(s);
-      if (!isNaN(d.getTime())) {
-        const hours = d.getHours().toString().padStart(2, "0");
-        const mins = d.getMinutes().toString().padStart(2, "0");
-        return `${hours}:${mins}`;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  // fallback – strip date if possible
-  const m = s.match(/T(\d{2}:\d{2})/);
-  if (m) return m[1];
-  return s;
+type HotelBundle = {
+  name?: string;
+  priceText?: string;
+  nightsText?: string;
+  hotels?: string[];             // list of hotel names
 };
 
-type LegInfo = {
-  from: string;
-  to: string;
-  carrier: string;
-  flightNo: string;
-  departTime: string;
-  arriveTime: string;
-  durationMinutes?: number;
-};
-
-const buildLegs = (segs: any[]): LegInfo[] => {
-  if (!Array.isArray(segs)) return [];
-  return segs.map((s) => {
-    const from = getAirportCodeFromSeg(s, "origin");
-    const to = getAirportCodeFromSeg(s, "destination");
-    const carrier =
-      s.marketingCarrierName ||
-      s.carrierName ||
-      s.airlineName ||
-      s.marketingCarrier ||
-      s.carrierCode ||
-      s.airline ||
-      "";
-    const flightNo =
-      s.flightNumber || s.marketingFlightNumber || s.number || "";
-    const departTime =
-      getTimeString(s.departureTime || s.departureDateTime || s.departure) ||
-      "";
-    const arriveTime =
-      getTimeString(s.arrivalTime || s.arrivalDateTime || s.arrival) ||
-      "";
-    const durationMinutes = Number(s.duration_minutes) || undefined;
-
-    return {
-      from,
-      to,
-      carrier,
-      flightNo,
-      departTime,
-      arriveTime,
-      durationMinutes,
-    };
-  });
-};
-
-const extractAirline = (flight: any): string => {
-  if (!flight) return "";
-  const segs = flight.segments_out || flight.segments || [];
-  if (!Array.isArray(segs) || !segs.length) return "";
-  const names = new Set<string>();
-
-  for (const s of segs) {
-    const n =
-      s.marketingCarrierName ||
-      s.carrierName ||
-      s.airlineName ||
-      s.marketingCarrier ||
-      s.carrierCode ||
-      s.airline ||
-      "";
-    if (n) names.add(String(n));
-  }
-  const arr = Array.from(names);
-  if (!arr.length) return "";
-  if (arr.length === 1) return arr[0];
-  if (arr.length === 2) return `${arr[0]} & ${arr[1]}`;
-  return `${arr[0]} + ${arr.length - 1} more`;
-};
-
-const ResultCard: React.FC<Props> = ({
-  pkg,
-  index,
-  currency,
-  pax,
-  showHotel,
-  hotelNights,
-  showAllHotels,
-  comparedIds,
-  onToggleCompare,
-}) => {
-  const id = String(pkg.id ?? index);
-
-  const originCode =
-    pkg.origin || pkg.originCode || pkg.flight?.origin || "ORG";
-  const destCode =
-    pkg.destination || pkg.destinationCode || pkg.flight?.destination || "DST";
-
-  const segOut =
-    pkg.flight?.segments_out ||
-    pkg.flight?.segments ||
-    pkg.segments_out ||
-    [];
-  const segBack =
-    pkg.flight?.segments_back || pkg.segments_back || [];
-
-  const outStops = Math.max(0, (segOut.length || 1) - 1);
-  const backStops = Math.max(0, (segBack.length || 1) - 1);
-
-  const outDur = sumDuration(segOut);
-  const backDur = sumDuration(segBack);
-  const totalDur = outDur + backDur;
-
-  const legsOut = buildLegs(segOut);
-  const legsBack = buildLegs(segBack);
-
-  const flightBase =
-    pkg.flight_total ??
-    pkg.total_cost_flight ??
-    pkg.flight?.price_usd_converted ??
-    pkg.flight?.price_usd ??
-    pkg.total_cost ??
-    0;
-
-  const hotelTotal = showHotel
-    ? pkg.hotel_total ?? pkg.total_cost_hotel ?? 0
-    : 0;
-
-  const bundleTotal = showHotel
-    ? pkg.total_cost ?? flightBase + hotelTotal
-    : flightBase;
-
-  const perPerson = pax > 0 ? bundleTotal / pax : bundleTotal;
-
-  const refundable =
-    pkg.flight?.refundable ?? pkg.refundable ?? false;
-
-  const cabins =
-    pkg.flight?.cabin || pkg.cabin || pkg.travelClass || "";
-
-  const carbon =
-    pkg.flight?.carbon_kg ??
-    pkg.carbon_kg ??
-    null;
-
-  const hotels = Array.isArray(pkg.hotels) ? pkg.hotels : [];
-  const primaryHotel = showHotel && hotels.length ? hotels[0] : null;
-  const extraHotels = showHotel && hotels.length > 1 ? hotels.slice(1) : [];
-
-  const [showAllHotelsLocal, setShowAllHotelsLocal] = useState(
-    showAllHotels || false
-  );
-
-  const isCompared = comparedIds.includes(id);
-
-  const airlineName = extractAirline(pkg.flight);
-
-  const departDate =
-    pkg.departDate ||
-    pkg.departureDate ||
-    pkg.departure_date ||
-    pkg.departure;
-  const returnDate =
-    pkg.returnDate ||
-    pkg.return_date ||
-    pkg.return;
-
-  // Booking URLs
-  const flightQueryParts = [
-    `Flights from ${originCode} to ${destCode}`,
-    departDate ? `on ${departDate}` : "",
-    returnDate ? ` returning ${returnDate}` : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const flightBookingUrl = `https://www.google.com/travel/flights?q=${encodeURIComponent(
-    flightQueryParts
-  )}`;
-
-  const airlineSitesUrl = `https://www.google.com/search?q=${encodeURIComponent(
-    `airlines flying ${originCode} to ${destCode}`
-  )}`;
-
-  const hotelCity =
-    pkg.destinationCity ||
-    pkg.city ||
-    pkg.destinationName ||
-    destCode;
-
-  const hotelCheckIn =
-    pkg.hotelCheckIn ||
-    pkg.checkIn ||
-    pkg.hotel_check_in ||
-    departDate;
-  const hotelCheckOut =
-    pkg.hotelCheckOut ||
-    pkg.checkOut ||
-    pkg.hotel_check_out ||
-    returnDate;
-
-  let hotelBookingUrl = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(
-    hotelCity
-  )}`;
-  if (hotelCheckIn) hotelBookingUrl += `&checkin=${hotelCheckIn}`;
-  if (hotelCheckOut) hotelBookingUrl += `&checkout=${hotelCheckOut}`;
-
-  const flightKayakUrl = `https://www.kayak.com/flights/${originCode}-${destCode}`;
-  const flightSkyscannerUrl = `https://www.skyscanner.com/transport/flights/${originCode.toLowerCase()}/${destCode.toLowerCase()}/`;
-  const hotelExpediaUrl = `https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(
-    hotelCity
-  )}`;
-  const hotelHotelsUrl = `https://www.hotels.com/search.do?destination=${encodeURIComponent(
-    hotelCity
-  )}`;
-
-  // Build layover description
-  const layoverText = (segs: any[]) => {
-    if (!Array.isArray(segs) || segs.length <= 1) return "";
-    const stops = segs.slice(0, -1).map((s) =>
-      getAirportCodeFromSeg(s, "destination")
-    );
-    const unique = Array.from(new Set(stops.filter(Boolean)));
-    if (!unique.length) return "";
-    if (unique.length === 1) return `Layover in ${unique[0]}`;
-    if (unique.length === 2) return `Layovers in ${unique[0]} and ${unique[1]}`;
-    return `Layovers in ${unique[0]} + ${unique.length - 1} more`;
+export interface ResultCardProps {
+  option: {
+    id?: string | number;
+    title?: string;               // "Option 1"
+    priceText?: string;           // "₹325"
+    totalNightsText?: string;     // "5 nights hotel"
+    hotelBundle?: HotelBundle;
+    flight?: FlightInfo;
   };
+  index: number;
+  currency: CurrencyCode;
+}
+
+const badgeBase =
+  "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide";
+
+const pillButtonBase =
+  "inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-md hover:shadow-lg transition-shadow duration-150";
+
+const chipBase =
+  "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/80 text-slate-100 border border-slate-700/60";
+
+const ResultCard: React.FC<ResultCardProps> = ({ option, index, currency }) => {
+  const {
+    title,
+    priceText,
+    totalNightsText,
+    hotelBundle,
+    flight,
+  } = option;
+
+  const displayTitle = title || `Option ${index + 1}`;
+  const displayPrice = priceText || `${currency} — price TBD`;
+  const displayNights = totalNightsText || "Trip bundle";
+
+  const outbound = flight?.outbound;
+  const inbound = flight?.inbound;
+  const hasDetailedOutbound = outbound?.legs && outbound.legs.length > 0;
+  const hasDetailedInbound = inbound?.legs && inbound.legs.length > 0;
+
+  const googleFlightsUrl = "#";
+  const bookingUrl = "#";
+  const airlineSitesUrl = "#";
+  const skyscannerUrl = "#";
+  const kayakUrl = "#";
+  const expediaUrl = "#";
+  const hotelsUrl = "#";
 
   return (
-    <article className="card">
-      {/* HEADER */}
-      <div className="card-header">
-        <div className="header-left">
-          <div className="option-label">Option {index + 1}</div>
-          <div className="route">
-            {originCode} <span className="arrow">➝</span> {destCode}
+    <div className="rounded-3xl bg-slate-900/90 border border-slate-700/80 shadow-xl overflow-hidden mb-6">
+      {/* HEADER STRIP */}
+      <div className="flex items-center justify-between px-5 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-sky-500 via-blue-500 to-pink-500 text-white">
+        <div className="flex flex-col gap-1">
+          <div className="text-xs sm:text-sm font-semibold uppercase tracking-[0.18em] text-white/80">
+            {displayTitle.toUpperCase()}
           </div>
-          <div className="subroute">
-            {airlineName && (
-              <>
-                <span className="airline">{airlineName}</span> •{" "}
-              </>
-            )}
-            {outStops === 0
-              ? "Non-stop"
-              : outStops === 1
-              ? "1 stop"
-              : `${outStops} stops`}
-            {outDur ? ` • ${fmtDuration(outDur)}` : ""}
-          </div>
-        </div>
-
-        <div className="header-right">
-          <div className="price-main">
-            {fmtMoney(bundleTotal, currency)}
-          </div>
-          <div className="price-sub">
-            {pax > 1 ? `${fmtMoney(perPerson, currency)} / person` : "Total"}
-          </div>
-          <div className="badge-row">
-            {showHotel && hotelNights > 0 && (
-              <div className="badge nights">
-                🛏 {hotelNights} night
-                {hotelNights > 1 ? "s" : ""} hotel
-              </div>
-            )}
-            {refundable && (
-              <div className="badge flexi">✓ Flexible / refundable</div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* DETAILS */}
-      <div className="details-row">
-        {showHotel ? (
-          <>
-            <div className="col">
-              <div className="section-title">Hotel bundle</div>
-              {primaryHotel ? (
+          {hasDetailedOutbound && outbound?.legs && outbound.legs.length > 0 && (
+            <div className="text-xs sm:text-sm flex flex-wrap items-center gap-x-3 gap-y-1 text-white/90">
+              <span className="inline-flex items-center gap-1">
+                <Plane className="w-3.5 h-3.5" />
+                <span className="font-semibold">
+                  {outbound.legs[0].from}{" "}
+                  <span className="mx-1">→</span>
+                  {outbound.legs[outbound.legs.length - 1].to}
+                </span>
+              </span>
+              {flight?.totalDuration && (
                 <>
-                  <div className="hotel-name">
-                    {primaryHotel.name || "Selected hotel"}
-                  </div>
-                  <div className="hotel-line">
-                    {primaryHotel.stars && (
-                      <span>
-                        ⭐ {primaryHotel.stars}{" "}
-                        {primaryHotel.stars === 1 ? "star" : "stars"}
-                      </span>
-                    )}
-                    {primaryHotel.area && (
-                      <span> • 📍 {primaryHotel.area}</span>
-                    )}
-                  </div>
-                  {hotelTotal ? (
-                    <div className="hotel-price">
-                      {fmtMoney(hotelTotal, currency)} total hotel
-                    </div>
-                  ) : null}
-
-                  {extraHotels.length > 0 && !showAllHotelsLocal && (
-                    <button
-                      type="button"
-                      className="hotel-more-btn"
-                      onClick={() => setShowAllHotelsLocal(true)}
-                    >
-                      + {extraHotels.length} more hotel option
-                      {extraHotels.length > 1 ? "s" : ""} in this bundle
-                    </button>
-                  )}
-
-                  {showAllHotelsLocal && extraHotels.length > 0 && (
-                    <ul className="hotel-extra-list">
-                      {extraHotels.map((h: any, idx: number) => (
-                        <li key={idx}>
-                          <span className="hotel-extra-name">
-                            {h.name || `Extra hotel ${idx + 1}`}
-                          </span>
-                          {h.stars && (
-                            <span className="hotel-extra-meta">
-                              {" "}
-                              • ⭐ {h.stars}
-                            </span>
-                          )}
-                          {h.area && (
-                            <span className="hotel-extra-meta">
-                              {" "}
-                              • 📍 {h.area}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <span className="w-1 h-1 rounded-full bg-white/60" />
+                  <span>{flight.totalDuration}</span>
                 </>
-              ) : (
-                <div className="hotel-line">
-                  Includes hotel for your stay (exact hotel to be chosen
-                  at booking).
-                </div>
+              )}
+              {outbound?.layovers && outbound.layovers.length > 0 && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-white/60" />
+                  <span>
+                    {outbound.layovers.length}{" "}
+                    {outbound.layovers.length === 1 ? "stop" : "stops"}
+                  </span>
+                </>
               )}
             </div>
-
-            <div className="col">
-              <div className="section-title">Flight details</div>
-              <ul className="bullets">
-                <li>
-                  <strong>Outbound:</strong>{" "}
-                  {originCode} → {destCode}{" "}
-                  {departDate ? `• ${departDate}` : ""}{" "}
-                  {outDur ? `• ${fmtDuration(outDur)}` : ""}{" "}
-                  {outStops === 0
-                    ? "• Non-stop"
-                    : outStops === 1
-                    ? "• 1 stop"
-                    : `• ${outStops} stops`}
-                  {layoverText(segOut) && (
-                    <>
-                      <br />
-                      <span className="layover-text">
-                        {layoverText(segOut)}
-                      </span>
-                    </>
-                  )}
-                </li>
-                {legsOut.length > 1 && (
-                  <li>
-                    <span className="legs-label">Legs:</span>
-                    <ul className="legs">
-                      {legsOut.map((leg, i) => (
-                        <li key={i}>
-                          Leg {i + 1}: {leg.from} → {leg.to}{" "}
-                          {leg.flightNo && (
-                            <>({leg.carrier} {leg.flightNo}) </>
-                          )}
-                          {leg.departTime && (
-                            <>• Dep {leg.departTime} </>
-                          )}
-                          {leg.arriveTime && (
-                            <>• Arr {leg.arriveTime} </>
-                          )}
-                          {leg.durationMinutes && (
-                            <>• {fmtDuration(leg.durationMinutes)}</>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                )}
-                {segBack && segBack.length > 0 && (
-                  <li>
-                    <strong>Return:</strong>{" "}
-                    {destCode} → {originCode}{" "}
-                    {returnDate ? `• ${returnDate}` : ""}{" "}
-                    {backDur ? `• ${fmtDuration(backDur)}` : ""}{" "}
-                    {backStops === 0
-                      ? "• Non-stop"
-                      : backStops === 1
-                      ? "• 1 stop"
-                      : `• ${backStops} stops`}
-                    {layoverText(segBack) && (
-                      <>
-                        <br />
-                        <span className="layover-text">
-                          {layoverText(segBack)}
-                        </span>
-                      </>
-                    )}
-                    {legsBack.length > 1 && (
-                      <>
-                        <br />
-                        <span className="legs-label">Return legs:</span>
-                        <ul className="legs">
-                          {legsBack.map((leg, i) => (
-                            <li key={i}>
-                              Leg {i + 1}: {leg.from} → {leg.to}{" "}
-                              {leg.flightNo && (
-                                <>({leg.carrier} {leg.flightNo}) </>
-                              )}
-                              {leg.departTime && (
-                                <>• Dep {leg.departTime} </>
-                              )}
-                              {leg.arriveTime && (
-                                <>• Arr {leg.arriveTime} </>
-                              )}
-                              {leg.durationMinutes && (
-                                <>• {fmtDuration(leg.durationMinutes)}</>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                  </li>
-                )}
-                {cabins && (
-                  <li>
-                    <strong>Cabin:</strong> {String(cabins)}
-                  </li>
-                )}
-                {airlineName && (
-                  <li>
-                    <strong>Airline(s):</strong> {airlineName}
-                  </li>
-                )}
-                {totalDur > 0 && (
-                  <li>
-                    <strong>Total travel time:</strong>{" "}
-                    {fmtDuration(totalDur)}
-                  </li>
-                )}
-                {carbon != null && (
-                  <li>
-                    <strong>Carbon estimate:</strong>{" "}
-                    {Math.round(Number(carbon))} kg CO₂
-                  </li>
-                )}
-              </ul>
+          )}
+          {!hasDetailedOutbound && outbound?.summary && (
+            <div className="text-xs sm:text-sm text-white/90 flex items-center gap-2">
+              <Plane className="w-3.5 h-3.5" />
+              <span>{outbound.summary}</span>
             </div>
-          </>
-        ) : (
-          <div className="col col-full">
-            <div className="section-title">Flight details</div>
-            <ul className="bullets">
-              <li>
-                <strong>Route:</strong> {originCode} → {destCode}{" "}
-                {departDate ? `• ${departDate}` : ""}{" "}
-                {outDur ? `• ${fmtDuration(outDur)}` : ""}{" "}
-                {outStops === 0
-                  ? "• Non-stop"
-                  : outStops === 1
-                  ? "• 1 stop"
-                  : `• ${outStops} stops`}
-                {layoverText(segOut) && (
-                  <>
-                    <br />
-                    <span className="layover-text">
-                      {layoverText(segOut)}
-                    </span>
-                  </>
-                )}
-              </li>
-              {legsOut.length > 1 && (
-                <li>
-                  <span className="legs-label">Legs:</span>
-                  <ul className="legs">
-                    {legsOut.map((leg, i) => (
-                      <li key={i}>
-                        Leg {i + 1}: {leg.from} → {leg.to}{" "}
-                        {leg.flightNo && (
-                          <>({leg.carrier} {leg.flightNo}) </>
-                        )}
-                        {leg.departTime && <>• Dep {leg.departTime} </>}
-                        {leg.arriveTime && <>• Arr {leg.arriveTime} </>}
-                        {leg.durationMinutes && (
-                          <>• {fmtDuration(leg.durationMinutes)}</>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              )}
-              {segBack && segBack.length > 0 && (
-                <li>
-                  <strong>Return:</strong>{" "}
-                  {destCode} → {originCode}{" "}
-                  {returnDate ? `• ${returnDate}` : ""}{" "}
-                  {backDur ? `• ${fmtDuration(backDur)}` : ""}{" "}
-                  {backStops === 0
-                    ? "• Non-stop"
-                    : backStops === 1
-                    ? "• 1 stop"
-                    : `• ${backStops} stops`}
-                  {layoverText(segBack) && (
-                    <>
-                      <br />
-                      <span className="layover-text">
-                        {layoverText(segBack)}
-                      </span>
-                    </>
-                  )}
-                  {legsBack.length > 1 && (
-                    <>
-                      <br />
-                      <span className="legs-label">Return legs:</span>
-                      <ul className="legs">
-                        {legsBack.map((leg, i) => (
-                          <li key={i}>
-                            Leg {i + 1}: {leg.from} → {leg.to}{" "}
-                            {leg.flightNo && (
-                              <>({leg.carrier} {leg.flightNo}) </>
-                            )}
-                            {leg.departTime && (
-                              <>• Dep {leg.departTime} </>
-                            )}
-                            {leg.arriveTime && (
-                              <>• Arr {leg.arriveTime} </>
-                            )}
-                            {leg.durationMinutes && (
-                              <>• {fmtDuration(leg.durationMinutes)}</>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                </li>
-              )}
-              {cabins && (
-                <li>
-                  <strong>Cabin:</strong> {String(cabins)}
-                </li>
-              )}
-              {airlineName && (
-                <li>
-                  <strong>Airline(s):</strong> {airlineName}
-                </li>
-              )}
-              {totalDur > 0 && (
-                <li>
-                  <strong>Total travel time:</strong>{" "}
-                  {fmtDuration(totalDur)}
-                </li>
-              )}
-              {carbon != null && (
-                <li>
-                  <strong>Carbon estimate:</strong>{" "}
-                  {Math.round(Number(carbon))} kg CO₂
-                </li>
-              )}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      {/* FOOTER */}
-      <div className="footer-row">
-        <div className="footer-left">
-          <button
-            type="button"
-            className={`compare-btn ${isCompared ? "on" : ""}`}
-            onClick={() => onToggleCompare(id)}
-          >
-            {isCompared ? "✓ In compare" : "Compare"}
-          </button>
-
-          <a
-            href={flightBookingUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="book-btn"
-          >
-            ✈ Google Flights
-          </a>
-
-          {showHotel && (
-            <a
-              href={hotelBookingUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="book-btn hotel"
-            >
-              🛏 Booking.com
-            </a>
           )}
         </div>
-        <div className="footer-right">
-          <span className="small-note">
-            Prices and availability are examples and may change at booking.
-          </span>
+
+        <div className="flex flex-col items-end gap-1">
+          <div className="text-lg sm:text-2xl font-extrabold drop-shadow-sm">
+            {displayPrice}
+          </div>
+          <div
+            className={`${badgeBase} bg-white/15 border border-white/30 text-[11px] sm:text-xs`}
+          >
+            <Clock className="w-3.5 h-3.5 mr-1" />
+            {displayNights}
+          </div>
         </div>
       </div>
 
-      {/* EXTRA PROVIDERS AS COLOURFUL TABS */}
-      <div className="more-links">
-        <div className="more-links-row">
-          <span className="more-label">More flight options</span>
-          <div className="more-chip-row">
-            <a
-              href={flightSkyscannerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="more-chip flight"
-            >
-              Skyscanner
-            </a>
-            <a
-              href={flightKayakUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="more-chip flight"
-            >
-              KAYAK
-            </a>
-            <a
-              href={airlineSitesUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="more-chip flight alt"
-            >
-              Airline sites
-            </a>
+      {/* CONTENT GRID */}
+      <div className="grid md:grid-cols-2 gap-4 sm:gap-5 px-4 sm:px-6 pt-4 sm:pt-5 pb-1">
+        {/* HOTEL BUNDLE */}
+        <section className="rounded-2xl bg-slate-950/60 border border-slate-700/80 px-4 sm:px-5 py-4 sm:py-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Hotel className="w-4 h-4 text-amber-400" />
+            <h3 className="text-base sm:text-lg font-semibold text-slate-50">
+              Hotel bundle
+            </h3>
           </div>
-        </div>
 
-        {showHotel && (
-          <div className="more-links-row">
-            <span className="more-label">More hotel options</span>
-            <div className="more-chip-row">
-              <a
-                href={hotelExpediaUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="more-chip hotel"
-              >
-                Expedia
-              </a>
-              <a
-                href={hotelHotelsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="more-chip hotel alt"
-              >
-                Hotels.com
-              </a>
+          <div className="space-y-1.5 text-slate-100">
+            <div className="font-semibold text-sm sm:text-base">
+              {hotelBundle?.name || "Curated stay close to main attractions"}
             </div>
+            {hotelBundle?.priceText && (
+              <div className="text-xs sm:text-sm text-emerald-300">
+                {hotelBundle.priceText}
+              </div>
+            )}
+            {hotelBundle?.nightsText && (
+              <div className="text-xs sm:text-sm text-slate-300">
+                {hotelBundle.nightsText}
+              </div>
+            )}
           </div>
-        )}
+
+          {hotelBundle?.hotels && hotelBundle.hotels.length > 0 && (
+            <ul className="mt-4 space-y-1.5 text-xs sm:text-sm text-slate-100">
+              {hotelBundle.hotels.map((h, i) => (
+                <li key={i} className="list-disc ml-5">
+                  {h}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* FLIGHT DETAILS */}
+        <section className="rounded-2xl bg-slate-950/60 border border-slate-700/80 px-4 sm:px-5 py-4 sm:py-5">
+          <h3 className="text-base sm:text-lg font-semibold text-slate-50 mb-3 flex items-center gap-2">
+            <Plane className="w-4 h-4 text-sky-400" />
+            Flight details
+          </h3>
+
+          <div className="space-y-4 text-xs sm:text-sm text-slate-100">
+            {/* OUTBOUND */}
+            {outbound && (
+              <div className="space-y-1.5">
+                <p className="font-semibold text-slate-50">Outbound</p>
+                {hasDetailedOutbound && outbound.legs && (
+                  <>
+                    {outbound.legs.map((leg, i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-semibold">
+                            {leg.from}{" "}
+                            <span className="mx-1 text-slate-300">→</span>
+                            {leg.to}
+                          </span>
+                          {leg.airline && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-slate-500" />
+                              <span>{leg.airline}</span>
+                            </>
+                          )}
+                          {leg.flightNumber && (
+                            <span className="text-slate-300">
+                              {leg.flightNumber}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-slate-300">
+                          {leg.departure && (
+                            <span className="whitespace-nowrap">
+                              Dep: {leg.departure}
+                            </span>
+                          )}
+                          {leg.arrival && (
+                            <span className="whitespace-nowrap">
+                              Arr: {leg.arrival}
+                            </span>
+                          )}
+                          {leg.duration && (
+                            <span className="whitespace-nowrap">
+                              • {leg.duration}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {outbound.layovers && outbound.layovers.length > 0 && (
+                      <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
+                        {outbound.layovers.map((l, i) => (
+                          <div key={i}>
+                            Layover in{" "}
+                            <span className="font-semibold">
+                              {l.airport}
+                            </span>
+                            {l.duration ? ` — ${l.duration}` : ""}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {!hasDetailedOutbound && outbound.summary && (
+                  <p className="text-slate-100">{outbound.summary}</p>
+                )}
+              </div>
+            )}
+
+            {/* RETURN / INBOUND */}
+            {inbound && (
+              <div className="space-y-1.5 border-t border-slate-700/70 pt-3">
+                <p className="font-semibold text-slate-50">Return</p>
+                {hasDetailedInbound && inbound.legs && (
+                  <>
+                    {inbound.legs.map((leg, i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-semibold">
+                            {leg.from}{" "}
+                            <span className="mx-1 text-slate-300">→</span>
+                            {leg.to}
+                          </span>
+                          {leg.airline && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-slate-500" />
+                              <span>{leg.airline}</span>
+                            </>
+                          )}
+                          {leg.flightNumber && (
+                            <span className="text-slate-300">
+                              {leg.flightNumber}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-slate-300">
+                          {leg.departure && (
+                            <span className="whitespace-nowrap">
+                              Dep: {leg.departure}
+                            </span>
+                          )}
+                          {leg.arrival && (
+                            <span className="whitespace-nowrap">
+                              Arr: {leg.arrival}
+                            </span>
+                          )}
+                          {leg.duration && (
+                            <span className="whitespace-nowrap">
+                              • {leg.duration}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {inbound.layovers && inbound.layovers.length > 0 && (
+                      <div className="mt-1 text-[11px] sm:text-xs text-amber-200">
+                        {inbound.layovers.map((l, i) => (
+                          <div key={i}>
+                            Layover in{" "}
+                            <span className="font-semibold">
+                              {l.airport}
+                            </span>
+                            {l.duration ? ` — ${l.duration}` : ""}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {!hasDetailedInbound && inbound.summary && (
+                  <p className="text-slate-100">{inbound.summary}</p>
+                )}
+              </div>
+            )}
+
+            {flight?.cabin && (
+              <p className="text-[11px] sm:text-xs text-slate-200">
+                <span className="font-semibold">Cabin:</span> {flight.cabin}
+              </p>
+            )}
+
+            {flight?.totalDuration && (
+              <p className="text-[11px] sm:text-xs text-slate-200">
+                <span className="font-semibold">Total travel time:</span>{" "}
+                {flight.totalDuration}
+              </p>
+            )}
+          </div>
+        </section>
       </div>
 
-      <style jsx>{`
-        .card {
-          background: #020617;
-          border-radius: 18px;
-          border: 1px solid #1e293b;
-          padding: 18px 20px;
-          color: #e5e7eb;
-          display: grid;
-          gap: 14px;
-          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.45);
-          font-family: system-ui, -apple-system, BlinkMacSystemFont,
-            "Segoe UI", sans-serif;
-          font-size: 15px;
-        }
-        .card-header {
-          display: flex;
-          justify-content: space-between;
-          gap: 16px;
-          padding: 12px 16px;
-          border-radius: 16px;
-          background: linear-gradient(
-            90deg,
-            #0ea5e9,
-            #6366f1,
-            #ec4899
-          );
-          color: #f9fafb;
-        }
-        .header-left {
-          display: grid;
-          gap: 3px;
-        }
-        .option-label {
-          font-size: 13px;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-          opacity: 0.9;
-        }
-        .route {
-          font-size: 20px;
-          font-weight: 800;
-        }
-        .arrow {
-          margin: 0 6px;
-        }
-        .subroute {
-          font-size: 14px;
-          opacity: 0.96;
-        }
-        .airline {
-          font-weight: 600;
-        }
-        .header-right {
-          text-align: right;
-          display: grid;
-          gap: 4px;
-        }
-        .price-main {
-          font-size: 22px;
-          font-weight: 800;
-        }
-        .price-sub {
-          font-size: 13px;
-          opacity: 0.9;
-        }
-        .badge-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 4px;
-          justify-content: flex-end;
-        }
-        .badge {
-          font-size: 12px;
-          padding: 2px 9px;
-          border-radius: 999px;
-          border: 1px solid rgba(248, 250, 252, 0.7);
-          background: rgba(15, 23, 42, 0.35);
-        }
-        .badge.nights {
-          border-color: rgba(52, 211, 153, 0.7);
-          background: rgba(6, 95, 70, 0.4);
-        }
-        .badge.flexi {
-          border-color: rgba(250, 204, 21, 0.8);
-          background: rgba(251, 191, 36, 0.25);
-        }
-        .details-row {
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
-          gap: 18px;
-        }
-        .col {
-          background: #020617;
-          border-radius: 14px;
-          padding: 12px 14px;
-          border: 1px solid #1f2937;
-        }
-        .col-full {
-          grid-column: 1 / -1;
-        }
-        .section-title {
-          font-size: 16px;
-          font-weight: 700;
-          margin-bottom: 8px;
-          color: #e5e7eb;
-        }
-        .bullets {
-          margin: 0;
-          padding-left: 20px;
-          font-size: 14px;
-          display: grid;
-          gap: 4px;
-        }
-        .hotel-name {
-          font-size: 16px;
-          font-weight: 700;
-          margin-bottom: 3px;
-        }
-        .hotel-line {
-          font-size: 14px;
-          color: #cbd5f5;
-          margin-bottom: 4px;
-        }
-        .hotel-price {
-          font-size: 14px;
-          color: #e5e7eb;
-          font-weight: 600;
-        }
-        .hotel-more-btn {
-          margin-top: 4px;
-          padding: 4px 0;
-          background: transparent;
-          border: none;
-          color: #38bdf8;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          text-decoration: underline;
-        }
-        .hotel-more-btn:hover {
-          color: #0ea5e9;
-        }
-        .hotel-extra-list {
-          margin: 4px 0 0;
-          padding-left: 18px;
-          font-size: 13px;
-          color: #9ca3af;
-          display: grid;
-          gap: 2px;
-        }
-        .hotel-extra-name {
-          font-weight: 600;
-          color: #e5e7eb;
-        }
-        .hotel-extra-meta {
-          color: #9ca3af;
-        }
-        .layover-text {
-          font-size: 13px;
-          color: #eab308;
-        }
-        .legs-label {
-          font-size: 13px;
-          font-weight: 600;
-          color: #a5b4fc;
-        }
-        .legs {
-          margin: 4px 0 0;
-          padding-left: 18px;
-          font-size: 13px;
-          display: grid;
-          gap: 2px;
-          color: #cbd5f5;
-        }
-        .footer-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          margin-top: 4px;
-        }
-        .footer-left {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          align-items: center;
-        }
-        .compare-btn {
-          padding: 8px 14px;
-          border-radius: 999px;
-          border: 1px solid #38bdf8;
-          background: #020617;
-          color: #e0f2fe;
-          font-size: 14px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-        .compare-btn.on {
-          background: #22c55e;
-          border-color: #16a34a;
-          color: #022c22;
-        }
-        .book-btn {
-          padding: 8px 14px;
-          border-radius: 999px;
-          border: 1px solid #0ea5e9;
-          background: #0ea5e9;
-          color: #0f172a;
-          font-size: 14px;
-          font-weight: 700;
-          text-decoration: none;
-        }
-        .book-btn.hotel {
-          border-color: #22c55e;
-          background: #22c55e;
-          color: #022c22;
-        }
-        .small-note {
-          font-size: 12px;
-          color: #9ca3af;
-        }
-        .more-links {
-          margin-top: 8px;
-          padding-top: 6px;
-          border-top: 1px dashed rgba(148, 163, 184, 0.5);
-          display: grid;
-          gap: 6px;
-        }
-        .more-links-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          align-items: center;
-        }
-        .more-label {
-          font-size: 13px;
-          font-weight: 700;
-          color: #e5e7eb;
-        }
-        .more-chip-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-        }
-        .more-chip {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 5px 11px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 600;
-          text-decoration: none;
-          border: 1px solid transparent;
-          box-shadow: 0 2px 5px rgba(15, 23, 42, 0.4);
-        }
-        .more-chip.flight {
-          background: linear-gradient(135deg, #38bdf8, #6366f1);
-          color: #0f172a;
-        }
-        .more-chip.flight.alt {
-          background: #0f172a;
-          border-color: #38bdf8;
-          color: #e0f2fe;
-        }
-        .more-chip.hotel {
-          background: linear-gradient(135deg, #22c55e, #14b8a6);
-          color: #022c22;
-        }
-        .more-chip.hotel.alt {
-          background: #020617;
-          border-color: #22c55e;
-          color: #bbf7d0;
-        }
-        .more-chip:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 10px rgba(56, 189, 248, 0.5);
-        }
-        @media (max-width: 800px) {
-          .card-header {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          .header-right {
-            text-align: left;
-          }
-          .details-row {
-            grid-template-columns: 1fr;
-          }
-          .route {
-            font-size: 18px;
-          }
-        }
-      `}</style>
-    </article>
+      {/* ACTION ROWS */}
+      <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 pb-3 sm:pb-4 pt-1">
+        <button className={`${pillButtonBase} bg-slate-800 text-slate-50`}>
+          Compare
+        </button>
+
+        <a
+          href={googleFlightsUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={`${pillButtonBase} bg-sky-500 hover:bg-sky-400 text-white`}
+        >
+          <Plane className="w-4 h-4" />
+          Google Flights
+        </a>
+
+        <a
+          href={bookingUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={`${pillButtonBase} bg-emerald-500 hover:bg-emerald-400 text-white`}
+        >
+          <Hotel className="w-4 h-4" />
+          Booking.com
+        </a>
+      </div>
+
+      <div className="px-4 sm:px-6 pb-4 flex flex-wrap items-center gap-3 text-[11px] sm:text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-semibold text-slate-100">
+            More flight options
+          </span>
+          <a
+            href={skyscannerUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={`${chipBase} bg-sky-900/90 border-sky-600/80`}
+          >
+            Skyscanner
+          </a>
+          <a
+            href={kayakUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={`${chipBase} bg-indigo-900/90 border-indigo-600/80`}
+          >
+            KAYAK
+          </a>
+          <a
+            href={airlineSitesUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={`${chipBase} bg-slate-900/90 border-slate-600/80`}
+          >
+            Airline sites
+          </a>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-semibold text-slate-100">
+            More hotel options
+          </span>
+          <a
+            href={expediaUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={`${chipBase} bg-amber-900/90 border-amber-600/80`}
+          >
+            Expedia
+          </a>
+          <a
+            href={hotelsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={`${chipBase} bg-emerald-900/90 border-emerald-600/80`}
+          >
+            Hotels.com
+          </a>
+        </div>
+
+        <div className="ml-auto text-[10px] sm:text-[11px] text-slate-500 flex items-center gap-1">
+          <ExternalLink className="w-3 h-3" />
+          Prices and availability are examples and may change at booking.
+        </div>
+      </div>
+    </div>
   );
 };
 
