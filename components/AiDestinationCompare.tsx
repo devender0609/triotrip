@@ -9,7 +9,7 @@ const AI_ENABLED =
   process.env.NEXT_PUBLIC_AI_ENABLED === "1";
 
 type AirportRec = {
-  role: string; // e.g. "primary_hub"
+  role: string;
   name: string;
   code: string;
   reason: string;
@@ -38,7 +38,7 @@ type CompareResponse = {
   comparisons: Comparison[];
 };
 
-export function AiDestinationCompare() {
+export default function AiDestinationCompare() {
   const [input, setInput] = useState("Bali, Thailand, Hawaii");
   const [month, setMonth] = useState("December");
   const [days, setDays] = useState(7);
@@ -47,27 +47,7 @@ export function AiDestinationCompare() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<Comparison[] | null>(null);
 
-  if (!AI_ENABLED) {
-    return (
-      <section
-        style={{
-          marginTop: 24,
-          padding: 16,
-          borderRadius: 16,
-          border: "1px solid #e2e8f0",
-          background: "#f8fafc",
-        }}
-      >
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-          AI Destination Compare (temporarily disabled)
-        </h2>
-        <p style={{ fontSize: 15, color: "#475569" }}>
-          Once AI is enabled again, you&apos;ll be able to compare destinations
-          side-by-side here.
-        </p>
-      </section>
-    );
-  }
+  if (!AI_ENABLED) return null;
 
   async function handleCompare(e: React.FormEvent) {
     e.preventDefault();
@@ -85,13 +65,15 @@ export function AiDestinationCompare() {
       setLoading(true);
       setError(null);
       setData(null);
+
       const res = (await aiCompareDestinations({
         destinations,
         month: month || undefined,
         home,
         days,
       })) as CompareResponse;
-      setData(res.comparisons as any);
+
+      setData(res.comparisons);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
     } finally {
@@ -119,26 +101,46 @@ export function AiDestinationCompare() {
     <section
       style={{
         marginTop: 24,
-        background: "#0f172a",
-        color: "white",
-        borderRadius: 16,
         padding: 20,
+        borderRadius: 16,
+        border: "1px solid #0f172a",
+        background: "#020617",
+        color: "#e5e7eb",
         display: "grid",
         gap: 12,
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
       }}
     >
-      <h2 style={{ fontSize: 22, fontWeight: 800 }}>
-        Compare destinations with AI 🌍
-      </h2>
-      <p style={{ fontSize: 15, opacity: 0.9, maxWidth: 900, lineHeight: 1.5 }}>
-        Not sure where to go? Enter a few places and we&apos;ll compare them for
-        cost, weather, food, hotels, nightlife, family-friendliness, safety, and
-        the best airports to use.
-      </p>
+      {/* HEADER (match Plan my trip with AI) */}
+      <div style={{ display: "grid", gap: 6 }}>
+        <div
+          style={{
+            fontSize: 22,
+            fontWeight: 800,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <span>Compare destinations with AI</span>
+          <span>🌍</span>
+        </div>
+        <p
+          style={{
+            fontSize: 14,
+            color: "#cbd5f5",
+            maxWidth: 900,
+            lineHeight: 1.5,
+          }}
+        >
+          Not sure where to go? Enter a few places and we&apos;ll compare them
+          for cost, weather, food, hotels, nightlife, family-friendliness,
+          safety, and the best airports to use.
+        </p>
+      </div>
 
-      {/* Form */}
+      {/* FORM – dark inputs + gradient button like AI planner */}
       <form
         onSubmit={handleCompare}
         style={{
@@ -170,7 +172,8 @@ export function AiDestinationCompare() {
               borderRadius: 12,
               border: "1px solid #1e293b",
               fontSize: 15,
-              color: "#0f172a",
+              color: "#f9fafb",
+              background: "#020617",
             }}
           />
         </div>
@@ -196,7 +199,8 @@ export function AiDestinationCompare() {
               borderRadius: 12,
               border: "1px solid #1e293b",
               fontSize: 15,
-              color: "#0f172a",
+              color: "#f9fafb",
+              background: "#020617",
             }}
           >
             {MONTH_OPTIONS.map((m) => (
@@ -233,7 +237,8 @@ export function AiDestinationCompare() {
               borderRadius: 12,
               border: "1px solid #1e293b",
               fontSize: 15,
-              color: "#0f172a",
+              color: "#f9fafb",
+              background: "#020617",
             }}
           />
         </div>
@@ -260,7 +265,8 @@ export function AiDestinationCompare() {
               borderRadius: 12,
               border: "1px solid #1e293b",
               fontSize: 15,
-              color: "#0f172a",
+              color: "#f9fafb",
+              background: "#020617",
             }}
           />
         </div>
@@ -273,14 +279,14 @@ export function AiDestinationCompare() {
             style={{
               width: "100%",
               borderRadius: 999,
-              padding: "11px 16px",
+              padding: "12px 18px",
               border: "none",
               fontWeight: 700,
-              fontSize: 16,
+              fontSize: 15,
               cursor: loading ? "default" : "pointer",
               background:
-                "linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%)",
-              color: "white",
+                "linear-gradient(90deg, #0ea5e9, #6366f1, #ec4899)",
+              color: "#fff",
               opacity: loading ? 0.7 : 1,
             }}
           >
@@ -289,16 +295,27 @@ export function AiDestinationCompare() {
         </div>
       </form>
 
-      {/* Error */}
+      {/* ERROR */}
       {error && (
-        <p style={{ color: "#fecaca", fontSize: 14 }}>❌ {error}</p>
+        <div
+          style={{
+            borderRadius: 12,
+            border: "1px solid rgba(248,113,113,0.6)",
+            background: "rgba(153,27,27,0.35)",
+            padding: 10,
+            fontSize: 13,
+            color: "#fecaca",
+          }}
+        >
+          ❌ {error}
+        </div>
       )}
 
-      {/* Results */}
+      {/* RESULTS – dark cards to match AI planner results */}
       {data && (
         <div
           style={{
-            marginTop: 10,
+            marginTop: 8,
             display: "grid",
             gap: 12,
             gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
@@ -312,6 +329,8 @@ export function AiDestinationCompare() {
     </section>
   );
 }
+
+/* ---------- HELPERS ---------- */
 
 function labelForRole(role: string): string {
   const r = role.toLowerCase();
@@ -351,51 +370,66 @@ function SectionRow({
     <div style={{ marginTop: 6 }}>
       <div
         style={{
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 700,
-          letterSpacing: 0.3,
+          letterSpacing: 0.4,
           textTransform: "uppercase",
-          opacity: 0.9,
+          color: "#93c5fd",
         }}
       >
         {label}
       </div>
-      <div style={{ fontSize: 14, marginTop: 2 }}>{value}</div>
+      <div style={{ fontSize: 14, marginTop: 2, color: "#e5e7eb" }}>
+        {value}
+      </div>
     </div>
   );
 }
+
+/* ---------- RESULT CARD (MATCHES OTHER DARK CARDS) ---------- */
 
 function DestinationCard({ d }: { d: Comparison }) {
   const cLabel = costLabel(d.approx_cost_level);
 
   return (
-    <div
+    <article
       style={{
         borderRadius: 16,
-        background: "#020617",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(12,74,110,0.85))",
         border: "1px solid #1e293b",
         padding: 14,
         fontSize: 14,
         display: "grid",
         gap: 6,
+        boxShadow: "0 10px 25px rgba(15,23,42,0.55)",
       }}
     >
+      {/* Header row */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "baseline",
-          marginBottom: 2,
           gap: 8,
         }}
       >
-        <h3 style={{ fontSize: 16, fontWeight: 700 }}>{d.name}</h3>
+        <h3
+          style={{
+            fontSize: 16,
+            fontWeight: 800,
+            color: "#f9fafb",
+          }}
+        >
+          {d.name}
+        </h3>
         <span
           style={{
             fontSize: 12,
             padding: "3px 8px",
             borderRadius: 999,
             border: "1px solid #38bdf8",
+            color: "#e0f2fe",
             whiteSpace: "nowrap",
           }}
         >
@@ -403,32 +437,55 @@ function DestinationCard({ d }: { d: Comparison }) {
         </span>
       </div>
 
-      <div>
+      <div style={{ fontSize: 14, color: "#e5e7eb" }}>
         <strong>Best for:</strong> {d.best_for}
       </div>
-      <div>
+      <div style={{ fontSize: 14, color: "#e5e7eb" }}>
         <strong>Weather:</strong> {d.weather_summary}
       </div>
 
+      {/* Pros & Cons */}
       <div style={{ marginTop: 4 }}>
-        <strong>Pros:</strong>
-        <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#bbf7d0",
+            marginBottom: 2,
+          }}
+        >
+          ✅ Pros
+        </div>
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
           {(d.pros || []).map((p, i) => (
-            <li key={i}>{p}</li>
+            <li key={i} style={{ marginBottom: 2 }}>
+              {p}
+            </li>
           ))}
         </ul>
       </div>
 
       <div style={{ marginTop: 4 }}>
-        <strong>Cons:</strong>
-        <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#fecaca",
+            marginBottom: 2,
+          }}
+        >
+          ⚠️ Cons
+        </div>
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
           {(d.cons || []).map((c, i) => (
-            <li key={i}>{c}</li>
+            <li key={i} style={{ marginBottom: 2 }}>
+              {c}
+            </li>
           ))}
         </ul>
       </div>
 
-      {/* New detailed sections */}
+      {/* Detail rows */}
       <SectionRow
         label="Dining & local eats"
         value={d.dining_and_local_eats}
@@ -456,32 +513,27 @@ function DestinationCard({ d }: { d: Comparison }) {
         value={d.typical_daily_budget}
       />
 
+      {/* Airports */}
       {d.airports && d.airports.length > 0 && (
         <div style={{ marginTop: 8 }}>
           <div
             style={{
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 700,
               textTransform: "uppercase",
-              letterSpacing: 0.3,
-              opacity: 0.9,
+              letterSpacing: 0.4,
+              color: "#93c5fd",
             }}
           >
             Suggested airports
           </div>
-          <div
-            style={{
-              display: "grid",
-              gap: 6,
-              marginTop: 4,
-            }}
-          >
+          <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
             {d.airports.map((a, i) => (
               <div
                 key={i}
                 style={{
                   padding: 8,
-                  borderRadius: 10,
+                  borderRadius: 12,
                   border: "1px solid #1e293b",
                   background: "#020617",
                 }}
@@ -499,7 +551,7 @@ function DestinationCard({ d }: { d: Comparison }) {
                       {a.name} ({a.code})
                     </strong>
                   </span>
-                  <span style={{ opacity: 0.85 }}>
+                  <span style={{ opacity: 0.9 }}>
                     {labelForRole(a.role)}
                   </span>
                 </div>
@@ -512,12 +564,17 @@ function DestinationCard({ d }: { d: Comparison }) {
         </div>
       )}
 
-      <div style={{ marginTop: 6, fontStyle: "italic", color: "#cbd5f5" }}>
+      {/* Overall vibe */}
+      <div
+        style={{
+          marginTop: 6,
+          fontStyle: "italic",
+          fontSize: 14,
+          color: "#e5e7eb",
+        }}
+      >
         {d.overall_vibe}
       </div>
-    </div>
+    </article>
   );
 }
-
-// ✅ default export so both default and named imports work
-export default AiDestinationCompare;
