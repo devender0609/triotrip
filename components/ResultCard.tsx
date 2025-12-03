@@ -1,15 +1,10 @@
 "use client";
 
 import React from "react";
-import {
-  Plane,
-  Hotel,
-  Clock,
-  ExternalLink,
-} from "lucide-react";
+import { Plane, Hotel, Clock, ExternalLink } from "lucide-react";
 
 export interface ResultCardProps {
-  pkg: any;                 // flight + hotel package
+  pkg: any; // flight + hotel package
   index: number;
   currency: string;
   pax?: number;
@@ -55,7 +50,7 @@ type HotelBundle = {
   name?: string;
   priceText?: string;
   nightsText?: string;
-  hotels?: string[];
+  hotels?: any[]; // can be strings OR objects
 };
 
 const badgeBase =
@@ -65,28 +60,16 @@ const pillButtonBase =
 const chipBase =
   "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/80 text-slate-100 border border-slate-700/60";
 
-const ResultCard: React.FC<ResultCardProps> = ({
-  pkg,
-  index,
-  currency,
-}) => {
-  // Hard guard: if pkg is missing, don't render anything (prevents runtime crash)
-  if (!pkg) {
-    return null;
-  }
+const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
+  // If pkg is missing for any reason, don't render the card at all
+  if (!pkg) return null;
 
   const currencyCode: CurrencyCode = currency || "USD";
 
   const title: string =
-    pkg.title ||
-    pkg.label ||
-    pkg.name ||
-    `Option ${index + 1}`;
+    pkg.title || pkg.label || pkg.name || `Option ${index + 1}`;
 
-  const totalPrice =
-    pkg.totalPrice ??
-    pkg.price ??
-    pkg.amount;
+  const totalPrice = pkg.totalPrice ?? pkg.price ?? pkg.amount;
 
   const priceText: string =
     pkg.priceText ||
@@ -101,8 +84,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
     (pkg.nights ? `${pkg.nights} nights hotel` : "") ||
     "Trip bundle";
 
-  const hotelBundleRaw: any =
-    pkg.hotelBundle || pkg.hotel || pkg.hotels || {};
+  const hotelBundleRaw: any = pkg.hotelBundle || pkg.hotel || pkg.hotels || {};
 
   const hotelBundle: HotelBundle = {
     name:
@@ -111,9 +93,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
       pkg.primaryHotel ||
       "Curated stay close to main attractions",
     priceText:
-      hotelBundleRaw.priceText ||
-      pkg.hotelPriceText ||
-      pkg.hotelPrice,
+      hotelBundleRaw.priceText || pkg.hotelPriceText || pkg.hotelPrice,
     nightsText:
       hotelBundleRaw.nightsText ||
       (pkg.hotelNights ? `${pkg.hotelNights} nights` : undefined),
@@ -124,11 +104,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
       : [],
   };
 
-  const flightRaw: FlightInfo =
-    pkg.flight ||
-    pkg.flightInfo ||
-    pkg.flights ||
-    {};
+  const flightRaw: FlightInfo = pkg.flight || pkg.flightInfo || pkg.flights || {};
 
   const outbound: FlightDirection | undefined =
     (flightRaw as any).outbound ||
@@ -147,9 +123,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
     ? inbound!.legs!
     : [];
 
-  const outboundLayovers: LayoverInfo[] = Array.isArray(
-    outbound?.layovers,
-  )
+  const outboundLayovers: LayoverInfo[] = Array.isArray(outbound?.layovers)
     ? outbound!.layovers!
     : [];
   const inboundLayovers: LayoverInfo[] = Array.isArray(inbound?.layovers)
@@ -159,12 +133,10 @@ const ResultCard: React.FC<ResultCardProps> = ({
   const hasDetailedOutbound = outboundLegs.length > 0;
   const hasDetailedInbound = inboundLegs.length > 0;
 
-  const totalDuration =
-    flightRaw.totalDuration ||
-    (pkg as any).totalDuration;
-
+  const totalDuration = flightRaw.totalDuration || (pkg as any).totalDuration;
   const cabin = flightRaw.cabin || (pkg as any).cabin;
 
+  // Stub URLs – you can wire with real deeplinks later
   const googleFlightsUrl = "#";
   const bookingUrl = "#";
   const airlineSitesUrl = "#";
@@ -172,6 +144,77 @@ const ResultCard: React.FC<ResultCardProps> = ({
   const kayakUrl = "#";
   const expediaUrl = "#";
   const hotelsUrl = "#";
+
+  // Helper to render each hotel entry safely
+  const renderHotelRow = (hotel: any, i: number) => {
+    if (hotel == null) return null;
+
+    // If it's a simple string, just show it
+    if (typeof hotel === "string" || typeof hotel === "number") {
+      return (
+        <li key={i} className="list-disc ml-5">
+          {String(hotel)}
+        </li>
+      );
+    }
+
+    // If it's an object (with keys like name, star, city, price_converted, currency, imageUrl, deeplinks)
+    if (typeof hotel === "object") {
+      const name = hotel.name || "Hotel";
+      const star = hotel.star ? `${hotel.star}★` : "";
+      const city = hotel.city || "";
+      const price =
+        hotel.price_converted && hotel.currency
+          ? `${hotel.price_converted} ${hotel.currency}`
+          : "";
+      const deeplink: string | undefined =
+        hotel.deeplinks?.[0] ||
+        hotel.deeplink ||
+        hotel.url ||
+        undefined;
+
+      return (
+        <li key={i} className="ml-1 mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 rounded-xl bg-slate-900/70 border border-slate-700/80 px-3 py-2">
+            <div className="flex flex-col">
+              <span className="font-semibold text-slate-50 text-sm">
+                {name}
+              </span>
+              <span className="text-[11px] sm:text-xs text-slate-300">
+                {star && <span className="mr-1">{star}</span>}
+                {city}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {price && (
+                <span className="text-xs sm:text-sm font-semibold text-emerald-300">
+                  {price}
+                </span>
+              )}
+              {deeplink && (
+                <a
+                  href={deeplink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-white"
+                >
+                  View deal
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          </div>
+        </li>
+      );
+    }
+
+    // Fallback – shouldn't really get here, but just in case
+    return (
+      <li key={i} className="list-disc ml-5">
+        {String(hotel)}
+      </li>
+    );
+  };
 
   return (
     <div className="rounded-3xl bg-slate-900/90 border border-slate-700/80 shadow-xl overflow-hidden mb-6">
@@ -203,9 +246,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
                   <span className="w-1 h-1 rounded-full bg-white/60" />
                   <span>
                     {outboundLayovers.length}{" "}
-                    {outboundLayovers.length === 1
-                      ? "stop"
-                      : "stops"}
+                    {outboundLayovers.length === 1 ? "stop" : "stops"}
                   </span>
                 </>
               )}
@@ -263,11 +304,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
           {Array.isArray(hotelBundle.hotels) &&
             hotelBundle.hotels.length > 0 && (
               <ul className="mt-4 space-y-1.5 text-xs sm:text-sm text-slate-100">
-                {hotelBundle.hotels.map((h: string, i: number) => (
-                  <li key={i} className="list-disc ml-5">
-                    {h}
-                  </li>
-                ))}
+                {hotelBundle.hotels.map(renderHotelRow)}
               </ul>
             )}
         </section>
@@ -283,9 +320,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
             {/* OUTBOUND */}
             {outbound && (
               <div className="space-y-1.5">
-                <p className="font-semibold text-slate-50">
-                  Outbound
-                </p>
+                <p className="font-semibold text-slate-50">Outbound</p>
 
                 {hasDetailedOutbound && outboundLegs.length > 0 ? (
                   <>
@@ -297,9 +332,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-semibold">
                             {leg.from}{" "}
-                            <span className="mx-1 text-slate-300">
-                              →
-                            </span>
+                            <span className="mx-1 text-slate-300">→</span>
                             {leg.to}
                           </span>
                           {leg.airline && (
@@ -339,9 +372,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
                         {outboundLayovers.map((l, i) => (
                           <div key={i}>
                             Layover in{" "}
-                            <span className="font-semibold">
-                              {l.airport}
-                            </span>
+                            <span className="font-semibold">{l.airport}</span>
                             {l.duration ? ` — ${l.duration}` : ""}
                           </div>
                         ))}
@@ -349,9 +380,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
                     )}
                   </>
                 ) : outbound.summary ? (
-                  <p className="text-slate-100">
-                    {outbound.summary}
-                  </p>
+                  <p className="text-slate-100">{outbound.summary}</p>
                 ) : (
                   <p className="text-slate-400">
                     Flight details not available.
@@ -363,9 +392,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
             {/* RETURN / INBOUND */}
             {inbound && (
               <div className="space-y-1.5 border-t border-slate-700/70 pt-3">
-                <p className="font-semibold text-slate-50">
-                  Return
-                </p>
+                <p className="font-semibold text-slate-50">Return</p>
 
                 {hasDetailedInbound && inboundLegs.length > 0 ? (
                   <>
@@ -377,9 +404,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-semibold">
                             {leg.from}{" "}
-                            <span className="mx-1 text-slate-300">
-                              →
-                            </span>
+                            <span className="mx-1 text-slate-300">→</span>
                             {leg.to}
                           </span>
                           {leg.airline && (
@@ -419,9 +444,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
                         {inboundLayovers.map((l, i) => (
                           <div key={i}>
                             Layover in{" "}
-                            <span className="font-semibold">
-                              {l.airport}
-                            </span>
+                            <span className="font-semibold">{l.airport}</span>
                             {l.duration ? ` — ${l.duration}` : ""}
                           </div>
                         ))}
@@ -429,9 +452,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
                     )}
                   </>
                 ) : inbound.summary ? (
-                  <p className="text-slate-100">
-                    {inbound.summary}
-                  </p>
+                  <p className="text-slate-100">{inbound.summary}</p>
                 ) : (
                   <p className="text-slate-400">
                     Flight details not available.
@@ -442,16 +463,13 @@ const ResultCard: React.FC<ResultCardProps> = ({
 
             {cabin && (
               <p className="text-[11px] sm:text-xs text-slate-200">
-                <span className="font-semibold">Cabin:</span>{" "}
-                {cabin}
+                <span className="font-semibold">Cabin:</span> {cabin}
               </p>
             )}
 
             {totalDuration && (
               <p className="text-[11px] sm:text-xs text-slate-200">
-                <span className="font-semibold">
-                  Total travel time:
-                </span>{" "}
+                <span className="font-semibold">Total travel time:</span>{" "}
                 {totalDuration}
               </p>
             )}
