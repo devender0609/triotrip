@@ -38,6 +38,104 @@ const fmtDuration = (minutes: number | undefined) => {
 const sumDuration = (segs: any[]): number =>
   segs.reduce((t, s) => t + (Number(s?.duration_minutes) || 0), 0);
 
+/* ===== helpers to show leg + layover details ===== */
+
+const getAirportCodeFromSeg = (seg: any, kind: "origin" | "destination") => {
+  if (!seg) return "";
+  const keys =
+    kind === "origin"
+      ? [
+          "origin",
+          "from",
+          "departureAirportCode",
+          "departureAirport",
+          "departure",
+        ]
+      : [
+          "destination",
+          "to",
+          "arrivalAirportCode",
+          "arrivalAirport",
+          "arrival",
+        ];
+  for (const k of keys) {
+    const v = seg[k];
+    if (typeof v === "string" && v.trim()) {
+      // if it's like "AUS - Austin", just keep the code
+      const code = v.split(/[\s-]/)[0];
+      return code.toUpperCase();
+    }
+  }
+  return "";
+};
+
+const getTimeString = (raw: any) => {
+  if (!raw) return "";
+  const s = String(raw);
+  // ISO or "2025-01-01T12:34"
+  try {
+    if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) {
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        const hours = d.getHours().toString().padStart(2, "0");
+        const mins = d.getMinutes().toString().padStart(2, "0");
+        return `${hours}:${mins}`;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  // fallback – strip date if possible
+  const m = s.match(/T(\d{2}:\d{2})/);
+  if (m) return m[1];
+  return s;
+};
+
+type LegInfo = {
+  from: string;
+  to: string;
+  carrier: string;
+  flightNo: string;
+  departTime: string;
+  arriveTime: string;
+  durationMinutes?: number;
+};
+
+const buildLegs = (segs: any[]): LegInfo[] => {
+  if (!Array.isArray(segs)) return [];
+  return segs.map((s) => {
+    const from = getAirportCodeFromSeg(s, "origin");
+    const to = getAirportCodeFromSeg(s, "destination");
+    const carrier =
+      s.marketingCarrierName ||
+      s.carrierName ||
+      s.airlineName ||
+      s.marketingCarrier ||
+      s.carrierCode ||
+      s.airline ||
+      "";
+    const flightNo =
+      s.flightNumber || s.marketingFlightNumber || s.number || "";
+    const departTime =
+      getTimeString(s.departureTime || s.departureDateTime || s.departure) ||
+      "";
+    const arriveTime =
+      getTimeString(s.arrivalTime || s.arrivalDateTime || s.arrival) ||
+      "";
+    const durationMinutes = Number(s.duration_minutes) || undefined;
+
+    return {
+      from,
+      to,
+      carrier,
+      flightNo,
+      departTime,
+      arriveTime,
+      durationMinutes,
+    };
+  });
+};
+
 const extractAirline = (flight: any): string => {
   if (!flight) return "";
   const segs = flight.segments_out || flight.segments || [];
@@ -94,6 +192,9 @@ const ResultCard: React.FC<Props> = ({
   const outDur = sumDuration(segOut);
   const backDur = sumDuration(segBack);
   const totalDur = outDur + backDur;
+
+  const legsOut = buildLegs(segOut);
+  const legsBack = buildLegs(segBack);
 
   const flightBase =
     pkg.flight_total ??
@@ -194,6 +295,19 @@ const ResultCard: React.FC<Props> = ({
   const hotelHotelsUrl = `https://www.hotels.com/search.do?destination=${encodeURIComponent(
     hotelCity
   )}`;
+
+  // Build layover description
+  const layoverText = (segs: any[]) => {
+    if (!Array.isArray(segs) || segs.length <= 1) return "";
+    const stops = segs.slice(0, -1).map((s) =>
+      getAirportCodeFromSeg(s, "destination")
+    );
+    const unique = Array.from(new Set(stops.filter(Boolean)));
+    if (!unique.length) return "";
+    if (unique.length === 1) return `Layover in ${unique[0]}`;
+    if (unique.length === 2) return `Layovers in ${unique[0]} and ${unique[1]}`;
+    return `Layovers in ${unique[0]} + ${unique.length - 1} more`;
+  };
 
   return (
     <article className="card">
@@ -317,28 +431,100 @@ const ResultCard: React.FC<Props> = ({
                 <li>
                   <strong>Outbound:</strong>{" "}
                   {originCode} → {destCode}{" "}
+                  {departDate ? `• ${departDate}` : ""}{" "}
                   {outDur ? `• ${fmtDuration(outDur)}` : ""}{" "}
                   {outStops === 0
                     ? "• Non-stop"
                     : outStops === 1
                     ? "• 1 stop"
                     : `• ${outStops} stops`}
+                  {layoverText(segOut) && (
+                    <>
+                      <br />
+                      <span className="layover-text">
+                        {layoverText(segOut)}
+                      </span>
+                    </>
+                  )}
                 </li>
+                {legsOut.length > 1 && (
+                  <li>
+                    <span className="legs-label">Legs:</span>
+                    <ul className="legs">
+                      {legsOut.map((leg, i) => (
+                        <li key={i}>
+                          Leg {i + 1}: {leg.from} → {leg.to}{" "}
+                          {leg.flightNo && (
+                            <>({leg.carrier} {leg.flightNo}) </>
+                          )}
+                          {leg.departTime && (
+                            <>• Dep {leg.departTime} </>
+                          )}
+                          {leg.arriveTime && (
+                            <>• Arr {leg.arriveTime} </>
+                          )}
+                          {leg.durationMinutes && (
+                            <>• {fmtDuration(leg.durationMinutes)}</>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                )}
                 {segBack && segBack.length > 0 && (
                   <li>
                     <strong>Return:</strong>{" "}
                     {destCode} → {originCode}{" "}
+                    {returnDate ? `• ${returnDate}` : ""}{" "}
                     {backDur ? `• ${fmtDuration(backDur)}` : ""}{" "}
                     {backStops === 0
                       ? "• Non-stop"
                       : backStops === 1
                       ? "• 1 stop"
                       : `• ${backStops} stops`}
+                    {layoverText(segBack) && (
+                      <>
+                        <br />
+                        <span className="layover-text">
+                          {layoverText(segBack)}
+                        </span>
+                      </>
+                    )}
+                    {legsBack.length > 1 && (
+                      <>
+                        <br />
+                        <span className="legs-label">Return legs:</span>
+                        <ul className="legs">
+                          {legsBack.map((leg, i) => (
+                            <li key={i}>
+                              Leg {i + 1}: {leg.from} → {leg.to}{" "}
+                              {leg.flightNo && (
+                                <>({leg.carrier} {leg.flightNo}) </>
+                              )}
+                              {leg.departTime && (
+                                <>• Dep {leg.departTime} </>
+                              )}
+                              {leg.arriveTime && (
+                                <>• Arr {leg.arriveTime} </>
+                              )}
+                              {leg.durationMinutes && (
+                                <>• {fmtDuration(leg.durationMinutes)}</>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                   </li>
                 )}
                 {cabins && (
                   <li>
                     <strong>Cabin:</strong> {String(cabins)}
+                  </li>
+                )}
+                {airlineName && (
+                  <li>
+                    <strong>Airline(s):</strong> {airlineName}
                   </li>
                 )}
                 {totalDur > 0 && (
@@ -362,23 +548,86 @@ const ResultCard: React.FC<Props> = ({
             <ul className="bullets">
               <li>
                 <strong>Route:</strong> {originCode} → {destCode}{" "}
+                {departDate ? `• ${departDate}` : ""}{" "}
                 {outDur ? `• ${fmtDuration(outDur)}` : ""}{" "}
                 {outStops === 0
                   ? "• Non-stop"
                   : outStops === 1
                   ? "• 1 stop"
                   : `• ${outStops} stops`}
+                {layoverText(segOut) && (
+                  <>
+                    <br />
+                    <span className="layover-text">
+                      {layoverText(segOut)}
+                    </span>
+                  </>
+                )}
               </li>
+              {legsOut.length > 1 && (
+                <li>
+                  <span className="legs-label">Legs:</span>
+                  <ul className="legs">
+                    {legsOut.map((leg, i) => (
+                      <li key={i}>
+                        Leg {i + 1}: {leg.from} → {leg.to}{" "}
+                        {leg.flightNo && (
+                          <>({leg.carrier} {leg.flightNo}) </>
+                        )}
+                        {leg.departTime && <>• Dep {leg.departTime} </>}
+                        {leg.arriveTime && <>• Arr {leg.arriveTime} </>}
+                        {leg.durationMinutes && (
+                          <>• {fmtDuration(leg.durationMinutes)}</>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              )}
               {segBack && segBack.length > 0 && (
                 <li>
                   <strong>Return:</strong>{" "}
                   {destCode} → {originCode}{" "}
+                  {returnDate ? `• ${returnDate}` : ""}{" "}
                   {backDur ? `• ${fmtDuration(backDur)}` : ""}{" "}
                   {backStops === 0
                     ? "• Non-stop"
                     : backStops === 1
                     ? "• 1 stop"
                     : `• ${backStops} stops`}
+                  {layoverText(segBack) && (
+                    <>
+                      <br />
+                      <span className="layover-text">
+                        {layoverText(segBack)}
+                      </span>
+                    </>
+                  )}
+                  {legsBack.length > 1 && (
+                    <>
+                      <br />
+                      <span className="legs-label">Return legs:</span>
+                      <ul className="legs">
+                        {legsBack.map((leg, i) => (
+                          <li key={i}>
+                            Leg {i + 1}: {leg.from} → {leg.to}{" "}
+                            {leg.flightNo && (
+                              <>({leg.carrier} {leg.flightNo}) </>
+                            )}
+                            {leg.departTime && (
+                              <>• Dep {leg.departTime} </>
+                            )}
+                            {leg.arriveTime && (
+                              <>• Arr {leg.arriveTime} </>
+                            )}
+                            {leg.durationMinutes && (
+                              <>• {fmtDuration(leg.durationMinutes)}</>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </li>
               )}
               {cabins && (
@@ -388,7 +637,7 @@ const ResultCard: React.FC<Props> = ({
               )}
               {airlineName && (
                 <li>
-                  <strong>Airline:</strong> {airlineName}
+                  <strong>Airline(s):</strong> {airlineName}
                 </li>
               )}
               {totalDur > 0 && (
@@ -400,8 +649,8 @@ const ResultCard: React.FC<Props> = ({
               {carbon != null && (
                 <li>
                   <strong>Carbon estimate:</strong>{" "}
-                    {Math.round(Number(carbon))} kg CO₂
-                  </li>
+                  {Math.round(Number(carbon))} kg CO₂
+                </li>
               )}
             </ul>
           </div>
@@ -508,19 +757,20 @@ const ResultCard: React.FC<Props> = ({
           background: #020617;
           border-radius: 18px;
           border: 1px solid #1e293b;
-          padding: 16px 18px;
+          padding: 18px 20px;
           color: #e5e7eb;
           display: grid;
-          gap: 12px;
+          gap: 14px;
           box-shadow: 0 6px 18px rgba(15, 23, 42, 0.45);
           font-family: system-ui, -apple-system, BlinkMacSystemFont,
             "Segoe UI", sans-serif;
+          font-size: 15px;
         }
         .card-header {
           display: flex;
           justify-content: space-between;
           gap: 16px;
-          padding: 12px 14px;
+          padding: 12px 16px;
           border-radius: 16px;
           background: linear-gradient(
             90deg,
@@ -532,7 +782,7 @@ const ResultCard: React.FC<Props> = ({
         }
         .header-left {
           display: grid;
-          gap: 2px;
+          gap: 3px;
         }
         .option-label {
           font-size: 13px;
@@ -542,15 +792,15 @@ const ResultCard: React.FC<Props> = ({
           opacity: 0.9;
         }
         .route {
-          font-size: 19px;
+          font-size: 20px;
           font-weight: 800;
         }
         .arrow {
           margin: 0 6px;
         }
         .subroute {
-          font-size: 13px;
-          opacity: 0.95;
+          font-size: 14px;
+          opacity: 0.96;
         }
         .airline {
           font-weight: 600;
@@ -561,7 +811,7 @@ const ResultCard: React.FC<Props> = ({
           gap: 4px;
         }
         .price-main {
-          font-size: 21px;
+          font-size: 22px;
           font-weight: 800;
         }
         .price-sub {
@@ -575,8 +825,8 @@ const ResultCard: React.FC<Props> = ({
           justify-content: flex-end;
         }
         .badge {
-          font-size: 11px;
-          padding: 2px 8px;
+          font-size: 12px;
+          padding: 2px 9px;
           border-radius: 999px;
           border: 1px solid rgba(248, 250, 252, 0.7);
           background: rgba(15, 23, 42, 0.35);
@@ -592,42 +842,42 @@ const ResultCard: React.FC<Props> = ({
         .details-row {
           display: grid;
           grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
-          gap: 16px;
+          gap: 18px;
         }
         .col {
           background: #020617;
           border-radius: 14px;
-          padding: 10px 12px;
+          padding: 12px 14px;
           border: 1px solid #1f2937;
         }
         .col-full {
           grid-column: 1 / -1;
         }
         .section-title {
-          font-size: 15px;
+          font-size: 16px;
           font-weight: 700;
-          margin-bottom: 6px;
+          margin-bottom: 8px;
           color: #e5e7eb;
         }
         .bullets {
           margin: 0;
           padding-left: 20px;
-          font-size: 13px;
+          font-size: 14px;
           display: grid;
-          gap: 3px;
+          gap: 4px;
         }
         .hotel-name {
-          font-size: 15px;
+          font-size: 16px;
           font-weight: 700;
-          margin-bottom: 2px;
+          margin-bottom: 3px;
         }
         .hotel-line {
-          font-size: 13px;
+          font-size: 14px;
           color: #cbd5f5;
           margin-bottom: 4px;
         }
         .hotel-price {
-          font-size: 13px;
+          font-size: 14px;
           color: #e5e7eb;
           font-weight: 600;
         }
@@ -637,7 +887,7 @@ const ResultCard: React.FC<Props> = ({
           background: transparent;
           border: none;
           color: #38bdf8;
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 600;
           cursor: pointer;
           text-decoration: underline;
@@ -648,7 +898,7 @@ const ResultCard: React.FC<Props> = ({
         .hotel-extra-list {
           margin: 4px 0 0;
           padding-left: 18px;
-          font-size: 12px;
+          font-size: 13px;
           color: #9ca3af;
           display: grid;
           gap: 2px;
@@ -659,6 +909,23 @@ const ResultCard: React.FC<Props> = ({
         }
         .hotel-extra-meta {
           color: #9ca3af;
+        }
+        .layover-text {
+          font-size: 13px;
+          color: #eab308;
+        }
+        .legs-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: #a5b4fc;
+        }
+        .legs {
+          margin: 4px 0 0;
+          padding-left: 18px;
+          font-size: 13px;
+          display: grid;
+          gap: 2px;
+          color: #cbd5f5;
         }
         .footer-row {
           display: flex;
@@ -679,7 +946,7 @@ const ResultCard: React.FC<Props> = ({
           border: 1px solid #38bdf8;
           background: #020617;
           color: #e0f2fe;
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 700;
           cursor: pointer;
         }
@@ -694,7 +961,7 @@ const ResultCard: React.FC<Props> = ({
           border: 1px solid #0ea5e9;
           background: #0ea5e9;
           color: #0f172a;
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 700;
           text-decoration: none;
         }
@@ -704,7 +971,7 @@ const ResultCard: React.FC<Props> = ({
           color: #022c22;
         }
         .small-note {
-          font-size: 11px;
+          font-size: 12px;
           color: #9ca3af;
         }
         .more-links {
@@ -721,7 +988,7 @@ const ResultCard: React.FC<Props> = ({
           align-items: center;
         }
         .more-label {
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 700;
           color: #e5e7eb;
         }
@@ -734,7 +1001,7 @@ const ResultCard: React.FC<Props> = ({
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 5px 10px;
+          padding: 5px 11px;
           border-radius: 999px;
           font-size: 12px;
           font-weight: 600;
@@ -776,7 +1043,7 @@ const ResultCard: React.FC<Props> = ({
             grid-template-columns: 1fr;
           }
           .route {
-            font-size: 17px;
+            font-size: 18px;
           }
         }
       `}</style>

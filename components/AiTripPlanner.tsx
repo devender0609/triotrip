@@ -30,25 +30,31 @@ type AiTripPlannerProps = {
   }) => void;
 };
 
+/* ========= SHARED STYLES (BIGGER, CLEARER FONTS) ========= */
+
 const containerStyle: React.CSSProperties = {
   marginTop: 8,
-  padding: 20,
+  padding: 24,
   borderRadius: 16,
   border: "1px solid #0f172a",
   background: "#020617",
   color: "#e5e7eb",
   display: "grid",
-  gap: 16,
+  gap: 18,
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  fontSize: 15,
 };
 
 const boxTitle: React.CSSProperties = {
-  fontSize: 16,
+  fontSize: 18,
   fontWeight: 700,
-  marginBottom: 6,
+  marginBottom: 4,
 };
 
 const smallText: React.CSSProperties = {
-  fontSize: 14,
+  fontSize: 15,
+  lineHeight: 1.55,
   color: "#cbd5f5",
 };
 
@@ -57,12 +63,12 @@ const infoBarStyle: React.CSSProperties = {
   border: "1px solid rgba(56,189,248,0.5)",
   background:
     "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(8,47,73,0.95))",
-  padding: 12,
+  padding: 14,
 };
 
 const chipColGrid: React.CSSProperties = {
   display: "grid",
-  gap: 10,
+  gap: 12,
   gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
 };
 
@@ -71,24 +77,27 @@ const cardStyle: React.CSSProperties = {
   border: "1px solid rgba(30,64,175,0.6)",
   background:
     "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(12,74,110,0.9))",
-  padding: 12,
-  fontSize: 14,
+  padding: 14,
+  fontSize: 15,
+  lineHeight: 1.55,
 };
 
 const hotelCard: React.CSSProperties = {
   borderRadius: 16,
   border: "1px solid #1e293b",
   background: "#020617",
-  padding: 12,
-  fontSize: 14,
+  padding: 14,
+  fontSize: 15,
+  lineHeight: 1.55,
 };
 
 const dayCard: React.CSSProperties = {
   borderRadius: 16,
   border: "1px solid #1e293b",
   background: "#020617",
-  padding: 12,
-  fontSize: 14,
+  padding: 14,
+  fontSize: 15,
+  lineHeight: 1.55,
 };
 
 function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
@@ -99,7 +108,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
 
   if (!AI_ENABLED) return null;
 
-  /*************** TOP 3 (BOXES) ***************/
+  /* ========== TOP 3 STRIP ========== */
   const Top3Strip = ({ planning }: { planning: PlanningPayload }) => {
     const t = planning.top3;
     if (!t) return null;
@@ -111,12 +120,12 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     ];
 
     return (
-      <section style={{ display: "grid", gap: 10 }}>
+      <section style={{ display: "grid", gap: 12 }}>
         <div style={infoBarStyle}>
           <div
             style={{
               fontSize: 18,
-              fontWeight: 700,
+              fontWeight: 800,
               display: "flex",
               alignItems: "center",
               gap: 6,
@@ -168,7 +177,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                   <p
                     style={{
                       marginTop: 4,
-                      fontSize: 14,
+                      fontSize: 15,
                       color: "#e5e7eb",
                     }}
                   >
@@ -183,13 +192,13 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     );
   };
 
-  /*************** HOTELS (BOXES) ***************/
+  /* ========== HOTELS ========== */
   const HotelSection = () => {
     const hotels = Array.isArray(planning?.hotels) ? planning!.hotels : [];
     if (!hotels.length) return null;
 
     return (
-      <section style={{ display: "grid", gap: 10, marginTop: 12 }}>
+      <section style={{ display: "grid", gap: 12, marginTop: 12 }}>
         <div style={infoBarStyle}>
           <div style={boxTitle}>🏨 Hotel suggestions (AI)</div>
           <p style={smallText}>
@@ -216,7 +225,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                     letterSpacing: 0.4,
                     textTransform: "uppercase",
                     color: "#38bdf8",
-                    marginBottom: 4,
+                    marginBottom: 6,
                   }}
                 >
                   Hotel option {i + 1}
@@ -235,7 +244,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                   <div
                     style={{
                       color: "#cbd5f5",
-                      fontSize: 14,
+                      fontSize: 15,
                       marginBottom: 4,
                     }}
                   >
@@ -243,15 +252,21 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                   </div>
                 )}
                 {approx && (
-                  <div style={{ color: "#e5e7eb", fontSize: 14 }}>
+                  <div
+                    style={{
+                      color: "#e5e7eb",
+                      fontSize: 15,
+                      marginBottom: 4,
+                    }}
+                  >
                     <strong>Approx:</strong> {approx}
                   </div>
                 )}
                 {vibe && (
                   <p
                     style={{
-                      marginTop: 4,
-                      fontSize: 14,
+                      marginTop: 2,
+                      fontSize: 15,
                       color: "#e5e7eb",
                     }}
                   >
@@ -266,7 +281,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     );
   };
 
-  /*************** ITINERARY (DAY BOXES) ***************/
+  /* ========== ITINERARY ========== */
   const ItinerarySection = () => {
     const days = Array.isArray(planning?.itinerary)
       ? planning!.itinerary
@@ -275,7 +290,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     if (!days.length) return null;
 
     return (
-      <section style={{ display: "grid", gap: 10, marginTop: 14 }}>
+      <section style={{ display: "grid", gap: 12, marginTop: 14 }}>
         <div style={infoBarStyle}>
           <div style={boxTitle}>📅 Suggested Itinerary</div>
           <p style={smallText}>
@@ -284,7 +299,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
           </p>
         </div>
 
-        <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "grid", gap: 12 }}>
           {days.map((day: any, i: number) => {
             const title = day.title || `Day ${i + 1}`;
             const summary = day.summary || day.overview || "";
@@ -321,10 +336,11 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                         fontSize: 11,
                         textTransform: "uppercase",
                         borderRadius: 999,
-                        padding: "2px 10px",
+                        padding: "4px 11px",
                         border: "1px solid rgba(16,185,129,0.6)",
                         background: "rgba(6,95,70,0.35)",
-                        color: "#a7f3d0",
+                        color: "#6ee7b7",
+                        fontWeight: 600,
                       }}
                     >
                       {day.label}
@@ -335,9 +351,9 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                 {summary && (
                   <p
                     style={{
-                      fontSize: 14,
-                      color: "#e5e7eb",
                       marginBottom: 6,
+                      fontSize: 15,
+                      color: "#e5e7eb",
                     }}
                   >
                     {summary}
@@ -347,47 +363,33 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
                 {bullets.length > 0 && (
                   <ul
                     style={{
-                      listStyle: "none",
-                      paddingLeft: 0,
-                      margin: 0,
+                      paddingLeft: 18,
                       display: "grid",
                       gap: 4,
+                      margin: 0,
                     }}
                   >
                     {bullets.map((b: any, idx: number) => {
-                      if (typeof b === "string") {
-                        return (
-                          <li
-                            key={idx}
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 6,
-                              fontSize: 14,
-                              color: "#e5e7eb",
-                            }}
-                          >
-                            <span>•</span>
-                            <span>{b}</span>
-                          </li>
-                        );
-                      }
-                      const time = b.time || b.when;
-                      const text = b.text || b.title || b.activity || "";
+                      const text = typeof b === "string" ? b : b.text || "";
+                      const time = typeof b === "string" ? "" : b.time || "";
+                      if (!text) return null;
                       return (
                         <li
                           key={idx}
                           style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: 6,
-                            fontSize: 14,
+                            fontSize: 15,
                             color: "#e5e7eb",
+                            display: "flex",
+                            gap: 6,
                           }}
                         >
                           <span>{time ? "⏰" : "•"}</span>
                           <span>
-                            {time && <strong>{time}: </strong>}
+                            {time && (
+                              <strong>
+                                {time}:{" "}
+                              </strong>
+                            )}
                             {text}
                           </span>
                         </li>
@@ -403,7 +405,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     );
   };
 
-  /*************** SUBMIT HANDLER ***************/
+  /* ========== SUBMIT ========== */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -453,14 +455,14 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
     }
   }
 
-  /*************** RENDER ***************/
+  /* ========== RENDER ========== */
   return (
     <section style={containerStyle}>
       {/* HEADER */}
       <div style={{ display: "grid", gap: 6 }}>
         <div
           style={{
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: 800,
             display: "flex",
             alignItems: "center",
@@ -475,6 +477,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             fontSize: 15,
             color: "#cbd5f5",
             maxWidth: 720,
+            lineHeight: 1.6,
           }}
         >
           Tell us your trip idea in one sentence. We&apos;ll interpret it,
@@ -486,7 +489,7 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
       {/* INPUT + BUTTON */}
       <form
         onSubmit={handleSubmit}
-        style={{ display: "grid", gap: 10, marginTop: 6 }}
+        style={{ display: "grid", gap: 12, marginTop: 4 }}
       >
         <textarea
           value={prompt}
@@ -499,15 +502,16 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             border: "1px solid #1e293b",
             background: "#020617",
             color: "#f9fafb",
-            padding: 10,
-            fontSize: 15,
+            padding: 12,
+            fontSize: 16,
+            lineHeight: 1.6,
           }}
         />
         <button
           type="submit"
           disabled={loading || !prompt.trim()}
           style={{
-            padding: "12px 18px",
+            padding: "13px 20px",
             borderRadius: 999,
             border: "none",
             background:
@@ -530,11 +534,11 @@ function AiTripPlanner({ onSearchComplete }: AiTripPlannerProps) {
             borderRadius: 12,
             border: "1px solid rgba(251,191,36,0.6)",
             background: "rgba(251,191,36,0.12)",
-            padding: 10,
-            fontSize: 13,
+            padding: 12,
+            fontSize: 14,
             color: "#facc15",
             display: "flex",
-            gap: 8,
+            gap: 6,
           }}
         >
           <span>⚠️</span>
