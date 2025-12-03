@@ -38,7 +38,8 @@ type CompareResponse = {
   comparisons: Comparison[];
 };
 
-export default function AiDestinationCompare() {
+/* MAIN COMPONENT – named export */
+export function AiDestinationCompare() {
   const [input, setInput] = useState("Bali, Thailand, Hawaii");
   const [month, setMonth] = useState("December");
   const [days, setDays] = useState(7);
@@ -386,7 +387,7 @@ function SectionRow({
   );
 }
 
-/* ---------- RESULT CARD (MATCHES OTHER DARK CARDS) ---------- */
+/* ---------- RESULT CARD ---------- */
 
 function DestinationCard({ d }: { d: Comparison }) {
   const cLabel = costLabel(d.approx_cost_level);
@@ -405,7 +406,6 @@ function DestinationCard({ d }: { d: Comparison }) {
         boxShadow: "0 10px 25px rgba(15,23,42,0.55)",
       }}
     >
-      {/* Header row */}
       <div
         style={{
           display: "flex",
@@ -444,7 +444,6 @@ function DestinationCard({ d }: { d: Comparison }) {
         <strong>Weather:</strong> {d.weather_summary}
       </div>
 
-      {/* Pros & Cons */}
       <div style={{ marginTop: 4 }}>
         <div
           style={{
@@ -485,7 +484,6 @@ function DestinationCard({ d }: { d: Comparison }) {
         </ul>
       </div>
 
-      {/* Detail rows */}
       <SectionRow
         label="Dining & local eats"
         value={d.dining_and_local_eats}
@@ -513,7 +511,6 @@ function DestinationCard({ d }: { d: Comparison }) {
         value={d.typical_daily_budget}
       />
 
-      {/* Airports */}
       {d.airports && d.airports.length > 0 && (
         <div style={{ marginTop: 8 }}>
           <div
@@ -564,7 +561,6 @@ function DestinationCard({ d }: { d: Comparison }) {
         </div>
       )}
 
-      {/* Overall vibe */}
       <div
         style={{
           marginTop: 6,
@@ -578,3 +574,6 @@ function DestinationCard({ d }: { d: Comparison }) {
     </article>
   );
 }
+
+/* DEFAULT EXPORT TOO */
+export default AiDestinationCompare;
