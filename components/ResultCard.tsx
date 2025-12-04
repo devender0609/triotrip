@@ -51,7 +51,8 @@ type HotelBundle = {
   hotels?: any[];
 };
 
-// ---- small helpers for styles ---- //
+// ---- shared styles (mostly inline so it looks good even if Tailwind fails) ---- //
+
 const cardStyle: React.CSSProperties = {
   borderRadius: 24,
   backgroundColor: "#020617",
@@ -84,6 +85,9 @@ const headerRouteStyle: React.CSSProperties = {
   marginTop: 4,
   fontSize: 13,
   fontWeight: 500,
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
 };
 
 const headerPriceStyle: React.CSSProperties = {
@@ -190,33 +194,58 @@ const chipLink: React.CSSProperties = {
 const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   if (!pkg) return null;
 
+  // ---- title / route ------------------------------------------------------- //
   const title =
     pkg.title || pkg.label || pkg.name || `Option ${index + 1}`;
 
-  const totalPrice = pkg.totalPrice ?? pkg.price ?? pkg.amount;
+  const routeOverride =
+    pkg.route || pkg.routeText || pkg.route_text || "";
+
+  // ---- price handling: look for as many variants as possible -------------- //
+  const totalPrice =
+    pkg.totalPrice ??
+    pkg.price ??
+    pkg.amount ??
+    pkg.price_converted ??
+    pkg.total_price_converted ??
+    null;
+
   const priceText =
     pkg.priceText ||
+    pkg.price_text ||
     pkg.displayPrice ||
+    pkg.display_price ||
     pkg.totalPriceText ||
+    pkg.total_price_text ||
     (totalPrice != null
       ? `${currency} ${String(totalPrice)}`
       : `${currency} — price TBD`);
 
   const totalNightsText =
     pkg.totalNightsText ||
+    pkg.total_nights_text ||
     (pkg.nights ? `${pkg.nights} nights hotel` : "") ||
+    (pkg.hotelNights ? `${pkg.hotelNights} nights hotel` : "") ||
     "Trip bundle";
 
-  const hotelBundleRaw: any = pkg.hotelBundle || pkg.hotel || pkg.hotels || {};
+  // ---- hotel bundle -------------------------------------------------------- //
+  const hotelBundleRaw: any =
+    pkg.hotelBundle || pkg.hotel || pkg.hotels || {};
+
   const hotelBundle: HotelBundle = {
     name:
       hotelBundleRaw.name ||
       pkg.hotelName ||
       pkg.primaryHotel ||
       "Curated stay close to main attractions",
-    priceText: hotelBundleRaw.priceText || pkg.hotelPriceText,
+    priceText:
+      hotelBundleRaw.priceText ||
+      hotelBundleRaw.price_text ||
+      pkg.hotelPriceText ||
+      pkg.hotel_price_text,
     nightsText:
       hotelBundleRaw.nightsText ||
+      hotelBundleRaw.nights_text ||
       (pkg.hotelNights ? `${pkg.hotelNights} nights` : undefined),
     hotels: Array.isArray(hotelBundleRaw.hotels)
       ? hotelBundleRaw.hotels
@@ -225,7 +254,10 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
       : [],
   };
 
-  const flightRaw: FlightInfo = pkg.flight || pkg.flightInfo || pkg.flights || {};
+  // ---- flight info --------------------------------------------------------- //
+  const flightRaw: FlightInfo =
+    pkg.flight || pkg.flightInfo || pkg.flights || {};
+
   const outbound: FlightDirection | undefined =
     (flightRaw as any).outbound ||
     (flightRaw as any).outboundFlight ||
@@ -253,9 +285,41 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   const hasDetailedOutbound = outboundLegs.length > 0;
   const hasDetailedInbound = inboundLegs.length > 0;
 
-  const totalDuration = flightRaw.totalDuration || (pkg as any).totalDuration;
-  const cabin = flightRaw.cabin || (pkg as any).cabin;
+  const totalDuration =
+    flightRaw.totalDuration ||
+    (pkg as any).totalDuration ||
+    pkg.total_duration;
 
+  const cabin =
+    flightRaw.cabin ||
+    (pkg as any).cabin ||
+    pkg.cabin_class ||
+    pkg.cabin;
+
+  // Fallback plain-text summaries if there are no legs/summaries.
+  const fallbackOutboundText =
+    pkg.outboundText ||
+    pkg.outbound_text ||
+    pkg.flightSummary ||
+    pkg.flight_summary ||
+    pkg.flightText ||
+    pkg.flight_text ||
+    pkg.outboundSummary ||
+    pkg.outbound_summary ||
+    "";
+
+  const fallbackInboundText =
+    pkg.returnText ||
+    pkg.return_text ||
+    pkg.inboundText ||
+    pkg.inbound_text ||
+    pkg.returnSummary ||
+    pkg.return_summary ||
+    pkg.inboundSummary ||
+    pkg.inbound_summary ||
+    "";
+
+  // ---- external links (can be wired later) -------------------------------- //
   const googleFlightsUrl = "#";
   const bookingUrl = "#";
   const airlineSitesUrl = "#";
@@ -264,10 +328,10 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   const expediaUrl = "#";
   const hotelsUrl = "#";
 
+  // ---- helpers ------------------------------------------------------------- //
   const renderHotelRow = (hotel: any, i: number) => {
     if (hotel == null) return null;
 
-    // simple string
     if (typeof hotel === "string" || typeof hotel === "number") {
       return (
         <li key={i} style={{ marginBottom: 2 }}>
@@ -276,7 +340,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
       );
     }
 
-    // structured object
     if (typeof hotel === "object") {
       const name = hotel.name || "Hotel";
       const star = hotel.star ? `${hotel.star}★` : "";
@@ -352,6 +415,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     );
   };
 
+  // -------------------------------------------------------------------------- //
   return (
     <div style={cardStyle}>
       {/* HEADER */}
@@ -360,15 +424,22 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
           <div style={headerTitleStyle}>
             {String(title).toUpperCase()}
           </div>
-          {hasDetailedOutbound && outboundLegs.length > 0 ? (
-            <div style={headerRouteStyle}>
-              <Plane size={14} style={{ marginRight: 4 }} />
-              {outboundLegs[0]?.from} →{" "}
-              {outboundLegs[outboundLegs.length - 1]?.to}
-            </div>
-          ) : outbound?.summary ? (
-            <div style={headerRouteStyle}>{outbound.summary}</div>
-          ) : null}
+
+          <div style={headerRouteStyle}>
+            <Plane size={14} />
+            {hasDetailedOutbound && outboundLegs.length > 0 ? (
+              <>
+                {outboundLegs[0]?.from} →{" "}
+                {outboundLegs[outboundLegs.length - 1]?.to}
+              </>
+            ) : outbound?.summary ? (
+              outbound.summary
+            ) : routeOverride ? (
+              routeOverride
+            ) : (
+              "Flight route"
+            )}
+          </div>
         </div>
 
         <div style={headerPriceStyle}>
@@ -416,11 +487,11 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
           </div>
 
           {/* OUTBOUND */}
-          {outbound && (
+          {outbound || fallbackOutboundText ? (
             <div style={{ marginBottom: 10 }}>
               <div style={labelSm}>Outbound</div>
 
-              {hasDetailedOutbound && outboundLegs.length > 0 ? (
+              {outbound && hasDetailedOutbound && outboundLegs.length > 0 ? (
                 <>
                   {outboundLegs.map((leg, i) => (
                     <div
@@ -481,20 +552,21 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
                     </div>
                   )}
                 </>
-              ) : outbound.summary ? (
+              ) : outbound?.summary ? (
                 <div style={{ ...textSm, marginTop: 4 }}>
                   {outbound.summary}
                 </div>
               ) : (
-                <div style={{ ...textSm, marginTop: 4, opacity: 0.7 }}>
-                  Flight details not available.
+                <div style={{ ...textSm, marginTop: 4 }}>
+                  {fallbackOutboundText ||
+                    "Outbound flight details to be confirmed at booking."}
                 </div>
               )}
             </div>
-          )}
+          ) : null}
 
           {/* INBOUND */}
-          {inbound && (
+          {inbound || fallbackInboundText ? (
             <div
               style={{
                 marginTop: 8,
@@ -504,7 +576,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
             >
               <div style={labelSm}>Return</div>
 
-              {hasDetailedInbound && inboundLegs.length > 0 ? (
+              {inbound && hasDetailedInbound && inboundLegs.length > 0 ? (
                 <>
                   {inboundLegs.map((leg, i) => (
                     <div
@@ -565,18 +637,20 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
                     </div>
                   )}
                 </>
-              ) : inbound.summary ? (
+              ) : inbound?.summary ? (
                 <div style={{ ...textSm, marginTop: 4 }}>
                   {inbound.summary}
                 </div>
               ) : (
-                <div style={{ ...textSm, marginTop: 4, opacity: 0.7 }}>
-                  Flight details not available.
+                <div style={{ ...textSm, marginTop: 4 }}>
+                  {fallbackInboundText ||
+                    "Return flight details to be confirmed at booking."}
                 </div>
               )}
             </div>
-          )}
+          ) : null}
 
+          {/* Cabin / total duration */}
           {cabin && (
             <div style={{ marginTop: 6, fontSize: 11 }}>
               <span style={{ fontWeight: 600 }}>Cabin:</span> {cabin}
@@ -588,6 +662,24 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
               {totalDuration}
             </div>
           )}
+
+          {!outbound &&
+            !inbound &&
+            !fallbackOutboundText &&
+            !fallbackInboundText &&
+            !totalDuration && (
+              <div
+                style={{
+                  ...textSm,
+                  marginTop: 6,
+                  opacity: 0.75,
+                  fontStyle: "italic",
+                }}
+              >
+                Live flight details will appear here once pricing is
+                available from our partners.
+              </div>
+            )}
         </section>
       </div>
 
