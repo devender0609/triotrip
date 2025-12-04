@@ -4,7 +4,7 @@ import React from "react";
 import { Plane, Hotel, Clock, ExternalLink } from "lucide-react";
 
 export interface ResultCardProps {
-  pkg: any; // flight + hotel package
+  pkg: any;
   index: number;
   currency: string;
   pax?: number;
@@ -50,7 +50,7 @@ type HotelBundle = {
   name?: string;
   priceText?: string;
   nightsText?: string;
-  hotels?: any[]; // can be strings OR objects
+  hotels?: any[];
 };
 
 const badgeBase =
@@ -58,10 +58,9 @@ const badgeBase =
 const pillButtonBase =
   "inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-md hover:shadow-lg transition-shadow duration-150";
 const chipBase =
-  "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/80 text-slate-100 border border-slate-700/60";
+  "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-900 text-gray-50 border border-gray-600";
 
 const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
-  // If pkg is missing for any reason, don't render the card at all
   if (!pkg) return null;
 
   const currencyCode: CurrencyCode = currency || "USD";
@@ -136,7 +135,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   const totalDuration = flightRaw.totalDuration || (pkg as any).totalDuration;
   const cabin = flightRaw.cabin || (pkg as any).cabin;
 
-  // Stub URLs – you can wire with real deeplinks later
   const googleFlightsUrl = "#";
   const bookingUrl = "#";
   const airlineSitesUrl = "#";
@@ -145,11 +143,9 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   const expediaUrl = "#";
   const hotelsUrl = "#";
 
-  // Helper to render each hotel entry safely
   const renderHotelRow = (hotel: any, i: number) => {
     if (hotel == null) return null;
 
-    // If it's a simple string, just show it
     if (typeof hotel === "string" || typeof hotel === "number") {
       return (
         <li key={i} className="list-disc ml-5">
@@ -158,7 +154,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
       );
     }
 
-    // If it's an object (with keys like name, star, city, price_converted, currency, imageUrl, deeplinks)
     if (typeof hotel === "object") {
       const name = hotel.name || "Hotel";
       const star = hotel.star ? `${hotel.star}★` : "";
@@ -175,12 +170,12 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
 
       return (
         <li key={i} className="ml-1 mb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 rounded-xl bg-slate-900/70 border border-slate-700/80 px-3 py-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl bg-gray-900 border border-gray-700 px-3 py-2">
             <div className="flex flex-col">
-              <span className="font-semibold text-slate-50 text-sm">
+              <span className="font-semibold text-gray-50 text-sm">
                 {name}
               </span>
-              <span className="text-[11px] sm:text-xs text-slate-300">
+              <span className="text-[11px] sm:text-xs text-gray-300">
                 {star && <span className="mr-1">{star}</span>}
                 {city}
               </span>
@@ -208,7 +203,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
       );
     }
 
-    // Fallback – shouldn't really get here, but just in case
     return (
       <li key={i} className="list-disc ml-5">
         {String(hotel)}
@@ -217,8 +211,8 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   };
 
   return (
-    <div className="rounded-3xl bg-slate-900/90 border border-slate-700/80 shadow-xl overflow-hidden mb-6">
-      {/* HEADER STRIP */}
+    <div className="rounded-3xl bg-gray-900 border border-gray-700 text-gray-100 shadow-xl overflow-hidden mb-6">
+      {/* HEADER */}
       <div className="flex items-center justify-between px-5 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-sky-500 via-blue-500 to-pink-500 text-white">
         <div className="flex flex-col gap-1">
           <div className="text-xs sm:text-sm font-semibold uppercase tracking-[0.18em] text-white/80">
@@ -266,7 +260,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
             {priceText}
           </div>
           <div
-            className={`${badgeBase} bg-white/15 border border-white/30 text-[11px] sm:text-xs`}
+            className={`${badgeBase} bg-white bg-opacity-10 border border-white border-opacity-40 text-[11px] sm:text-xs`}
           >
             <Clock className="w-3.5 h-3.5 mr-1" />
             {totalNightsText}
@@ -274,18 +268,18 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
         </div>
       </div>
 
-      {/* CONTENT GRID */}
+      {/* GRID */}
       <div className="grid md:grid-cols-2 gap-4 sm:gap-5 px-4 sm:px-6 pt-4 sm:pt-5 pb-1">
-        {/* HOTEL BUNDLE */}
-        <section className="rounded-2xl bg-slate-950/60 border border-slate-700/80 px-4 sm:px-5 py-4 sm:py-5">
+        {/* HOTEL SECTION */}
+        <section className="rounded-2xl bg-gray-950 bg-opacity-80 border border-gray-700 px-4 sm:px-5 py-4 sm:py-5">
           <div className="flex items-center gap-2 mb-3">
             <Hotel className="w-4 h-4 text-amber-400" />
-            <h3 className="text-base sm:text-lg font-semibold text-slate-50">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-50">
               Hotel bundle
             </h3>
           </div>
 
-          <div className="space-y-1.5 text-slate-100">
+          <div className="space-y-1.5 text-gray-100">
             <div className="font-semibold text-sm sm:text-base">
               {hotelBundle.name}
             </div>
@@ -295,7 +289,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
               </div>
             )}
             {hotelBundle.nightsText && (
-              <div className="text-xs sm:text-sm text-slate-300">
+              <div className="text-xs sm:text-sm text-gray-300">
                 {hotelBundle.nightsText}
               </div>
             )}
@@ -303,51 +297,51 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
 
           {Array.isArray(hotelBundle.hotels) &&
             hotelBundle.hotels.length > 0 && (
-              <ul className="mt-4 space-y-1.5 text-xs sm:text-sm text-slate-100">
+              <ul className="mt-4 space-y-1.5 text-xs sm:text-sm text-gray-100">
                 {hotelBundle.hotels.map(renderHotelRow)}
               </ul>
             )}
         </section>
 
-        {/* FLIGHT DETAILS */}
-        <section className="rounded-2xl bg-slate-950/60 border border-slate-700/80 px-4 sm:px-5 py-4 sm:py-5">
-          <h3 className="text-base sm:text-lg font-semibold text-slate-50 mb-3 flex items-center gap-2">
+        {/* FLIGHT SECTION */}
+        <section className="rounded-2xl bg-gray-950 bg-opacity-80 border border-gray-700 px-4 sm:px-5 py-4 sm:py-5">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-50 mb-3 flex items-center gap-2">
             <Plane className="w-4 h-4 text-sky-400" />
             Flight details
           </h3>
 
-          <div className="space-y-4 text-xs sm:text-sm text-slate-100">
+          <div className="space-y-4 text-xs sm:text-sm text-gray-100">
             {/* OUTBOUND */}
             {outbound && (
               <div className="space-y-1.5">
-                <p className="font-semibold text-slate-50">Outbound</p>
+                <p className="font-semibold text-gray-50">Outbound</p>
 
                 {hasDetailedOutbound && outboundLegs.length > 0 ? (
                   <>
                     {outboundLegs.map((leg, i) => (
                       <div
                         key={i}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2"
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2"
                       >
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-semibold">
                             {leg.from}{" "}
-                            <span className="mx-1 text-slate-300">→</span>
+                            <span className="mx-1 text-gray-300">→</span>
                             {leg.to}
                           </span>
                           {leg.airline && (
                             <>
-                              <span className="w-1 h-1 rounded-full bg-slate-500" />
+                              <span className="w-1 h-1 rounded-full bg-gray-500" />
                               <span>{leg.airline}</span>
                             </>
                           )}
                           {leg.flightNumber && (
-                            <span className="text-slate-300">
+                            <span className="text-gray-300">
                               {leg.flightNumber}
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 text-slate-300">
+                        <div className="flex flex-wrap items-center gap-2 text-gray-300">
                           {leg.departure && (
                             <span className="whitespace-nowrap">
                               Dep: {leg.departure}
@@ -380,46 +374,44 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
                     )}
                   </>
                 ) : outbound.summary ? (
-                  <p className="text-slate-100">{outbound.summary}</p>
+                  <p className="text-gray-100">{outbound.summary}</p>
                 ) : (
-                  <p className="text-slate-400">
-                    Flight details not available.
-                  </p>
+                  <p className="text-gray-400">Flight details not available.</p>
                 )}
               </div>
             )}
 
-            {/* RETURN / INBOUND */}
+            {/* INBOUND */}
             {inbound && (
-              <div className="space-y-1.5 border-t border-slate-700/70 pt-3">
-                <p className="font-semibold text-slate-50">Return</p>
+              <div className="space-y-1.5 border-t border-gray-700 pt-3">
+                <p className="font-semibold text-gray-50">Return</p>
 
                 {hasDetailedInbound && inboundLegs.length > 0 ? (
                   <>
                     {inboundLegs.map((leg, i) => (
                       <div
                         key={i}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2"
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2"
                       >
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-semibold">
                             {leg.from}{" "}
-                            <span className="mx-1 text-slate-300">→</span>
+                            <span className="mx-1 text-gray-300">→</span>
                             {leg.to}
                           </span>
                           {leg.airline && (
                             <>
-                              <span className="w-1 h-1 rounded-full bg-slate-500" />
+                              <span className="w-1 h-1 rounded-full bg-gray-500" />
                               <span>{leg.airline}</span>
                             </>
                           )}
                           {leg.flightNumber && (
-                            <span className="text-slate-300">
+                            <span className="text-gray-300">
                               {leg.flightNumber}
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 text-slate-300">
+                        <div className="flex flex-wrap items-center gap-2 text-gray-300">
                           {leg.departure && (
                             <span className="whitespace-nowrap">
                               Dep: {leg.departure}
@@ -452,23 +444,21 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
                     )}
                   </>
                 ) : inbound.summary ? (
-                  <p className="text-slate-100">{inbound.summary}</p>
+                  <p className="text-gray-100">{inbound.summary}</p>
                 ) : (
-                  <p className="text-slate-400">
-                    Flight details not available.
-                  </p>
+                  <p className="text-gray-400">Flight details not available.</p>
                 )}
               </div>
             )}
 
             {cabin && (
-              <p className="text-[11px] sm:text-xs text-slate-200">
+              <p className="text-[11px] sm:text-xs text-gray-200">
                 <span className="font-semibold">Cabin:</span> {cabin}
               </p>
             )}
 
             {totalDuration && (
-              <p className="text-[11px] sm:text-xs text-slate-200">
+              <p className="text-[11px] sm:text-xs text-gray-200">
                 <span className="font-semibold">Total travel time:</span>{" "}
                 {totalDuration}
               </p>
@@ -480,7 +470,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
       {/* ACTION ROWS */}
       <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 pb-3 sm:pb-4 pt-1">
         <button
-          className={`${pillButtonBase} bg-slate-800 text-slate-50`}
+          className={`${pillButtonBase} bg-gray-800 text-gray-50`}
           type="button"
         >
           Compare
@@ -507,16 +497,16 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
         </a>
       </div>
 
-      <div className="px-4 sm:px-6 pb-4 flex flex-wrap items-center gap-3 text-[11px] sm:text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+      <div className="px-4 sm:px-6 pb-4 flex flex-wrap items-center gap-3 text-[11px] sm:text-xs text-gray-300 border-t border-gray-800 pt-3">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-semibold text-slate-100">
+          <span className="font-semibold text-gray-100">
             More flight options
           </span>
           <a
             href={skyscannerUrl}
             target="_blank"
             rel="noreferrer"
-            className={`${chipBase} bg-sky-900/90 border-sky-600/80`}
+            className={`${chipBase} bg-blue-900 border-blue-600`}
           >
             Skyscanner
           </a>
@@ -524,7 +514,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
             href={kayakUrl}
             target="_blank"
             rel="noreferrer"
-            className={`${chipBase} bg-indigo-900/90 border-indigo-600/80`}
+            className={`${chipBase} bg-indigo-900 border-indigo-600`}
           >
             KAYAK
           </a>
@@ -532,21 +522,21 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
             href={airlineSitesUrl}
             target="_blank"
             rel="noreferrer"
-            className={`${chipBase} bg-slate-900/90 border-slate-600/80`}
+            className={`${chipBase} bg-gray-900 border-gray-600`}
           >
             Airline sites
           </a>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-semibold text-slate-100">
+          <span className="font-semibold text-gray-100">
             More hotel options
           </span>
           <a
             href={expediaUrl}
             target="_blank"
             rel="noreferrer"
-            className={`${chipBase} bg-amber-900/90 border-amber-600/80`}
+            className={`${chipBase} bg-yellow-900 border-yellow-600`}
           >
             Expedia
           </a>
@@ -554,13 +544,13 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
             href={hotelsUrl}
             target="_blank"
             rel="noreferrer"
-            className={`${chipBase} bg-emerald-900/90 border-emerald-600/80`}
+            className={`${chipBase} bg-green-900 border-green-600`}
           >
             Hotels.com
           </a>
         </div>
 
-        <div className="ml-auto text-[10px] sm:text-[11px] text-slate-500 flex items-center gap-1">
+        <div className="ml-auto text-[10px] sm:text-[11px] text-gray-500 flex items-center gap-1">
           <ExternalLink className="w-3 h-3" />
           Prices and availability are examples and may change at booking.
         </div>
