@@ -101,27 +101,28 @@ export function AiDestinationCompare() {
   return (
     <section
       style={{
-        marginTop: 24,
-        padding: 20,
-        borderRadius: 16,
+        marginTop: 32,
+        padding: 24,
+        borderRadius: 18,
         border: "1px solid #0f172a",
         background: "#020617",
         color: "#e5e7eb",
         display: "grid",
-        gap: 12,
+        gap: 16,
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+        fontSize: 15, // base size – matches AI trip planner
       }}
     >
       {/* HEADER (match Plan my trip with AI) */}
-      <div style={{ display: "grid", gap: 6 }}>
+      <div style={{ display: "grid", gap: 8 }}>
         <div
           style={{
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: 800,
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 8,
           }}
         >
           <span>Compare destinations with AI</span>
@@ -129,10 +130,10 @@ export function AiDestinationCompare() {
         </div>
         <p
           style={{
-            fontSize: 14,
+            fontSize: 15,
             color: "#cbd5f5",
             maxWidth: 900,
-            lineHeight: 1.5,
+            lineHeight: 1.6,
           }}
         >
           Not sure where to go? Enter a few places and we&apos;ll compare them
@@ -146,7 +147,7 @@ export function AiDestinationCompare() {
         onSubmit={handleCompare}
         style={{
           display: "grid",
-          gap: 10,
+          gap: 12,
           gridTemplateColumns: "2fr 1fr 1fr 1.5fr",
           alignItems: "center",
         }}
@@ -155,10 +156,10 @@ export function AiDestinationCompare() {
         <div style={{ gridColumn: "1 / -1" }}>
           <label
             style={{
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: 600,
               display: "block",
-              marginBottom: 4,
+              marginBottom: 6,
             }}
           >
             Destinations (comma-separated)
@@ -169,8 +170,8 @@ export function AiDestinationCompare() {
             placeholder="Bali, Thailand, Hawaii"
             style={{
               width: "100%",
-              padding: 10,
-              borderRadius: 12,
+              padding: 12,
+              borderRadius: 14,
               border: "1px solid #1e293b",
               fontSize: 15,
               color: "#f9fafb",
@@ -183,10 +184,10 @@ export function AiDestinationCompare() {
         <div>
           <label
             style={{
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: 600,
               display: "block",
-              marginBottom: 4,
+              marginBottom: 6,
             }}
           >
             Month
@@ -196,8 +197,8 @@ export function AiDestinationCompare() {
             onChange={(e) => setMonth(e.target.value)}
             style={{
               width: "100%",
-              padding: 9,
-              borderRadius: 12,
+              padding: 11,
+              borderRadius: 14,
               border: "1px solid #1e293b",
               fontSize: 15,
               color: "#f9fafb",
@@ -216,10 +217,10 @@ export function AiDestinationCompare() {
         <div>
           <label
             style={{
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: 600,
               display: "block",
-              marginBottom: 4,
+              marginBottom: 6,
             }}
           >
             Days
@@ -234,8 +235,8 @@ export function AiDestinationCompare() {
             }
             style={{
               width: "100%",
-              padding: 9,
-              borderRadius: 12,
+              padding: 11,
+              borderRadius: 14,
               border: "1px solid #1e293b",
               fontSize: 15,
               color: "#f9fafb",
@@ -248,10 +249,10 @@ export function AiDestinationCompare() {
         <div>
           <label
             style={{
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: 600,
               display: "block",
-              marginBottom: 4,
+              marginBottom: 6,
             }}
           >
             Home city / airport
@@ -262,12 +263,11 @@ export function AiDestinationCompare() {
             placeholder="Austin, TX or AUS"
             style={{
               width: "100%",
-              padding: 9,
-              borderRadius: 12,
+              padding: 11,
+              borderRadius: 14,
               border: "1px solid #1e293b",
               fontSize: 15,
               color: "#f9fafb",
-              background: "#020617",
             }}
           />
         </div>
@@ -280,7 +280,7 @@ export function AiDestinationCompare() {
             style={{
               width: "100%",
               borderRadius: 999,
-              padding: "12px 18px",
+              padding: "13px 20px",
               border: "none",
               fontWeight: 700,
               fontSize: 15,
@@ -300,11 +300,11 @@ export function AiDestinationCompare() {
       {error && (
         <div
           style={{
-            borderRadius: 12,
+            borderRadius: 14,
             border: "1px solid rgba(248,113,113,0.6)",
             background: "rgba(153,27,27,0.35)",
-            padding: 10,
-            fontSize: 13,
+            padding: 12,
+            fontSize: 14,
             color: "#fecaca",
           }}
         >
@@ -316,10 +316,10 @@ export function AiDestinationCompare() {
       {data && (
         <div
           style={{
-            marginTop: 8,
+            marginTop: 10,
             display: "grid",
-            gap: 12,
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 14,
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
           }}
         >
           {data.map((d, idx) => (
@@ -368,10 +368,10 @@ function SectionRow({
 }) {
   if (!value) return null;
   return (
-    <div style={{ marginTop: 6 }}>
+    <div style={{ marginTop: 8 }}>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 700,
           letterSpacing: 0.4,
           textTransform: "uppercase",
@@ -380,7 +380,7 @@ function SectionRow({
       >
         {label}
       </div>
-      <div style={{ fontSize: 14, marginTop: 2, color: "#e5e7eb" }}>
+      <div style={{ fontSize: 15, marginTop: 3, color: "#e5e7eb" }}>
         {value}
       </div>
     </div>
@@ -395,14 +395,14 @@ function DestinationCard({ d }: { d: Comparison }) {
   return (
     <article
       style={{
-        borderRadius: 16,
+        borderRadius: 18,
         background:
-          "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(12,74,110,0.85))",
+          "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(12,74,110,0.9))",
         border: "1px solid #1e293b",
-        padding: 14,
-        fontSize: 14,
+        padding: 16,
+        fontSize: 15,
         display: "grid",
-        gap: 6,
+        gap: 8,
         boxShadow: "0 10px 25px rgba(15,23,42,0.55)",
       }}
     >
@@ -411,12 +411,12 @@ function DestinationCard({ d }: { d: Comparison }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "baseline",
-          gap: 8,
+          gap: 10,
         }}
       >
         <h3
           style={{
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: 800,
             color: "#f9fafb",
           }}
@@ -425,8 +425,8 @@ function DestinationCard({ d }: { d: Comparison }) {
         </h3>
         <span
           style={{
-            fontSize: 12,
-            padding: "3px 8px",
+            fontSize: 13,
+            padding: "4px 10px",
             borderRadius: 999,
             border: "1px solid #38bdf8",
             color: "#e0f2fe",
@@ -437,47 +437,47 @@ function DestinationCard({ d }: { d: Comparison }) {
         </span>
       </div>
 
-      <div style={{ fontSize: 14, color: "#e5e7eb" }}>
+      <div style={{ fontSize: 15, color: "#e5e7eb" }}>
         <strong>Best for:</strong> {d.best_for}
       </div>
-      <div style={{ fontSize: 14, color: "#e5e7eb" }}>
+      <div style={{ fontSize: 15, color: "#e5e7eb" }}>
         <strong>Weather:</strong> {d.weather_summary}
       </div>
 
-      <div style={{ marginTop: 4 }}>
+      <div style={{ marginTop: 6 }}>
         <div
           style={{
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 600,
             color: "#bbf7d0",
-            marginBottom: 2,
+            marginBottom: 4,
           }}
         >
           ✅ Pros
         </div>
-        <ul style={{ margin: 0, paddingLeft: 18 }}>
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
           {(d.pros || []).map((p, i) => (
-            <li key={i} style={{ marginBottom: 2 }}>
+            <li key={i} style={{ marginBottom: 3 }}>
               {p}
             </li>
           ))}
         </ul>
       </div>
 
-      <div style={{ marginTop: 4 }}>
+      <div style={{ marginTop: 6 }}>
         <div
           style={{
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 600,
             color: "#fecaca",
-            marginBottom: 2,
+            marginBottom: 4,
           }}
         >
           ⚠️ Cons
         </div>
-        <ul style={{ margin: 0, paddingLeft: 18 }}>
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
           {(d.cons || []).map((c, i) => (
-            <li key={i} style={{ marginBottom: 2 }}>
+            <li key={i} style={{ marginBottom: 3 }}>
               {c}
             </li>
           ))}
@@ -512,10 +512,10 @@ function DestinationCard({ d }: { d: Comparison }) {
       />
 
       {d.airports && d.airports.length > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 10 }}>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: 0.4,
@@ -524,13 +524,13 @@ function DestinationCard({ d }: { d: Comparison }) {
           >
             Suggested airports
           </div>
-          <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+          <div style={{ display: "grid", gap: 8, marginTop: 6 }}>
             {d.airports.map((a, i) => (
               <div
                 key={i}
                 style={{
-                  padding: 8,
-                  borderRadius: 12,
+                  padding: 9,
+                  borderRadius: 14,
                   border: "1px solid #1e293b",
                   background: "#020617",
                 }}
@@ -539,7 +539,7 @@ function DestinationCard({ d }: { d: Comparison }) {
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
-                    fontSize: 13,
+                    fontSize: 14,
                     gap: 8,
                   }}
                 >
@@ -552,7 +552,7 @@ function DestinationCard({ d }: { d: Comparison }) {
                     {labelForRole(a.role)}
                   </span>
                 </div>
-                <div style={{ fontSize: 13, marginTop: 2 }}>
+                <div style={{ fontSize: 14, marginTop: 3 }}>
                   {a.reason}
                 </div>
               </div>
@@ -563,9 +563,9 @@ function DestinationCard({ d }: { d: Comparison }) {
 
       <div
         style={{
-          marginTop: 6,
+          marginTop: 8,
           fontStyle: "italic",
-          fontSize: 14,
+          fontSize: 15,
           color: "#e5e7eb",
         }}
       >
