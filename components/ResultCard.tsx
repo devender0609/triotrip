@@ -51,7 +51,7 @@ type HotelBundle = {
   hotels?: any[];
 };
 
-// -------- shared styles -------- //
+/* ---------- shared styles ---------- */
 
 const cardStyle: React.CSSProperties = {
   borderRadius: 24,
@@ -90,7 +90,7 @@ const headerRouteStyle: React.CSSProperties = {
 };
 
 const headerPriceStyle: React.CSSProperties = {
-  textAlign: "right" as const,
+  textAlign: "right",
 };
 
 const headerPriceTextStyle: React.CSSProperties = {
@@ -111,7 +111,7 @@ const chipStyle: React.CSSProperties = {
 
 const bodyStyle: React.CSSProperties = {
   display: "flex",
-  flexWrap: "wrap" as const,
+  flexWrap: "wrap",
   gap: 16,
   padding: "16px 20px 8px",
 };
@@ -159,7 +159,7 @@ const footerStyle: React.CSSProperties = {
 
 const footerRowStyle: React.CSSProperties = {
   display: "flex",
-  flexWrap: "wrap" as const,
+  flexWrap: "wrap",
   gap: 10,
   alignItems: "center",
   fontSize: 11,
@@ -190,17 +190,93 @@ const chipLink: React.CSSProperties = {
   border: "1px solid #1f2937",
 };
 
+/* ---------- helpers ---------- */
+
+function minutesToDuration(min?: number): string | undefined {
+  if (!min || Number.isNaN(min)) return undefined;
+  const hours = Math.floor(min / 60);
+  const minutes = min % 60;
+  if (!hours) return `${minutes}m`;
+  if (!minutes) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+/** Build a readable one-line summary from a “segments_out / segments_in” style object */
+function buildSummaryFromSegments(obj: any): string {
+  if (!obj || typeof obj !== "object") return "";
+
+  const carrier = obj.carrier_name || obj.carrier || "";
+  const stops = typeof obj.stops === "number" ? obj.stops : undefined;
+  const segOut = Array.isArray(obj.segments_out) ? obj.segments_out : [];
+  const segIn = Array.isArray(obj.segments_in) ? obj.segments_in : [];
+
+  const pickRoute = (segments: any[]) => {
+    if (!segments.length) return "";
+    const first = segments[0];
+    const last = segments[segments.length - 1];
+    if (first.from && last.to) return `${first.from} → ${last.to}`;
+    return "";
+  };
+
+  const outRoute = pickRoute(segOut);
+  const inRoute = pickRoute(segIn);
+  const dur = minutesToDuration(obj.duration_minutes);
+
+  const parts: string[] = [];
+
+  if (outRoute) parts.push(`Outbound: ${outRoute}`);
+  if (inRoute) parts.push(`Return: ${inRoute}`);
+  if (stops !== undefined) {
+    parts.push(stops === 0 ? "Nonstop" : `${stops} stop${stops > 1 ? "s" : ""}`);
+  }
+  if (dur) parts.push(dur);
+  if (carrier) parts.push(carrier);
+
+  if (!parts.length) return "";
+
+  return parts.join(" • ");
+}
+
+/** Always return a string – never an object – for generic flight text */
+function getGenericFlightText(pkg: any): string {
+  const stringCandidates = [
+    pkg.flightDetails,
+    pkg.flight_details,
+    pkg.flightsText,
+    pkg.flights_text,
+    pkg.itinerary,
+    pkg.itinerary_text,
+  ];
+
+  for (const c of stringCandidates) {
+    if (typeof c === "string" && c.trim()) return c.trim();
+  }
+
+  if (pkg.flight && typeof pkg.flight === "object") {
+    const summary = buildSummaryFromSegments(pkg.flight);
+    if (summary) return summary;
+  }
+
+  if (pkg.flights && typeof pkg.flights === "object") {
+    const summary = buildSummaryFromSegments(pkg.flights);
+    if (summary) return summary;
+  }
+
+  return "";
+}
+
+/* ---------- component ---------- */
+
 const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   if (!pkg) return null;
 
-  // ---- title / route -------------------------------------------------- //
   const title =
     pkg.title || pkg.label || pkg.name || `Option ${index + 1}`;
 
   const routeOverride =
     pkg.route || pkg.routeText || pkg.route_text || "";
 
-  // ---- price handling ------------------------------------------------- //
+  // price
   const totalPrice =
     pkg.totalPrice ??
     pkg.price ??
@@ -227,7 +303,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     (pkg.hotelNights ? `${pkg.hotelNights} nights hotel` : "") ||
     "Trip bundle";
 
-  // ---- hotel bundle --------------------------------------------------- //
+  // hotel bundle
   const hotelBundleRaw: any =
     pkg.hotelBundle || pkg.hotel || pkg.hotels || {};
 
@@ -253,7 +329,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
       : [],
   };
 
-  // ---- flight info ---------------------------------------------------- //
+  // flight info
   const flightRaw: FlightInfo =
     pkg.flight || pkg.flightInfo || pkg.flights || {};
 
@@ -295,7 +371,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     pkg.cabin_class ||
     pkg.cabin;
 
-  // Fallback plain-text summaries
   const fallbackOutboundText =
     pkg.outboundText ||
     pkg.outbound_text ||
@@ -318,19 +393,9 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     pkg.inbound_summary ||
     "";
 
-  // **NEW**: catch-all generic flight text so we *always* show something
-  const genericFlightText =
-    pkg.flightDetails ||
-    pkg.flight_details ||
-    pkg.flightsText ||
-    pkg.flights_text ||
-    pkg.itinerary ||
-    pkg.itinerary_text ||
-    pkg.flight ||
-    pkg.flights ||
-    "";
+  const genericFlightText = getGenericFlightText(pkg);
 
-  // ---- external links (can be wired later) ---------------------------- //
+  // external links placeholders
   const googleFlightsUrl = "#";
   const bookingUrl = "#";
   const airlineSitesUrl = "#";
@@ -339,7 +404,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   const expediaUrl = "#";
   const hotelsUrl = "#";
 
-  // ---- helpers -------------------------------------------------------- //
   const renderHotelRow = (hotel: any, i: number) => {
     if (hotel == null) return null;
 
@@ -426,7 +490,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     );
   };
 
-  // --------------------------------------------------------------------- //
   return (
     <div style={cardStyle}>
       {/* HEADER */}
@@ -666,13 +729,11 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
               </div>
             ) : (
               <div style={{ ...textSm, marginTop: 4, opacity: 0.75 }}>
-                Return flight details will be shown here once
-                available.
+                Return flight details will be shown here once available.
               </div>
             )}
           </div>
 
-          {/* Cabin / total duration */}
           {cabin && (
             <div style={{ marginTop: 6, fontSize: 11 }}>
               <span style={{ fontWeight: 600 }}>Cabin:</span> {cabin}
@@ -814,8 +875,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
 
           <div style={{ fontSize: 10, opacity: 0.7 }}>
             <ExternalLink size={12} style={{ marginRight: 4 }} />
-            Prices and availability are examples and may change at
-            booking.
+            Prices and availability are examples and may change at booking.
           </div>
         </div>
       </div>
