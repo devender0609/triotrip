@@ -535,9 +535,12 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
         }?sort=bestflight_a`
       : "https://www.kayak.com/flights";
 
+  // UPDATED: Airline sites now use a working Kayak route with airline filter
   const airlineSitesUrl =
-    origin && destination
-      ? `https://www.kayak.com/flights/${origin}-${destination}`
+    origin && destination && departDate
+      ? `https://www.kayak.com/flights/${origin}-${destination}/${departDate}${
+          returnDate ? "/" + returnDate : ""
+        }?fs=airlines`
       : "https://www.kayak.com/flights";
 
   const bookingUrl =
