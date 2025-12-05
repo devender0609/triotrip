@@ -7,7 +7,7 @@ import ResultCard from "../components/ResultCard";
 import ComparePanel from "../components/ComparePanel";
 import ExploreSavorTabs from "@/components/ExploreSavorTabs";
 import AiTripPlanner from "../components/AiTripPlanner";
-import { AiDestinationCompare } from "../components/AiDestinationCompare";
+import AiDestinationCompare from "../components/AiDestinationCompare";
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
