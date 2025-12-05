@@ -19,7 +19,7 @@ export interface ResultCardProps {
 type FlightLeg = {
   from?: string;
   to?: string;
-  departure?: string;
+  departure?: string; // can be full date-time string
   arrival?: string;
   airline?: string;
   flightNumber?: string;
@@ -72,18 +72,34 @@ const headerStyle: React.CSSProperties = {
   color: "white",
 };
 
-const headerTitleStyle: React.CSSProperties = {
-  fontSize: 12,
+const headerLeft: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+};
+
+const headerTitleRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "baseline",
+  gap: 8,
+};
+
+const headerTitleText: React.CSSProperties = {
+  fontSize: 13,
   fontWeight: 700,
-  letterSpacing: "0.18em",
+  letterSpacing: "0.16em",
   textTransform: "uppercase",
   opacity: 0.9,
 };
 
-const headerRouteStyle: React.CSSProperties = {
-  marginTop: 4,
+const headerSubText: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 500,
+  opacity: 0.95,
+};
+
+const headerRouteStyle: React.CSSProperties = {
+  fontSize: 13,
   display: "flex",
   alignItems: "center",
   gap: 4,
@@ -122,6 +138,7 @@ const columnStyle: React.CSSProperties = {
   backgroundColor: "rgba(15,23,42,0.9)",
   border: "1px solid #1f2937",
   padding: 14,
+  minWidth: 0,
 };
 
 const sectionTitleRow: React.CSSProperties = {
@@ -193,7 +210,7 @@ const chipLink: React.CSSProperties = {
 /* ---------- helpers ---------- */
 
 function minutesToDuration(min?: number): string | undefined {
-  if (!min || Number.isNaN(min)) return undefined;
+  if (min == null || Number.isNaN(min)) return undefined;
   const hours = Math.floor(min / 60);
   const minutes = min % 60;
   if (!hours) return `${minutes}m`;
@@ -201,7 +218,44 @@ function minutesToDuration(min?: number): string | undefined {
   return `${hours}h ${minutes}m`;
 }
 
-/** Build a readable one-line summary from a “segments_out / segments_in” style object */
+function extractDateOnly(str?: string): string | undefined {
+  if (!str) return undefined;
+  const parts = str.split(/[T ]/);
+  if (!parts[0]) return undefined;
+  return parts[0];
+}
+
+/** Convert segments_out / segments_in style arrays into FlightDirection */
+function deriveDirectionFromSegments(segments: any[]): FlightDirection {
+  if (!Array.isArray(segments) || segments.length === 0) return {};
+
+  const legs: FlightLeg[] = segments.map((s) => ({
+    from: s.from || s.origin || s.departure_airport,
+    to: s.to || s.destination || s.arrival_airport,
+    departure: s.departure || s.departure_time || s.dep_time,
+    arrival: s.arrival || s.arrival_time || s.arr_time,
+    airline: s.airline || s.carrier_name || s.carrier,
+    flightNumber: s.flightNumber || s.flight_number || s.number,
+    duration:
+      s.duration ||
+      minutesToDuration(s.duration_minutes) ||
+      minutesToDuration(s.duration_min),
+  }));
+
+  // derive layovers from legs
+  const layovers: LayoverInfo[] =
+    legs.length > 1
+      ? legs.slice(0, -1).map((leg) => ({
+          airport: leg.to,
+          // duration between arrival of this leg and departure of next leg
+          duration: undefined,
+        }))
+      : [];
+
+  return { legs, layovers };
+}
+
+/** Build one-line summary from “segments_*” style object */
 function buildSummaryFromSegments(obj: any): string {
   if (!obj || typeof obj !== "object") return "";
 
@@ -265,16 +319,44 @@ function getGenericFlightText(pkg: any): string {
   return "";
 }
 
+/** Build a Google-Flights / search-style URL using origin/dest/dates */
+function buildFlightSearchUrl(origin: string, dest: string, depart?: string, ret?: string) {
+  const qParts = [
+    "Flights",
+    "from",
+    origin || "origin",
+    "to",
+    dest || "destination",
+  ];
+  if (depart) qParts.push("on", depart);
+  if (ret) qParts.push("return", ret);
+
+  const q = encodeURIComponent(qParts.join(" "));
+  return `https://www.google.com/travel/flights?q=${q}`;
+}
+
+function buildSiteSearchUrl(
+  site: string,
+  origin: string,
+  dest: string,
+  depart?: string,
+  ret?: string
+) {
+  const parts = [site, origin, dest];
+  if (depart) parts.push(depart);
+  if (ret) parts.push(ret);
+  const q = encodeURIComponent(parts.join(" "));
+  return `https://www.google.com/search?q=${q}`;
+}
+
 /* ---------- component ---------- */
 
 const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   if (!pkg) return null;
 
-  const title =
-    pkg.title || pkg.label || pkg.name || `Option ${index + 1}`;
+  const optionNumber = index + 1;
 
-  const routeOverride =
-    pkg.route || pkg.routeText || pkg.route_text || "";
+  const routeOverride = pkg.route || pkg.routeText || pkg.route_text || "";
 
   // price
   const totalPrice =
@@ -329,19 +411,24 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
       : [],
   };
 
-  // flight info
-  const flightRaw: FlightInfo =
-    pkg.flight || pkg.flightInfo || pkg.flights || {};
+  // flight info (normalize multiple shapes)
+  const rawFlight: any = pkg.flight || pkg.flightInfo || pkg.flights || {};
 
-  const outbound: FlightDirection | undefined =
-    (flightRaw as any).outbound ||
-    (flightRaw as any).outboundFlight ||
-    (pkg as any).outbound;
+  let outbound: FlightDirection | undefined =
+    rawFlight.outbound ||
+    rawFlight.outboundFlight ||
+    (Array.isArray(rawFlight.segments_out)
+      ? deriveDirectionFromSegments(rawFlight.segments_out)
+      : undefined) ||
+    pkg.outbound;
 
-  const inbound: FlightDirection | undefined =
-    (flightRaw as any).inbound ||
-    (flightRaw as any).returnFlight ||
-    (pkg as any).inbound;
+  let inbound: FlightDirection | undefined =
+    rawFlight.inbound ||
+    rawFlight.returnFlight ||
+    (Array.isArray(rawFlight.segments_in)
+      ? deriveDirectionFromSegments(rawFlight.segments_in)
+      : undefined) ||
+    pkg.inbound;
 
   const outboundLegs: FlightLeg[] = Array.isArray(outbound?.legs)
     ? outbound!.legs!
@@ -350,26 +437,39 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     ? inbound!.legs!
     : [];
 
-  const outboundLayovers: LayoverInfo[] = Array.isArray(outbound?.layovers)
-    ? outbound!.layovers!
-    : [];
-  const inboundLayovers: LayoverInfo[] = Array.isArray(inbound?.layovers)
-    ? inbound!.layovers!
-    : [];
+  // derive layovers if missing
+  const outboundLayovers: LayoverInfo[] =
+    (Array.isArray(outbound?.layovers) && outbound!.layovers!.length
+      ? outbound!.layovers!
+      : outboundLegs.length > 1
+      ? outboundLegs.slice(0, -1).map((leg) => ({
+          airport: leg.to,
+        }))
+      : []) ?? [];
+
+  const inboundLayovers: LayoverInfo[] =
+    (Array.isArray(inbound?.layovers) && inbound!.layovers!.length
+      ? inbound!.layovers!
+      : inboundLegs.length > 1
+      ? inboundLegs.slice(0, -1).map((leg) => ({
+          airport: leg.to,
+        }))
+      : []) ?? [];
 
   const hasDetailedOutbound = outboundLegs.length > 0;
   const hasDetailedInbound = inboundLegs.length > 0;
 
   const totalDuration =
-    flightRaw.totalDuration ||
-    (pkg as any).totalDuration ||
-    pkg.total_duration;
+    rawFlight.totalDuration ||
+    pkg.totalDuration ||
+    pkg.total_duration ||
+    minutesToDuration(rawFlight.duration_minutes);
 
   const cabin =
-    flightRaw.cabin ||
-    (pkg as any).cabin ||
+    rawFlight.cabin ||
+    pkg.cabin ||
     pkg.cabin_class ||
-    pkg.cabin;
+    rawFlight.cabin_class;
 
   const fallbackOutboundText =
     pkg.outboundText ||
@@ -395,14 +495,118 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
 
   const genericFlightText = getGenericFlightText(pkg);
 
-  // external links placeholders
-  const googleFlightsUrl = "#";
-  const bookingUrl = "#";
-  const airlineSitesUrl = "#";
-  const skyscannerUrl = "#";
-  const kayakUrl = "#";
-  const expediaUrl = "#";
-  const hotelsUrl = "#";
+  // header airline + date
+  const mainAirline =
+    pkg.carrier_name ||
+    rawFlight.carrier_name ||
+    outboundLegs[0]?.airline ||
+    inboundLegs[0]?.airline ||
+    "";
+
+  const departDate =
+    extractDateOnly(
+      pkg.departDate ||
+        pkg.departureDate ||
+        outboundLegs[0]?.departure ||
+        rawFlight.departureDate
+    ) || undefined;
+
+  const origin =
+    pkg.origin ||
+    pkg.from ||
+    outboundLegs[0]?.from ||
+    rawFlight.origin ||
+    "";
+  const destination =
+    pkg.destination ||
+    pkg.to ||
+    outboundLegs[outboundLegs.length - 1]?.to ||
+    rawFlight.destination ||
+    "";
+
+  const returnDate =
+    extractDateOnly(
+      pkg.returnDate ||
+        pkg.return_date ||
+        inboundLegs[0]?.departure ||
+        rawFlight.returnDate
+    ) || undefined;
+
+  // URLs – use Google search / Flights with route pre-filled
+  const googleFlightsUrl = buildFlightSearchUrl(
+    origin,
+    destination,
+    departDate,
+    returnDate
+  );
+  const moreFlightsUrl = buildSiteSearchUrl(
+    "flights",
+    origin,
+    destination,
+    departDate,
+    returnDate
+  );
+  const airlineSitesUrl = buildSiteSearchUrl(
+    "airline tickets",
+    origin,
+    destination,
+    departDate,
+    returnDate
+  );
+  const bookingUrl = buildSiteSearchUrl(
+    "site:booking.com hotel",
+    destination,
+    "",
+    departDate,
+    returnDate
+  );
+  const expediaUrl = buildSiteSearchUrl(
+    "site:expedia.com hotel",
+    destination,
+    "",
+    departDate,
+    returnDate
+  );
+  const hotelsUrl = buildSiteSearchUrl(
+    "site:hotels.com hotel",
+    destination,
+    "",
+    departDate,
+    returnDate
+  );
+  const skyscannerUrl = buildSiteSearchUrl(
+    "Skyscanner flights",
+    origin,
+    destination,
+    departDate,
+    returnDate
+  );
+  const kayakUrl = buildSiteSearchUrl(
+    "KAYAK flights",
+    origin,
+    destination,
+    departDate,
+    returnDate
+  );
+
+  const headerRouteLabel =
+    hasDetailedOutbound && outboundLegs.length > 0
+      ? `${outboundLegs[0]?.from} → ${
+          outboundLegs[outboundLegs.length - 1]?.to
+        }`
+      : outbound?.summary
+      ? outbound.summary
+      : routeOverride || "Flight route";
+
+  const headerSubLabelParts: string[] = [];
+  if (mainAirline) headerSubLabelParts.push(mainAirline);
+  if (departDate) headerSubLabelParts.push(departDate);
+  if (totalDuration) headerSubLabelParts.push(totalDuration);
+  const headerSubLabel = headerSubLabelParts.join(" • ");
+
+  const titleText = `Option ${optionNumber}`;
+
+  /* ----- helpers to render lists safely ----- */
 
   const renderHotelRow = (hotel: any, i: number) => {
     if (hotel == null) return null;
@@ -490,29 +694,22 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     );
   };
 
+  /* ---------- RENDER ---------- */
+
   return (
     <div style={cardStyle}>
       {/* HEADER */}
       <div style={headerStyle}>
-        <div>
-          <div style={headerTitleStyle}>
-            {String(title).toUpperCase()}
+        <div style={headerLeft}>
+          <div style={headerTitleRow}>
+            <div style={headerTitleText}>{titleText}</div>
+            {headerSubLabel && (
+              <div style={headerSubText}>{headerSubLabel}</div>
+            )}
           </div>
-
           <div style={headerRouteStyle}>
             <Plane size={14} />
-            {hasDetailedOutbound && outboundLegs.length > 0 ? (
-              <>
-                {outboundLegs[0]?.from} →{" "}
-                {outboundLegs[outboundLegs.length - 1]?.to}
-              </>
-            ) : outbound?.summary ? (
-              outbound.summary
-            ) : routeOverride ? (
-              routeOverride
-            ) : (
-              "Flight route"
-            )}
+            {headerRouteLabel}
           </div>
         </div>
 
@@ -789,7 +986,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
             }}
           >
             <Hotel size={16} />
-            Booking.com
+            Booking / Hotels
           </a>
         </div>
 
