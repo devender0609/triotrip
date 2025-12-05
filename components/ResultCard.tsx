@@ -51,7 +51,7 @@ type HotelBundle = {
   hotels?: any[];
 };
 
-// ---- shared styles (mostly inline so it looks good even if Tailwind fails) ---- //
+// -------- shared styles -------- //
 
 const cardStyle: React.CSSProperties = {
   borderRadius: 24,
@@ -68,8 +68,7 @@ const headerStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  backgroundImage:
-    "linear-gradient(90deg, #0ea5e9, #6366f1, #ec4899)",
+  backgroundImage: "linear-gradient(90deg, #0ea5e9, #6366f1, #ec4899)",
   color: "white",
 };
 
@@ -194,14 +193,14 @@ const chipLink: React.CSSProperties = {
 const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   if (!pkg) return null;
 
-  // ---- title / route ------------------------------------------------------- //
+  // ---- title / route -------------------------------------------------- //
   const title =
     pkg.title || pkg.label || pkg.name || `Option ${index + 1}`;
 
   const routeOverride =
     pkg.route || pkg.routeText || pkg.route_text || "";
 
-  // ---- price handling: look for as many variants as possible -------------- //
+  // ---- price handling ------------------------------------------------- //
   const totalPrice =
     pkg.totalPrice ??
     pkg.price ??
@@ -228,7 +227,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     (pkg.hotelNights ? `${pkg.hotelNights} nights hotel` : "") ||
     "Trip bundle";
 
-  // ---- hotel bundle -------------------------------------------------------- //
+  // ---- hotel bundle --------------------------------------------------- //
   const hotelBundleRaw: any =
     pkg.hotelBundle || pkg.hotel || pkg.hotels || {};
 
@@ -254,7 +253,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
       : [],
   };
 
-  // ---- flight info --------------------------------------------------------- //
+  // ---- flight info ---------------------------------------------------- //
   const flightRaw: FlightInfo =
     pkg.flight || pkg.flightInfo || pkg.flights || {};
 
@@ -296,7 +295,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     pkg.cabin_class ||
     pkg.cabin;
 
-  // Fallback plain-text summaries if there are no legs/summaries.
+  // Fallback plain-text summaries
   const fallbackOutboundText =
     pkg.outboundText ||
     pkg.outbound_text ||
@@ -319,7 +318,19 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     pkg.inbound_summary ||
     "";
 
-  // ---- external links (can be wired later) -------------------------------- //
+  // **NEW**: catch-all generic flight text so we *always* show something
+  const genericFlightText =
+    pkg.flightDetails ||
+    pkg.flight_details ||
+    pkg.flightsText ||
+    pkg.flights_text ||
+    pkg.itinerary ||
+    pkg.itinerary_text ||
+    pkg.flight ||
+    pkg.flights ||
+    "";
+
+  // ---- external links (can be wired later) ---------------------------- //
   const googleFlightsUrl = "#";
   const bookingUrl = "#";
   const airlineSitesUrl = "#";
@@ -328,7 +339,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
   const expediaUrl = "#";
   const hotelsUrl = "#";
 
-  // ---- helpers ------------------------------------------------------------- //
+  // ---- helpers -------------------------------------------------------- //
   const renderHotelRow = (hotel: any, i: number) => {
     if (hotel == null) return null;
 
@@ -415,7 +426,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
     );
   };
 
-  // -------------------------------------------------------------------------- //
+  // --------------------------------------------------------------------- //
   return (
     <div style={cardStyle}>
       {/* HEADER */}
@@ -487,168 +498,179 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
           </div>
 
           {/* OUTBOUND */}
-          {outbound || fallbackOutboundText ? (
-            <div style={{ marginBottom: 10 }}>
-              <div style={labelSm}>Outbound</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelSm}>Outbound</div>
 
-              {outbound && hasDetailedOutbound && outboundLegs.length > 0 ? (
-                <>
-                  {outboundLegs.map((leg, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        ...textSm,
-                        marginTop: 4,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div>
-                        <span style={{ fontWeight: 600 }}>
-                          {leg.from} → {leg.to}
+            {outbound && hasDetailedOutbound && outboundLegs.length > 0 ? (
+              <>
+                {outboundLegs.map((leg, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      ...textSm,
+                      marginTop: 4,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontWeight: 600 }}>
+                        {leg.from} → {leg.to}
+                      </span>
+                      {leg.airline && (
+                        <span style={{ marginLeft: 6 }}>
+                          • {leg.airline}
                         </span>
-                        {leg.airline && (
-                          <span style={{ marginLeft: 6 }}>
-                            • {leg.airline}
-                          </span>
-                        )}
-                        {leg.flightNumber && (
-                          <span style={{ marginLeft: 4 }}>
-                            ({leg.flightNumber})
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 12, opacity: 0.9 }}>
-                        {leg.departure && (
-                          <span>Dep: {leg.departure}&nbsp;</span>
-                        )}
-                        {leg.arrival && (
-                          <span>Arr: {leg.arrival}&nbsp;</span>
-                        )}
-                        {leg.duration && <span>• {leg.duration}</span>}
-                      </div>
+                      )}
+                      {leg.flightNumber && (
+                        <span style={{ marginLeft: 4 }}>
+                          ({leg.flightNumber})
+                        </span>
+                      )}
                     </div>
-                  ))}
+                    <div style={{ fontSize: 12, opacity: 0.9 }}>
+                      {leg.departure && (
+                        <span>Dep: {leg.departure}&nbsp;</span>
+                      )}
+                      {leg.arrival && (
+                        <span>Arr: {leg.arrival}&nbsp;</span>
+                      )}
+                      {leg.duration && <span>• {leg.duration}</span>}
+                    </div>
+                  </div>
+                ))}
 
-                  {outboundLayovers.length > 0 && (
-                    <div
-                      style={{
-                        marginTop: 4,
-                        fontSize: 11,
-                        color: "#fde68a",
-                      }}
-                    >
-                      {outboundLayovers.map((l, i) => (
-                        <div key={i}>
-                          Layover in{" "}
-                          <span style={{ fontWeight: 600 }}>
-                            {l.airport}
-                          </span>
-                          {l.duration ? ` — ${l.duration}` : ""}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : outbound?.summary ? (
-                <div style={{ ...textSm, marginTop: 4 }}>
-                  {outbound.summary}
-                </div>
-              ) : (
-                <div style={{ ...textSm, marginTop: 4 }}>
-                  {fallbackOutboundText ||
-                    "Outbound flight details to be confirmed at booking."}
-                </div>
-              )}
-            </div>
-          ) : null}
+                {outboundLayovers.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: 11,
+                      color: "#fde68a",
+                    }}
+                  >
+                    {outboundLayovers.map((l, i) => (
+                      <div key={i}>
+                        Layover in{" "}
+                        <span style={{ fontWeight: 600 }}>
+                          {l.airport}
+                        </span>
+                        {l.duration ? ` — ${l.duration}` : ""}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : outbound?.summary ? (
+              <div style={{ ...textSm, marginTop: 4 }}>
+                {outbound.summary}
+              </div>
+            ) : fallbackOutboundText ? (
+              <div style={{ ...textSm, marginTop: 4 }}>
+                {fallbackOutboundText}
+              </div>
+            ) : genericFlightText ? (
+              <div style={{ ...textSm, marginTop: 4 }}>
+                {genericFlightText}
+              </div>
+            ) : (
+              <div style={{ ...textSm, marginTop: 4, opacity: 0.75 }}>
+                Flight details will be shown here once available.
+              </div>
+            )}
+          </div>
 
           {/* INBOUND */}
-          {inbound || fallbackInboundText ? (
-            <div
-              style={{
-                marginTop: 8,
-                paddingTop: 8,
-                borderTop: "1px solid #1f2937",
-              }}
-            >
-              <div style={labelSm}>Return</div>
+          <div
+            style={{
+              marginTop: 8,
+              paddingTop: 8,
+              borderTop: "1px solid #1f2937",
+            }}
+          >
+            <div style={labelSm}>Return</div>
 
-              {inbound && hasDetailedInbound && inboundLegs.length > 0 ? (
-                <>
-                  {inboundLegs.map((leg, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        ...textSm,
-                        marginTop: 4,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div>
-                        <span style={{ fontWeight: 600 }}>
-                          {leg.from} → {leg.to}
+            {inbound && hasDetailedInbound && inboundLegs.length > 0 ? (
+              <>
+                {inboundLegs.map((leg, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      ...textSm,
+                      marginTop: 4,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontWeight: 600 }}>
+                        {leg.from} → {leg.to}
+                      </span>
+                      {leg.airline && (
+                        <span style={{ marginLeft: 6 }}>
+                          • {leg.airline}
                         </span>
-                        {leg.airline && (
-                          <span style={{ marginLeft: 6 }}>
-                            • {leg.airline}
-                          </span>
-                        )}
-                        {leg.flightNumber && (
-                          <span style={{ marginLeft: 4 }}>
-                            ({leg.flightNumber})
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 12, opacity: 0.9 }}>
-                        {leg.departure && (
-                          <span>Dep: {leg.departure}&nbsp;</span>
-                        )}
-                        {leg.arrival && (
-                          <span>Arr: {leg.arrival}&nbsp;</span>
-                        )}
-                        {leg.duration && <span>• {leg.duration}</span>}
-                      </div>
+                      )}
+                      {leg.flightNumber && (
+                        <span style={{ marginLeft: 4 }}>
+                          ({leg.flightNumber})
+                        </span>
+                      )}
                     </div>
-                  ))}
+                    <div style={{ fontSize: 12, opacity: 0.9 }}>
+                      {leg.departure && (
+                        <span>Dep: {leg.departure}&nbsp;</span>
+                      )}
+                      {leg.arrival && (
+                        <span>Arr: {leg.arrival}&nbsp;</span>
+                      )}
+                      {leg.duration && <span>• {leg.duration}</span>}
+                    </div>
+                  </div>
+                ))}
 
-                  {inboundLayovers.length > 0 && (
-                    <div
-                      style={{
-                        marginTop: 4,
-                        fontSize: 11,
-                        color: "#fde68a",
-                      }}
-                    >
-                      {inboundLayovers.map((l, i) => (
-                        <div key={i}>
-                          Layover in{" "}
-                          <span style={{ fontWeight: 600 }}>
-                            {l.airport}
-                          </span>
-                          {l.duration ? ` — ${l.duration}` : ""}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : inbound?.summary ? (
-                <div style={{ ...textSm, marginTop: 4 }}>
-                  {inbound.summary}
-                </div>
-              ) : (
-                <div style={{ ...textSm, marginTop: 4 }}>
-                  {fallbackInboundText ||
-                    "Return flight details to be confirmed at booking."}
-                </div>
-              )}
-            </div>
-          ) : null}
+                {inboundLayovers.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: 11,
+                      color: "#fde68a",
+                    }}
+                  >
+                    {inboundLayovers.map((l, i) => (
+                      <div key={i}>
+                        Layover in{" "}
+                        <span style={{ fontWeight: 600 }}>
+                          {l.airport}
+                        </span>
+                        {l.duration ? ` — ${l.duration}` : ""}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : inbound?.summary ? (
+              <div style={{ ...textSm, marginTop: 4 }}>
+                {inbound.summary}
+              </div>
+            ) : fallbackInboundText ? (
+              <div style={{ ...textSm, marginTop: 4 }}>
+                {fallbackInboundText}
+              </div>
+            ) : genericFlightText ? (
+              <div style={{ ...textSm, marginTop: 4 }}>
+                {genericFlightText}
+              </div>
+            ) : (
+              <div style={{ ...textSm, marginTop: 4, opacity: 0.75 }}>
+                Return flight details will be shown here once
+                available.
+              </div>
+            )}
+          </div>
 
           {/* Cabin / total duration */}
           {cabin && (
@@ -662,24 +684,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
               {totalDuration}
             </div>
           )}
-
-          {!outbound &&
-            !inbound &&
-            !fallbackOutboundText &&
-            !fallbackInboundText &&
-            !totalDuration && (
-              <div
-                style={{
-                  ...textSm,
-                  marginTop: 6,
-                  opacity: 0.75,
-                  fontStyle: "italic",
-                }}
-              >
-                Live flight details will appear here once pricing is
-                available from our partners.
-              </div>
-            )}
         </section>
       </div>
 
@@ -703,8 +707,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
             rel="noreferrer"
             style={{
               ...pillButton,
-              background:
-                "linear-gradient(90deg,#0ea5e9,#2563eb)",
+              background: "linear-gradient(90deg,#0ea5e9,#2563eb)",
               color: "white",
               textDecoration: "none",
             }}
@@ -811,7 +814,8 @@ const ResultCard: React.FC<ResultCardProps> = ({ pkg, index, currency }) => {
 
           <div style={{ fontSize: 10, opacity: 0.7 }}>
             <ExternalLink size={12} style={{ marginRight: 4 }} />
-            Prices and availability are examples and may change at booking.
+            Prices and availability are examples and may change at
+            booking.
           </div>
         </div>
       </div>
