@@ -1242,7 +1242,8 @@ export default function Page() {
           )}
 
           <ResultsArea />
-          <AiDestinationCompare />
+          {/* ✅ Pass currency prop so TypeScript is satisfied */}
+          <AiDestinationCompare currency={currency} />
         </>
       )}
 
@@ -1250,7 +1251,6 @@ export default function Page() {
         <>
           {/* manual form – unchanged except font sizes already reasonably big */}
           {/* ... keep your existing manual section here (unchanged from previous version) ... */}
-          {/* For brevity, I’m not duplicating the manual section again; you can keep the one from your last working commit. */}
         </>
       )}
 
