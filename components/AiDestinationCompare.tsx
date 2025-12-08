@@ -3,17 +3,19 @@
 import React, { useState } from "react";
 import ExploreSavorTabs from "./ExploreSavorTabs";
 
+type Comparison = {
+  name: string;
+  approx_cost_level: string;
+  weather_summary: string;
+  best_for: string;
+  pros: string[];
+  cons: string[];
+  overall_vibe: string;
+};
+
 type CompareResponse = {
   ok: boolean;
-  comparisons: {
-    name: string;
-    approx_cost_level: string;
-    weather_summary: string;
-    best_for: string;
-    pros: string[];
-    cons: string[];
-    overall_vibe: string;
-  }[];
+  comparisons: Comparison[];
 };
 
 interface Props {
@@ -27,10 +29,9 @@ const AiDestinationCompare: React.FC<Props> = ({ currency }) => {
   const [homeCity, setHomeCity] = useState("Austin, TX");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<CompareResponse["comparisons"]>([]);
-  const [activeCityForExplore, setActiveCityForExplore] = useState<string | null>(
-    null
-  );
+  const [results, setResults] = useState<Comparison[]>([]);
+  const [activeCityForExplore, setActiveCityForExplore] =
+    useState<string | null>(null);
 
   async function handleCompare(e: React.FormEvent) {
     e.preventDefault();
@@ -52,8 +53,8 @@ const AiDestinationCompare: React.FC<Props> = ({ currency }) => {
       }).then((r) => r.json());
 
       const safe: CompareResponse = {
-        ok: !!raw.ok,
-        comparisons: Array.isArray(raw.comparisons) ? raw.comparisons : [],
+        ok: !!raw?.ok,
+        comparisons: Array.isArray(raw?.comparisons) ? raw.comparisons : [],
       };
 
       if (!safe.ok) {
@@ -79,7 +80,7 @@ const AiDestinationCompare: React.FC<Props> = ({ currency }) => {
   return (
     <section className="mt-10">
       <div className="rounded-3xl bg-slate-950/95 border border-slate-800 px-6 py-7 md:px-8 md:py-8 shadow-2xl text-slate-50">
-        {/* Header + reset */}
+        {/* HEADER + RESET */}
         <div className="mb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h2 className="text-2xl md:text-3xl font-semibold flex items-center gap-2">
@@ -92,7 +93,9 @@ const AiDestinationCompare: React.FC<Props> = ({ currency }) => {
               Drop in a few places and we’ll compare them for cost, weather,
               food, hotels, nightlife, family-friendliness, safety, and the best
               airports to use. This is a{" "}
-              <span className="font-semibold text-slate-100">separate tool</span>{" "}
+              <span className="font-semibold text-slate-100">
+                separate tool
+              </span>{" "}
               from your flight search — perfect for deciding{" "}
               <span className="font-semibold text-slate-100">where</span> to go
               before you book.
