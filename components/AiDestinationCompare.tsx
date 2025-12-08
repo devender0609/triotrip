@@ -102,7 +102,6 @@ const AiDestinationCompare: React.FC<Props> = ({ currency }) => {
         </div>
 
         <form onSubmit={handleCompare} className="space-y-4">
-          {/* Destinations row */}
           <div>
             <label className="block text-xs md:text-sm font-semibold text-slate-200 mb-1">
               Destinations (comma-separated)
@@ -115,7 +114,6 @@ const AiDestinationCompare: React.FC<Props> = ({ currency }) => {
             />
           </div>
 
-          {/* Month / days / home city */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
             <div>
               <label className="block text-xs md:text-sm font-semibold text-slate-200 mb-1">
@@ -190,7 +188,6 @@ const AiDestinationCompare: React.FC<Props> = ({ currency }) => {
           </div>
         )}
 
-        {/* Results */}
         {results.length > 0 && (
           <div className="mt-6 space-y-4">
             {results.map((r) => (
@@ -224,17 +221,13 @@ const AiDestinationCompare: React.FC<Props> = ({ currency }) => {
                   </div>
                   {r.pros?.length > 0 && (
                     <div className="mb-1">
-                      <span className="font-semibold text-emerald-300">
-                        Pros:{" "}
-                      </span>
+                      <span className="font-semibold text-emerald-300">Pros: </span>
                       <span>{r.pros.join(" • ")}</span>
                     </div>
                   )}
                   {r.cons?.length > 0 && (
                     <div>
-                      <span className="font-semibold text-rose-300">
-                        Cons:{" "}
-                      </span>
+                      <span className="font-semibold text-rose-300">Cons: </span>
                       <span>{r.cons.join(" • ")}</span>
                     </div>
                   )}
@@ -242,10 +235,10 @@ const AiDestinationCompare: React.FC<Props> = ({ currency }) => {
               </div>
             ))}
 
-            {/* Explore / Savor / Misc for last active city */}
+            {/* 🔥 FIXED: ExploreSavorTabs now receives required "active" prop */}
             {activeCityForExplore && (
               <div className="mt-4">
-                <ExploreSavorTabs city={activeCityForExplore} />
+                <ExploreSavorTabs city={activeCityForExplore} active="explore" />
               </div>
             )}
           </div>
