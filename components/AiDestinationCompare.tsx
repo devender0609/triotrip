@@ -1,268 +1,523 @@
+// components/AiDestinationCompare.tsx
 "use client";
 
-import React, { useState, FormEvent } from "react";
+import { useState } from "react";
+import { aiCompareDestinations } from "@/lib/api";
 
-type Props = {
-  currency: string;
-};
+const AI_ENABLED =
+  process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
+  process.env.NEXT_PUBLIC_AI_ENABLED === "1";
 
-type SimpleComparison = {
+type AirportRec = {
+  role: string; // e.g. "primary_hub"
   name: string;
-  approxCost: string;
-  bestFor: string;
-  pros: string;
-  cons: string;
+  code: string;
+  reason: string;
 };
 
-export default function AiDestinationCompare({ currency }: Props) {
-  const [destinations, setDestinations] = useState("Bali, Thailand, Hawaii");
+type Comparison = {
+  name: string;
+  approx_cost_level: string;
+  weather_summary: string;
+  best_for: string;
+  pros: string[];
+  cons: string[];
+  overall_vibe: string;
+  dining_and_local_eats?: string;
+  hotels_and_areas?: string;
+  entertainment_and_nightlife?: string;
+  family_friendly?: string;
+  kids_activities?: string;
+  safety_tips?: string;
+  currency?: string;
+  typical_daily_budget?: string;
+  airports?: AirportRec[];
+};
+
+type CompareResponse = {
+  comparisons: Comparison[];
+};
+
+export function AiDestinationCompare() {
+  const [input, setInput] = useState("Bali, Thailand, Hawaii");
   const [month, setMonth] = useState("December");
-  const [days, setDays] = useState("7");
+  const [days, setDays] = useState(7);
   const [home, setHome] = useState("Austin, TX");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<SimpleComparison[] | null>(null);
+  const [data, setData] = useState<Comparison[] | null>(null);
 
-  const handleSubmit = (e: FormEvent) => {
+  if (!AI_ENABLED) {
+    return (
+      <section
+        style={{
+          marginTop: 24,
+          padding: 16,
+          borderRadius: 16,
+          border: "1px solid #e2e8f0",
+          background: "#f8fafc",
+        }}
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
+          AI Destination Compare (temporarily disabled)
+        </h2>
+        <p style={{ fontSize: 15, color: "#475569" }}>
+          Once AI is enabled again, you&apos;ll be able to compare destinations
+          side-by-side here.
+        </p>
+      </section>
+    );
+  }
+
+  async function handleCompare(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
+    const destinations = input
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (!destinations.length) {
+      setError("Please enter at least one destination.");
+      return;
+    }
 
     try {
-      const parts = destinations
-        .split(",")
-        .map((d) => d.trim())
-        .filter(Boolean);
-
-      if (!parts.length) {
-        setError("Please enter at least one destination.");
-        setResults(null);
-        setLoading(false);
-        return;
-      }
-
-      // simple, fake comparison so the layout looks good
-      const generated: SimpleComparison[] = parts.map((name, idx) => {
-        const level = idx % 3;
-
-        const approxCost =
-          level === 0
-            ? `${currency} $ – budget`
-            : level === 1
-            ? `${currency} $$ – mid-range`
-            : `${currency} $$$ – higher end`;
-
-        const bestFor =
-          level === 0
-            ? "Budget-friendly adventures and local culture."
-            : level === 1
-            ? "Balanced comfort, food and sightseeing."
-            : "Upscale stays, fine dining and relaxed exploring.";
-
-        const pros =
-          level === 0
-            ? "Great value, street food, markets, and local experiences."
-            : level === 1
-            ? "Nice mix of attractions, dining, and walkable areas."
-            : "Stylish hotels, great restaurants, and scenic views.";
-
-        const cons =
-          level === 0
-            ? "Can be crowded or noisy in peak areas."
-            : level === 1
-            ? "Popular neighborhoods may get busy in high season."
-            : "Higher prices, especially in central locations.";
-
-        return { name, approxCost, bestFor, pros, cons };
-      });
-
-      setResults(generated);
-    } catch (err) {
-      console.error(err);
-      setError("Something went wrong while comparing these places.");
-      setResults(null);
+      setLoading(true);
+      setError(null);
+      setData(null);
+      const res = (await aiCompareDestinations({
+        destinations,
+        month: month || undefined,
+        home,
+        days,
+      })) as CompareResponse;
+      setData(res.comparisons as any);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleReset = () => {
-    setResults(null);
-    setError(null);
-  };
+  const MONTH_OPTIONS = [
+    "Any time",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
 
   return (
-    <section className="mt-10">
-      {/* OUTER CARD – matches “Plan my trip with AI” */}
-      <div className="rounded-3xl bg-slate-950 text-slate-50 px-4 py-5 sm:px-6 sm:py-6 shadow-xl border border-slate-800">
-        {/* Header row */}
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-              Compare destinations with AI
-            </h2>
-            <span className="text-2xl" aria-hidden="true">
-              🌍
-            </span>
-          </div>
+    <section
+      style={{
+        marginTop: 24,
+        background: "#0f172a",
+        color: "white",
+        borderRadius: 16,
+        padding: 20,
+        display: "grid",
+        gap: 12,
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+      }}
+    >
+      <h2 style={{ fontSize: 22, fontWeight: 800 }}>
+        Compare destinations with AI 🌍
+      </h2>
+      <p style={{ fontSize: 15, opacity: 0.9, maxWidth: 900, lineHeight: 1.5 }}>
+        Not sure where to go? Enter a few places and we&apos;ll compare them for
+        cost, weather, food, hotels, nightlife, family-friendliness, safety, and
+        the best airports to use.
+      </p>
 
-          <button
-            type="button"
-            onClick={handleReset}
-            className="hidden sm:inline-flex items-center rounded-full border border-slate-600 px-3 py-1 text-xs sm:text-sm font-medium text-slate-100 hover:bg-slate-800 transition-colors"
+      {/* Form */}
+      <form
+        onSubmit={handleCompare}
+        style={{
+          display: "grid",
+          gap: 10,
+          gridTemplateColumns: "2fr 1fr 1fr 1.5fr",
+          alignItems: "center",
+        }}
+      >
+        {/* Destinations */}
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
           >
-            Reset compare results
-          </button>
+            Destinations (comma-separated)
+          </label>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Bali, Thailand, Hawaii"
+            style={{
+              width: "100%",
+              padding: 10,
+              borderRadius: 12,
+              border: "1px solid #1e293b",
+              fontSize: 15,
+              color: "#0f172a",
+            }}
+          />
         </div>
 
-        {/* Description */}
-        <p className="text-sm sm:text-base text-slate-200 mb-6 max-w-3xl leading-relaxed">
-          Drop in a few places and we’ll compare them for cost, weather, food,
-          hotels, nightlife, family-friendliness, safety, and the best airports
-          to use. This is a separate tool from your flight search — perfect for
-          deciding <span className="font-semibold text-sky-300">where</span> to
-          go before you book.
-        </p>
+        {/* Month */}
+        <div>
+          <label
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Month
+          </label>
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            style={{
+              width: "100%",
+              padding: 9,
+              borderRadius: 12,
+              border: "1px solid #1e293b",
+              fontSize: 15,
+              color: "#0f172a",
+            }}
+          >
+            {MONTH_OPTIONS.map((m) => (
+              <option key={m} value={m === "Any time" ? "" : m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        {/* FORM */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Destinations input */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-100">
-              Destinations (comma-separated)
-            </label>
-            <input
-              type="text"
-              value={destinations}
-              onChange={(e) => setDestinations(e.target.value)}
-              placeholder="Bali, Thailand, Hawaii"
-              className="w-full rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2.5 text-sm sm:text-base text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-            />
+        {/* Days */}
+        <div>
+          <label
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Days
+          </label>
+          <input
+            type="number"
+            min={2}
+            max={30}
+            value={days}
+            onChange={(e) =>
+              setDays(Math.max(2, Math.min(30, Number(e.target.value || 7))))
+            }
+            style={{
+              width: "100%",
+              padding: 9,
+              borderRadius: 12,
+              border: "1px solid #1e293b",
+              fontSize: 15,
+              color: "#0f172a",
+            }}
+          />
+        </div>
+
+        {/* Home city */}
+        <div>
+          <label
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Home city / airport
+          </label>
+          <input
+            value={home}
+            onChange={(e) => setHome(e.target.value)}
+            placeholder="Austin, TX or AUS"
+            style={{
+              width: "100%",
+              padding: 9,
+              borderRadius: 12,
+              border: "1px solid #1e293b",
+              fontSize: 15,
+              color: "#0f172a",
+            }}
+          />
+        </div>
+
+        {/* Button full-width */}
+        <div style={{ gridColumn: "1 / -1", marginTop: 4 }}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%",
+              borderRadius: 999,
+              padding: "11px 16px",
+              border: "none",
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: loading ? "default" : "pointer",
+              background:
+                "linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%)",
+              color: "white",
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? "Comparing destinations…" : "Compare these places"}
+          </button>
+        </div>
+      </form>
+
+      {/* Error */}
+      {error && (
+        <p style={{ color: "#fecaca", fontSize: 14 }}>❌ {error}</p>
+      )}
+
+      {/* Results */}
+      {data && (
+        <div
+          style={{
+            marginTop: 10,
+            display: "grid",
+            gap: 12,
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          }}
+        >
+          {data.map((d, idx) => (
+            <DestinationCard key={idx} d={d} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function labelForRole(role: string): string {
+  const r = role.toLowerCase();
+  if (r.includes("primary")) return "Primary hub";
+  if (r.includes("cheapest")) return "Cheapest to fly";
+  if (r.includes("convenient")) return "Most convenient";
+  if (r.includes("happening") || r.includes("busiest"))
+    return "Most happening / busiest";
+  if (r.includes("safest")) return "Safest reputation";
+  return "Recommended";
+}
+
+function costLabel(level: string): string {
+  switch (level) {
+    case "$":
+      return "Very budget-friendly";
+    case "$$":
+      return "Moderate";
+    case "$$$":
+      return "Pricey";
+    case "$$$$":
+      return "Luxury";
+    default:
+      return "Varies";
+  }
+}
+
+function SectionRow({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string;
+}) {
+  if (!value) return null;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
+          opacity: 0.9,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 14, marginTop: 2 }}>{value}</div>
+    </div>
+  );
+}
+
+function DestinationCard({ d }: { d: Comparison }) {
+  const cLabel = costLabel(d.approx_cost_level);
+
+  return (
+    <div
+      style={{
+        borderRadius: 16,
+        background: "#020617",
+        border: "1px solid #1e293b",
+        padding: 14,
+        fontSize: 14,
+        display: "grid",
+        gap: 6,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 2,
+          gap: 8,
+        }}
+      >
+        <h3 style={{ fontSize: 16, fontWeight: 700 }}>{d.name}</h3>
+        <span
+          style={{
+            fontSize: 12,
+            padding: "3px 8px",
+            borderRadius: 999,
+            border: "1px solid #38bdf8",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {d.approx_cost_level} · {cLabel}
+        </span>
+      </div>
+
+      <div>
+        <strong>Best for:</strong> {d.best_for}
+      </div>
+      <div>
+        <strong>Weather:</strong> {d.weather_summary}
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <strong>Pros:</strong>
+        <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+          {(d.pros || []).map((p, i) => (
+            <li key={i}>{p}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <strong>Cons:</strong>
+        <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+          {(d.cons || []).map((c, i) => (
+            <li key={i}>{c}</li>
+          ))}
+        </ul>
+      </div>
+
+      {/* New detailed sections */}
+      <SectionRow
+        label="Dining & local eats"
+        value={d.dining_and_local_eats}
+      />
+      <SectionRow
+        label="Hotels & areas to stay"
+        value={d.hotels_and_areas}
+      />
+      <SectionRow
+        label="Entertainment & nightlife"
+        value={d.entertainment_and_nightlife}
+      />
+      <SectionRow
+        label="Family-friendly"
+        value={d.family_friendly}
+      />
+      <SectionRow
+        label="Activities for kids"
+        value={d.kids_activities}
+      />
+      <SectionRow label="Safety tips" value={d.safety_tips} />
+      <SectionRow label="Currency" value={d.currency} />
+      <SectionRow
+        label="Typical daily budget"
+        value={d.typical_daily_budget}
+      />
+
+      {d.airports && d.airports.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.3,
+              opacity: 0.9,
+            }}
+          >
+            Suggested airports
           </div>
-
-          {/* Month / Days / Home city */}
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,0.6fr)_minmax(0,1.3fr)]">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-100">
-                Month
-              </label>
-              <select
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                className="w-full rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2.5 text-sm sm:text-base text-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-              >
-                {[
-                  "January",
-                  "February",
-                  "March",
-                  "April",
-                  "May",
-                  "June",
-                  "July",
-                  "August",
-                  "September",
-                  "October",
-                  "November",
-                  "December",
-                ].map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-100">
-                Days
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={60}
-                value={days}
-                onChange={(e) => setDays(e.target.value)}
-                className="w-full rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2.5 text-sm sm:text-base text-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-100">
-                Home city / airport
-              </label>
-              <input
-                type="text"
-                value={home}
-                onChange={(e) => setHome(e.target.value)}
-                placeholder="Austin, TX"
-                className="w-full rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2.5 text-sm sm:text-base text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-              />
-            </div>
-          </div>
-
-          {/* Buttons */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full sm:w-auto inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 via-fuchsia-500 to-pink-500 px-6 py-2.5 text-sm sm:text-base font-semibold text-white shadow-lg shadow-fuchsia-500/30 hover:brightness-110 disabled:opacity-60 disabled:cursor-wait transition-all"
-            >
-              {loading ? "Comparing..." : "Compare these places"}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleReset}
-              className="sm:hidden inline-flex items-center justify-center rounded-full border border-slate-600 px-4 py-2 text-xs font-medium text-slate-100 hover:bg-slate-800 transition-colors"
-            >
-              Reset compare results
-            </button>
-          </div>
-        </form>
-
-        {/* Error */}
-        {error && (
-          <div className="mt-4 rounded-2xl border border-red-400/60 bg-red-950/60 px-4 py-3 text-sm text-red-100">
-            {error}
-          </div>
-        )}
-
-        {/* RESULTS */}
-        {results && (
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {results.map((r) => (
+          <div
+            style={{
+              display: "grid",
+              gap: 6,
+              marginTop: 4,
+            }}
+          >
+            {d.airports.map((a, i) => (
               <div
-                key={r.name}
-                className="rounded-2xl border border-slate-700 bg-slate-900/70 px-4 py-4 flex flex-col gap-2"
+                key={i}
+                style={{
+                  padding: 8,
+                  borderRadius: 10,
+                  border: "1px solid #1e293b",
+                  background: "#020617",
+                }}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-base sm:text-lg font-semibold text-slate-50">
-                    {r.name}
-                  </h3>
-                  <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-100">
-                    {r.approxCost}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 13,
+                    gap: 8,
+                  }}
+                >
+                  <span>
+                    <strong>
+                      {a.name} ({a.code})
+                    </strong>
+                  </span>
+                  <span style={{ opacity: 0.85 }}>
+                    {labelForRole(a.role)}
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-sky-200 font-medium">
-                  {r.bestFor}
-                </p>
-                <div className="mt-2 space-y-1 text-xs sm:text-sm leading-relaxed">
-                  <p>
-                    <span className="font-semibold text-emerald-300">
-                      Pros:
-                    </span>{" "}
-                    {r.pros}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-rose-300">
-                      Cons:
-                    </span>{" "}
-                    {r.cons}
-                  </p>
+                <div style={{ fontSize: 13, marginTop: 2 }}>
+                  {a.reason}
                 </div>
               </div>
             ))}
           </div>
-        )}
+        </div>
+      )}
+
+      <div style={{ marginTop: 6, fontStyle: "italic", color: "#cbd5f5" }}>
+        {d.overall_vibe}
       </div>
-    </section>
+    </div>
   );
 }
+
+// ✅ default export so both default and named imports work
+export default AiDestinationCompare;
