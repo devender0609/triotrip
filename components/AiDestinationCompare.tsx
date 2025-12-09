@@ -38,7 +38,12 @@ type CompareResponse = {
   comparisons: Comparison[];
 };
 
-export function AiDestinationCompare() {
+// NEW: accept currency prop so it matches usage in page.tsx
+type Props = {
+  currency: string;
+};
+
+export function AiDestinationCompare({ currency }: Props) {
   const [input, setInput] = useState("Bali, Thailand, Hawaii");
   const [month, setMonth] = useState("December");
   const [days, setDays] = useState(7);
@@ -52,14 +57,16 @@ export function AiDestinationCompare() {
       <section
         style={{
           marginTop: 24,
-          padding: 16,
+          padding: 20,
           borderRadius: 16,
           border: "1px solid #e2e8f0",
           background: "#f8fafc",
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
         }}
       >
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-          AI Destination Compare (temporarily disabled)
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
+          Compare destinations with AI 🌍 (temporarily disabled)
         </h2>
         <p style={{ fontSize: 15, color: "#475569" }}>
           Once AI is enabled again, you&apos;ll be able to compare destinations
@@ -118,32 +125,49 @@ export function AiDestinationCompare() {
   return (
     <section
       style={{
-        marginTop: 24,
-        background: "#0f172a",
+        marginTop: 32,
+        background: "#020617",
         color: "white",
-        borderRadius: 16,
-        padding: 20,
+        borderRadius: 24,
+        padding: 24,
         display: "grid",
-        gap: 12,
+        gap: 16,
+        boxShadow: "0 18px 40px rgba(15,23,42,0.55)",
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
       }}
     >
-      <h2 style={{ fontSize: 22, fontWeight: 800 }}>
-        Compare destinations with AI 🌍
-      </h2>
-      <p style={{ fontSize: 15, opacity: 0.9, maxWidth: 900, lineHeight: 1.5 }}>
-        Not sure where to go? Enter a few places and we&apos;ll compare them for
-        cost, weather, food, hotels, nightlife, family-friendliness, safety, and
-        the best airports to use.
-      </p>
+      <div>
+        <h2
+          style={{
+            fontSize: 24,
+            fontWeight: 800,
+            marginBottom: 6,
+          }}
+        >
+          Compare destinations with AI 🌍
+        </h2>
+        <p
+          style={{
+            fontSize: 16,
+            opacity: 0.9,
+            maxWidth: 900,
+            lineHeight: 1.6,
+          }}
+        >
+          Drop in a few places and we&apos;ll compare them for cost, weather,
+          food, hotels, nightlife, family-friendliness, safety, and the best
+          airports to use. Prices are summarized in{" "}
+          <span style={{ fontWeight: 700 }}>{currency}</span> where possible.
+        </p>
+      </div>
 
       {/* Form */}
       <form
         onSubmit={handleCompare}
         style={{
           display: "grid",
-          gap: 10,
+          gap: 12,
           gridTemplateColumns: "2fr 1fr 1fr 1.5fr",
           alignItems: "center",
         }}
@@ -166,8 +190,8 @@ export function AiDestinationCompare() {
             placeholder="Bali, Thailand, Hawaii"
             style={{
               width: "100%",
-              padding: 10,
-              borderRadius: 12,
+              padding: 12,
+              borderRadius: 14,
               border: "1px solid #1e293b",
               fontSize: 15,
               color: "#0f172a",
@@ -192,8 +216,8 @@ export function AiDestinationCompare() {
             onChange={(e) => setMonth(e.target.value)}
             style={{
               width: "100%",
-              padding: 9,
-              borderRadius: 12,
+              padding: 10,
+              borderRadius: 14,
               border: "1px solid #1e293b",
               fontSize: 15,
               color: "#0f172a",
@@ -229,8 +253,8 @@ export function AiDestinationCompare() {
             }
             style={{
               width: "100%",
-              padding: 9,
-              borderRadius: 12,
+              padding: 10,
+              borderRadius: 14,
               border: "1px solid #1e293b",
               fontSize: 15,
               color: "#0f172a",
@@ -256,8 +280,8 @@ export function AiDestinationCompare() {
             placeholder="Austin, TX or AUS"
             style={{
               width: "100%",
-              padding: 9,
-              borderRadius: 12,
+              padding: 10,
+              borderRadius: 14,
               border: "1px solid #1e293b",
               fontSize: 15,
               color: "#0f172a",
@@ -266,14 +290,14 @@ export function AiDestinationCompare() {
         </div>
 
         {/* Button full-width */}
-        <div style={{ gridColumn: "1 / -1", marginTop: 4 }}>
+        <div style={{ gridColumn: "1 / -1", marginTop: 6 }}>
           <button
             type="submit"
             disabled={loading}
             style={{
               width: "100%",
               borderRadius: 999,
-              padding: "11px 16px",
+              padding: "12px 16px",
               border: "none",
               fontWeight: 700,
               fontSize: 16,
@@ -298,9 +322,9 @@ export function AiDestinationCompare() {
       {data && (
         <div
           style={{
-            marginTop: 10,
+            marginTop: 12,
             display: "grid",
-            gap: 12,
+            gap: 14,
             gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
           }}
         >
@@ -428,7 +452,6 @@ function DestinationCard({ d }: { d: Comparison }) {
         </ul>
       </div>
 
-      {/* New detailed sections */}
       <SectionRow
         label="Dining & local eats"
         value={d.dining_and_local_eats}
@@ -450,7 +473,10 @@ function DestinationCard({ d }: { d: Comparison }) {
         value={d.kids_activities}
       />
       <SectionRow label="Safety tips" value={d.safety_tips} />
-      <SectionRow label="Currency" value={d.currency} />
+      <SectionRow
+        label="Currency"
+        value={d.currency}
+      />
       <SectionRow
         label="Typical daily budget"
         value={d.typical_daily_budget}
@@ -512,12 +538,18 @@ function DestinationCard({ d }: { d: Comparison }) {
         </div>
       )}
 
-      <div style={{ marginTop: 6, fontStyle: "italic", color: "#cbd5f5" }}>
+      <div
+        style={{
+          marginTop: 6,
+          fontStyle: "italic",
+          color: "#cbd5f5",
+        }}
+      >
         {d.overall_vibe}
       </div>
     </div>
   );
 }
 
-// ✅ default export so both default and named imports work
+// default export so both default and named imports work
 export default AiDestinationCompare;
