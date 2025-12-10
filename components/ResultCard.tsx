@@ -11,6 +11,8 @@ export interface ResultCardProps {
   comparedIds: string[];
   onToggleCompare: (id: string) => void;
   onSavedChangeGlobal: () => void;
+  // ✅ NEW: index from parent (for "OPTION 1/2/3" label)
+  index?: number;
 }
 
 const formatDuration = (minutes?: number) => {
@@ -31,6 +33,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
   showAllHotels,
   comparedIds,
   onToggleCompare,
+  index,
 }) => {
   const id = pkg?.id ?? "option-1";
 
@@ -45,6 +48,14 @@ const ResultCard: React.FC<ResultCardProps> = ({
     "Route TBD";
   const totalDuration = formatDuration(pkg?.duration_minutes);
   const stops = typeof pkg?.stops === "number" ? pkg.stops : undefined;
+
+  // which option number to show
+  const optionNumber =
+    index != null
+      ? index + 1
+      : pkg?.index != null
+      ? pkg.index + 1
+      : 1;
 
   // price in active currency (simple choice, no conversion math)
   const priceRaw =
@@ -85,7 +96,7 @@ const ResultCard: React.FC<ResultCardProps> = ({
       <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-sky-500 via-indigo-500 to-pink-500 px-5 py-3 text-sm sm:text-base">
         <div className="flex flex-col">
           <div className="flex items-center gap-2 font-semibold uppercase tracking-wide text-white/95">
-            <span>OPTION {pkg?.index != null ? pkg.index + 1 : 1}</span>
+            <span>OPTION {optionNumber}</span>
             <span className="text-xs sm:text-sm font-normal opacity-90">
               ✈ Flight · {carrierName}
             </span>
