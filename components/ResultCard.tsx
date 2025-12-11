@@ -297,12 +297,17 @@ function getPriceSummary(pkg: any, currency: string, pax: number): string {
   return `${price}${paxString}`;
 }
 
-function getPkgId(pkg: any): string {
+/** Stable ID: prefer pkg.id, then alpha/beta ids, then index-based fallback */
+function getPkgId(pkg: any, fallbackIndex: number): string {
+  if (pkg && pkg.id != null) return String(pkg.id);
+
   const alphaId = getPkgField(pkg, ["alpha.id", "alpha.pkg_id"]);
   if (typeof alphaId === "string" && alphaId.trim()) return alphaId;
+
   const betaId = getPkgField(pkg, ["beta.id", "beta.pkg_id"]);
   if (typeof betaId === "string" && betaId.trim()) return betaId;
-  return String(pkg.id ?? Math.random().toString(36).slice(2));
+
+  return `pkg-${fallbackIndex}`;
 }
 
 /* ----------------- BOOKING URL HELPERS ----------------- */
@@ -446,7 +451,7 @@ const headerInner: React.CSSProperties = {
   gap: 16,
   padding: "14px 20px",
   background:
-    "linear-gradient(90deg, rgba(15,23,42,0.92), rgba(15,23,42,0.88))",
+    "linear-gradient(90deg, rgba(15,23,42,0.96), rgba(15,23,42,0.9))",
 };
 
 const mainBody: React.CSSProperties = {
@@ -457,7 +462,7 @@ const mainBody: React.CSSProperties = {
 
 const twoColGrid: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0,1.1fr) minmax(0,1fr)", // side-by-side
+  gridTemplateColumns: "minmax(0,1.1fr) minmax(0,1fr)",
   gap: 16,
 };
 
@@ -503,7 +508,7 @@ const chipButton: React.CSSProperties = {
 const smallTag: React.CSSProperties = {
   borderRadius: 999,
   border: "1px solid rgba(148,163,184,0.7)",
-  padding: "3px 8px",
+  padding: "3px 9px",
   fontSize: 11,
   display: "inline-flex",
   alignItems: "center",
@@ -548,7 +553,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   comparedIds,
   onToggleCompare,
 }) => {
-  const id = getPkgId(pkg);
+  const id = getPkgId(pkg, index);
   const isCompared = comparedIds.includes(id);
 
   const airlineName = getAirlineName(pkg) || "Flight";
@@ -673,11 +678,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 padding: "6px 14px",
                 borderRadius: 999,
                 border: "1px solid rgba(248,250,252,0.8)",
-                background: "rgba(15,23,42,0.4)",
+                background:
+                  "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,64,175,0.9))",
                 color: "#f9fafb",
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: "pointer",
+                boxShadow: "0 4px 10px rgba(15,23,42,0.7)",
               }}
             >
               Trip bundle
@@ -750,7 +757,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                               borderRadius: 12,
                               border:
                                 "1px solid rgba(30,64,175,0.7)",
-                              background: "#020617",
+                              background:
+                                "linear-gradient(135deg,#020617,#020617,#020617)",
                               padding: "8px 10px",
                               display: "flex",
                               justifyContent: "space-between",
@@ -1045,11 +1053,17 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         {/* FOOTER BUTTONS + LINKS */}
         <div style={footerBar}>
           <button
+            type="button"
             onClick={handleCompareClick}
             style={{
               ...chipButton,
-              background: isCompared ? "#0ea5e9" : "#020617",
+              background: isCompared
+                ? "linear-gradient(135deg,#0ea5e9,#22c55e)"
+                : "#020617",
               borderColor: isCompared ? "#0ea5e9" : "#e2e8f0",
+              boxShadow: isCompared
+                ? "0 4px 12px rgba(14,165,233,0.6)"
+                : "none",
             }}
           >
             {isCompared ? "Added to Compare" : "Compare"}
@@ -1063,8 +1077,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               ...chipButton,
               textDecoration: "none",
               background:
-                "linear-gradient(90deg,#0ea5e9,#6366f1)",
-              borderColor: "transparent",
+                "linear-gradient(135deg,#0ea5e9,#6366f1,#a855f7)",
+              borderColor: "rgba(191,219,254,0.9)",
+              boxShadow: "0 4px 14px rgba(59,130,246,0.6)",
             }}
           >
             Google Flights
@@ -1078,8 +1093,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               style={{
                 ...chipButton,
                 textDecoration: "none",
-                background: "#16a34a",
-                borderColor: "#16a34a",
+                background:
+                  "linear-gradient(135deg,#16a34a,#22c55e,#bbf7d0)",
+                borderColor: "rgba(74,222,128,0.9)",
+                boxShadow: "0 4px 14px rgba(34,197,94,0.6)",
               }}
             >
               Booking / Hotels
@@ -1092,7 +1109,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               href={skyscannerUrl}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ ...smallTag, textDecoration: "none" }}
+              style={{
+                ...smallTag,
+                textDecoration: "none",
+                background:
+                  "linear-gradient(135deg,#0369a1,#0ea5e9)",
+                boxShadow: "0 3px 10px rgba(14,165,233,0.4)",
+              }}
             >
               Skyscanner
             </a>
@@ -1100,7 +1123,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               href={kayakUrl}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ ...smallTag, textDecoration: "none" }}
+              style={{
+                ...smallTag,
+                textDecoration: "none",
+                background:
+                  "linear-gradient(135deg,#ea580c,#f97316,#fed7aa)",
+                boxShadow: "0 3px 10px rgba(234,88,12,0.45)",
+              }}
             >
               KAYAK
             </a>
@@ -1108,7 +1137,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               href={airlineSiteUrl}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ ...smallTag, textDecoration: "none" }}
+              style={{
+                ...smallTag,
+                textDecoration: "none",
+                background:
+                  "linear-gradient(135deg,#4b5563,#9ca3af)",
+                boxShadow: "0 3px 10px rgba(75,85,99,0.5)",
+              }}
             >
               Airline sites
             </a>
@@ -1131,7 +1166,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               href={expediaUrl}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ ...smallTag, textDecoration: "none" }}
+              style={{
+                ...smallTag,
+                textDecoration: "none",
+                background:
+                  "linear-gradient(135deg,#facc15,#f97316,#ea580c)",
+                boxShadow: "0 3px 10px rgba(249,115,22,0.5)",
+              }}
             >
               Expedia
             </a>
@@ -1139,7 +1180,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               href={hotelsDotComUrl}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ ...smallTag, textDecoration: "none" }}
+              style={{
+                ...smallTag,
+                textDecoration: "none",
+                background:
+                  "linear-gradient(135deg,#b91c1c,#ef4444)",
+                boxShadow: "0 3px 10px rgba(239,68,68,0.5)",
+              }}
             >
               Hotels.com
             </a>
