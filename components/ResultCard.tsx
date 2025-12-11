@@ -15,53 +15,786 @@ export interface ResultCardProps {
   onSavedChangeGlobal: () => void;
 }
 
-function formatMoney(amount: number | null | undefined, currency: string) {
-  if (amount == null || Number.isNaN(Number(amount))) return "price TBD";
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency || "USD",
-      maximumFractionDigits: 0,
-    }).format(Number(amount));
-  } catch {
-    return `${currency || "USD"} ${Math.round(Number(amount))}`;
+/**
+ * Helper to safely extract value from either alpha or beta structure.
+ * E.g. getPkgField(pkg, ["alpha.hi_level.arrive_city", "beta.arrive_city"])
+ */
+function getPkgField(pkg: any, paths: string[]): any {
+  for (const path of paths) {
+    const parts = path.split(".");
+    let cur: any = pkg;
+    let ok = true;
+    for (const p of parts) {
+      if (cur && Object.prototype.hasOwnProperty.call(cur, p)) {
+        cur = cur[p];
+      } else {
+        ok = false;
+        break;
+      }
+    }
+    if (ok && cur !== undefined && cur !== null) return cur;
   }
+  return undefined;
 }
 
-function minutesToHrsMins(mins?: number) {
-  if (!mins || mins <= 0) return "";
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (!m) return `${h}h`;
-  return `${h}h ${m}m`;
+/**
+ * Get a (string) arrival city from an alpha/beta style package
+ */
+function getArriveCity(pkg: any): string {
+  const val = getPkgField(pkg, [
+    "alpha.hi_level.arrive_city",
+    "alpha.hi_level.destination_city",
+    "beta.arrive_city",
+    "beta.destination_city",
+  ]);
+  return typeof val === "string" ? val : "";
 }
 
-type SegmentLike = {
-  from?: string;
-  to?: string;
-  origin?: string;
-  destination?: string;
-  depart?: string;
-  departure?: string;
+/**
+ * Get a (string) departure city from alpha/beta style package
+ */
+function getDepartCity(pkg: any): string {
+  const val = getPkgField(pkg, [
+    "alpha.hi_level.depart_city",
+    "alpha.hi_level.origin_city",
+    "beta.depart_city",
+    "beta.origin_city",
+  ]);
+  return typeof val === "string" ? val : "";
+}
+
+/**
+ * Get an airline name from alpha/beta package
+ */
+function getAirlineName(pkg: any): string {
+  const val = getPkgField(pkg, [
+    "alpha.hi_level.airline",
+    "beta.airline",
+    "alpha.hi_level.carrier",
+    "beta.carrier",
+  ]);
+  return typeof val === "string" ? val : "";
+}
+
+/**
+ * Get travel date from alpha/beta pkg
+ */
+function getTravelDate(pkg: any): string {
+  const val = getPkgField(pkg, [
+    "alpha.hi_level.date",
+    "alpha.hi_level.depart_date",
+    "beta.depart_date",
+  ]);
+  return typeof val === "string" ? val : "";
+}
+
+/**
+ * Get total flight duration from alpha/beta pkg
+ * Example shapes:
+ *   alpha.hi_level.total_duration: "6h 55m"
+ *   beta.total_duration: "6h 55m"
+ */
+function getTotalDuration(pkg: any): string {
+  const val = getPkgField(pkg, [
+    "alpha.hi_level.total_duration",
+    "beta.total_duration",
+  ]);
+  return typeof val === "string" ? val : "";
+}
+
+/**
+ * Get total stops from alpha/beta pkg
+ */
+function getTotalStops(pkg: any): string {
+  const val = getPkgField(pkg, [
+    "alpha.hi_level.stops",
+    "beta.stops",
+    "alpha.hi_level.stop_count",
+    "beta.stop_count",
+  ]);
+  if (typeof val === "number") return `${val} stop(s)`;
+  if (typeof val === "string") return val;
+  return "";
+}
+
+/**
+ * Extract a "cabin" string
+ */
+function getCabin(pkg: any): string {
+  const val = getPkgField(pkg, [
+    "alpha.hi_level.cabin",
+    "beta.cabin",
+    "alpha.hi_level.class",
+    "beta.class",
+  ]);
+  return typeof val === "string" ? val : "";
+}
+
+/**
+ * Extract hi-level price from alpha or beta
+ * Possibly we have alpha.hi_level.price_total and alpha.hi_level.price_type
+ * or we have beta.price_total, beta.price_per_person, etc.
+ */
+function getTotalPrice(pkg: any, currency: string): string {
+  // Attempt alpha style:
+  const alphaPrice = getPkgField(pkg, ["alpha.hi_level.price_total"]);
+  const alphaCurrency = getPkgField(pkg, ["alpha.hi_level.currency"]);
+  const alphaPer =
+    typeof alphaCurrency === "string" && alphaCurrency.trim()
+      ? alphaCurrency
+      : currency;
+  if (typeof alphaPrice === "number") {
+    return `${alphaPrice.toLocaleString()} ${alphaPer}`;
+  }
+  // Attempt beta
+  const betaPrice = getPkgField(pkg, ["beta.total_price", "beta.price_total"]);
+  const betaCurrency = getPkgField(pkg, ["beta.currency"]);
+  const betaPer =
+    typeof betaCurrency === "string" && betaCurrency.trim()
+      ? betaCurrency
+      : currency;
+  if (typeof betaPrice === "number") {
+    return `${betaPrice.toLocaleString()} ${betaPer}`;
+  }
+  // fallback
+  return `Price TBD`;
+}
+
+/**
+ * Decide if hotels are present in alpha or beta
+ */
+function getHotels(pkg: any): any[] {
+  // check alpha bundling
+  const alphaHotels = getPkgField(pkg, ["alpha.hotels", "alpha.hotel_list"]);
+  if (Array.isArray(alphaHotels) && alphaHotels.length > 0) {
+    return alphaHotels;
+  }
+  // check beta
+  const betaHotels = getPkgField(pkg, ["beta.hotels", "beta.hotel_list"]);
+  if (Array.isArray(betaHotels) && betaHotels.length > 0) {
+    return betaHotels;
+  }
+  return [];
+}
+
+/**
+ * A unified shape for flight segments (just what's needed for display).
+ */
+interface SegmentLike {
+  depart_city?: string;
+  arrive_city?: string;
+  depart_airport?: string;
+  arrive_airport?: string;
   depart_time?: string;
-  arrive?: string;
-  arrival?: string;
   arrive_time?: string;
+  duration?: string;
+  airline?: string;
   flight_number?: string;
-  carrier_code?: string;
-  carrier_name?: string;
-  duration_minutes?: number;
+  cabin?: string;
+  layover_city?: string;
+  layover_duration?: string;
+}
+
+/**
+ * Single direction flights: outbound / return, similar shape
+ */
+interface DirectionLike {
+  direction_label: string; // "Outbound" or "Return"
+  segments: SegmentLike[];
+}
+
+/**
+ * Extract list of direction segments (for flight details)
+ * We look for alpha style with alpha.segments or alpha.itinerary, or
+ * a more direct "beta" style itinerary.
+ */
+function getFlightDirections(pkg: any): DirectionLike[] {
+  // 1) alpha
+  const alphaOutbound = getPkgField(pkg, [
+    "alpha.flights.outbound",
+    "alpha.outbound",
+  ]);
+  const alphaReturn = getPkgField(pkg, ["alpha.flights.return", "alpha.return"]);
+  const directions: DirectionLike[] = [];
+
+  if (alphaOutbound && Array.isArray(alphaOutbound.segments)) {
+    directions.push({
+      direction_label: "Outbound",
+      segments: alphaOutbound.segments.map((seg: any) => normalizeSegment(seg)),
+    });
+  }
+
+  if (alphaReturn && Array.isArray(alphaReturn.segments)) {
+    directions.push({
+      direction_label: "Return",
+      segments: alphaReturn.segments.map((seg: any) => normalizeSegment(seg)),
+    });
+  }
+
+  // 2) If no alpha directions found, try a generic "beta" style
+  if (directions.length === 0) {
+    const betaOut = getPkgField(pkg, [
+      "beta.outbound",
+      "beta.outbound_segments",
+      "beta.flights.outbound",
+    ]);
+    const betaRet = getPkgField(pkg, [
+      "beta.return",
+      "beta.return_segments",
+      "beta.flights.return",
+    ]);
+
+    if (betaOut && Array.isArray(betaOut.segments)) {
+      directions.push({
+        direction_label: "Outbound",
+        segments: betaOut.segments.map((seg: any) => normalizeSegment(seg)),
+      });
+    } else if (Array.isArray(betaOut)) {
+      directions.push({
+        direction_label: "Outbound",
+        segments: betaOut.map((seg: any) => normalizeSegment(seg)),
+      });
+    }
+
+    if (betaRet && Array.isArray(betaRet.segments)) {
+      directions.push({
+        direction_label: "Return",
+        segments: betaRet.segments.map((seg: any) => normalizeSegment(seg)),
+      });
+    } else if (Array.isArray(betaRet)) {
+      directions.push({
+        direction_label: "Return",
+        segments: betaRet.map((seg: any) => normalizeSegment(seg)),
+      });
+    }
+  }
+
+  return directions;
+}
+
+/**
+ * Normalize a raw segment to our SegmentLike
+ */
+function normalizeSegment(seg: any): SegmentLike {
+  return {
+    depart_city: seg.depart_city || seg.origin_city || seg.departure_city,
+    arrive_city: seg.arrive_city || seg.destination_city || seg.arrival_city,
+    depart_airport: seg.depart_airport || seg.departure_airport,
+    arrive_airport: seg.arrive_airport || seg.arrival_airport,
+    depart_time: seg.depart_time || seg.departure_time,
+    arrive_time: seg.arrive_time || seg.arrival_time,
+    duration: seg.duration,
+    airline: seg.airline || seg.carrier,
+    flight_number: seg.flight_number || seg.flight_no,
+    cabin: seg.cabin || seg.class,
+    layover_city: seg.layover_city,
+    layover_duration: seg.layover_duration,
+  };
+}
+
+/**
+ * Helper to get an "Option X" label: alpha.hi_level.option_label?
+ */
+function getOptionLabel(index: number, pkg: any): string {
+  const label = getPkgField(pkg, ["alpha.hi_level.option_label"]);
+  if (typeof label === "string" && label.trim()) return label;
+  return `Option ${index + 1}`;
+}
+
+/**
+ * Helper to get hi-level "pax" string from either alpha or beta
+ */
+function getPaxString(pkg: any, fallbackPax: number): string {
+  const alphaStr = getPkgField(pkg, ["alpha.hi_level.pax_label"]);
+  if (typeof alphaStr === "string" && alphaStr.trim()) return alphaStr;
+
+  const betaPax = getPkgField(pkg, ["beta.pax_count"]);
+  if (typeof betaPax === "number") {
+    return `${betaPax} traveler${betaPax > 1 ? "s" : ""}`;
+  }
+  if (typeof fallbackPax === "number" && fallbackPax > 0) {
+    return `${fallbackPax} traveler${fallbackPax > 1 ? "s" : ""}`;
+  }
+  return "1 traveler";
+}
+
+/**
+ * Cabin label string: "Cabin ECONOMY" etc.
+ */
+function getCabinLabel(pkg: any): string {
+  const cabin = getCabin(pkg);
+  if (!cabin) return "";
+  return `Cabin ${cabin.toUpperCase()}`;
+}
+
+/**
+ * Build "USD — price TBD" or "1234 USD — total for 2 travelers"
+ */
+function getPriceSummary(pkg: any, currency: string, pax: number): string {
+  const price = getTotalPrice(pkg, currency);
+  if (price === "Price TBD") {
+    return `${currency} — price TBD`;
+  }
+  const paxString =
+    pax > 1 ? ` — total for ${pax} travelers` : " — total for 1 traveler";
+  return `${price}${paxString}`;
+}
+
+/**
+ * We keep a single function to handle whether the given pkg is "alpha" shape or "beta"
+ * for retrieving an ID.
+ */
+function getPkgId(pkg: any): string {
+  const alphaId = getPkgField(pkg, ["alpha.id", "alpha.pkg_id"]);
+  if (typeof alphaId === "string" && alphaId.trim()) return alphaId;
+  const betaId = getPkgField(pkg, ["beta.id", "beta.pkg_id"]);
+  if (typeof betaId === "string" && betaId.trim()) return betaId;
+  // fallback: "index-based" or random
+  return String(pkg.id ?? Math.random().toString(36).slice(2));
+}
+
+export const ResultCard: React.FC<ResultCardProps> = ({
+  pkg,
+  index,
+  currency,
+  pax,
+  showHotel,
+  hotelNights,
+  showAllHotels,
+  comparedIds,
+  onToggleCompare,
+  onSavedChangeGlobal,
+}) => {
+  const id = getPkgId(pkg);
+  const isCompared = comparedIds.includes(id);
+
+  const airlineName = getAirlineName(pkg) || "Flight";
+  const fromCity = getDepartCity(pkg);
+  const toCity = getArriveCity(pkg);
+  const travelDate = getTravelDate(pkg);
+  const totalDuration = getTotalDuration(pkg);
+  const totalStops = getTotalStops(pkg);
+  const cabinLabel = getCabinLabel(pkg);
+  const priceSummary = getPriceSummary(pkg, currency, pax);
+  const hotels = getHotels(pkg);
+  const directions = getFlightDirections(pkg);
+  const optionLabel = getOptionLabel(index, pkg);
+  const paxLabel = getPaxString(pkg, pax);
+
+  const handleCompareClick = () => {
+    onToggleCompare(id);
+  };
+
+  return (
+    <div className="bg-[#050816] text-gray-100 rounded-3xl overflow-hidden border border-white/10 shadow-xl">
+      {/* Header gradient bar */}
+      <div className="bg-gradient-to-r from-sky-500 via-indigo-500 to-pink-500 p-[1px]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 bg-gradient-to-r from-sky-500/10 via-indigo-500/10 to-pink-500/10">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.25em] text-sky-100/80">
+              <span>{optionLabel}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-sky-50/90">
+              <span className="inline-flex items-center gap-1">
+                <span className="text-base">✈️</span>
+                <span className="font-semibold">{airlineName || "Flight"}</span>
+              </span>
+              {travelDate && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-sky-100/60" />
+                  <span>{travelDate}</span>
+                </>
+              )}
+              {totalDuration && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-sky-100/60" />
+                  <span>{totalDuration}</span>
+                </>
+              )}
+            </div>
+            {(fromCity || toCity) && (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-sky-50/90">
+                <span className="inline-flex items-center gap-1">
+                  <span className="text-base">🛫</span>
+                  <span className="font-semibold uppercase">
+                    {fromCity || "Origin"}
+                  </span>
+                </span>
+                <span>→</span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="text-base">🛬</span>
+                  <span className="font-semibold uppercase">
+                    {toCity || "Destination"}
+                  </span>
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col items-start md:items-end gap-2 text-right">
+            <div className="text-xs font-semibold tracking-[0.18em] text-sky-50/80 uppercase">
+              {priceSummary}
+            </div>
+            <button className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-semibold text-white border border-white/30 transition-colors">
+              Trip bundle
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="px-6 py-5 space-y-5 md:space-y-6 bg-[#050816]">
+        {/* Hotel + Flight details row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Hotel bundle */}
+          <div className="bg-[#020617] rounded-2xl border border-slate-700/60 shadow-lg shadow-black/40">
+            <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-slate-700/60">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🏨</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-100">
+                    Hotel bundle
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Stay near your destination · {hotelNights} night
+                    {hotelNights > 1 ? "s" : ""} · Best-matched picks
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
+              {showHotel && hotels.length > 0 ? (
+                <>
+                  {!showAllHotels && (
+                    <p className="text-xs text-slate-400 mb-1">
+                      Showing top hotel matches ·{" "}
+                      <span className="font-medium text-slate-200">
+                        {hotels.length}
+                      </span>{" "}
+                      option{hotels.length > 1 ? "s" : ""}
+                    </p>
+                  )}
+
+                  <div className="space-y-2.5">
+                    {(showAllHotels ? hotels : hotels.slice(0, 3)).map(
+                      (h, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3.5 py-2.5 hover:bg-slate-900/90 transition-colors"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-xs font-semibold text-slate-100">
+                                {h.name || h.hotel_name || "Hotel option"}
+                              </span>
+                              {h.stars && (
+                                <span className="text-[11px] text-amber-400">
+                                  {"★".repeat(Math.round(h.stars))}{" "}
+                                  <span className="text-[10px] text-slate-400">
+                                    ({h.stars.toFixed(1)})
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                              {h.city && <span>{h.city}</span>}
+                              {h.distance && (
+                                <>
+                                  <span className="w-1 h-1 rounded-full bg-slate-500" />
+                                  <span>{h.distance}</span>
+                                </>
+                              )}
+                              {h.rating && (
+                                <>
+                                  <span className="w-1 h-1 rounded-full bg-slate-500" />
+                                  <span>Rating {h.rating}</span>
+                                </>
+                              )}
+                            </div>
+                            {h.notes && (
+                              <p className="mt-1 text-[11px] text-slate-400 line-clamp-2">
+                                {h.notes}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-1 text-right">
+                            {typeof h.price === "number" && (
+                              <div className="text-xs font-bold text-emerald-400">
+                                {h.price.toLocaleString()}{" "}
+                                <span className="text-[11px] text-emerald-300">
+                                  {h.currency || currency}
+                                </span>
+                              </div>
+                            )}
+                            {h.price_label && (
+                              <div className="text-[11px] text-emerald-300">
+                                {h.price_label}
+                              </div>
+                            )}
+                            {h.badge && (
+                              <span className="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                                {h.badge}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  {hotels.length > 3 && !showAllHotels && (
+                    <p className="mt-2 text-[11px] text-slate-400">
+                      + {hotels.length - 3} more hotel
+                      {hotels.length - 3 > 1 ? "s" : ""} available in this
+                      bundle.
+                    </p>
+                  )}
+                </>
+              ) : showHotel ? (
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <span>•</span>
+                  <span>
+                    Hotel ideas will appear here when bundling is available.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <span>•</span>
+                  <span>Hotel bundle not requested for this search.</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Flight details */}
+          <div className="bg-[#020617] rounded-2xl border border-slate-700/60 shadow-lg shadow-black/40">
+            <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-slate-700/60">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">✈️</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-100">
+                    Flight details
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {totalStops || "Non-stop or 1+ stops"} ·{" "}
+                    {cabinLabel || "Cabin details"} · Best time & route match
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              {directions.length === 0 ? (
+                <div className="text-xs text-slate-400">
+                  No detailed itinerary available. Summary: {totalDuration} ·{" "}
+                  {totalStops || "Stops info pending"} · {cabinLabel}.
+                </div>
+              ) : (
+                directions.map((dir, dIdx) => (
+                  <div key={dIdx} className="space-y-2 text-xs text-slate-200">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[11px] font-semibold tracking-wide uppercase text-slate-400">
+                        {dir.direction_label}
+                      </h4>
+                      {dIdx === 0 && (
+                        <span className="text-[11px] text-slate-400">
+                          {totalDuration}
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      {dir.segments.map((seg, sIdx) => (
+                        <div key={sIdx} className="space-y-0.5">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold">
+                              {(seg.depart_city || "Origin") +
+                                " → " +
+                                (seg.arrive_city || "Destination")}
+                            </span>
+                            {seg.duration && (
+                              <span className="text-[11px] text-slate-400">
+                                {seg.duration}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-[11px] text-slate-400">
+                            {seg.depart_time && (
+                              <span>Dep {seg.depart_time}</span>
+                            )}
+                            {seg.arrive_time && (
+                              <>
+                                <span>·</span>
+                                <span>Arr {seg.arrive_time}</span>
+                              </>
+                            )}
+                            {seg.airline && (
+                              <>
+                                <span>·</span>
+                                <span>{seg.airline}</span>
+                              </>
+                            )}
+                            {seg.flight_number && (
+                              <>
+                                <span>·</span>
+                                <span>Flight {seg.flight_number}</span>
+                              </>
+                            )}
+                            {seg.cabin && (
+                              <>
+                                <span>·</span>
+                                <span>Cabin {seg.cabin}</span>
+                              </>
+                            )}
+                          </div>
+                          {seg.layover_city && (
+                            <div className="pl-2 text-[11px] text-slate-400">
+                              Layover in{" "}
+                              <span className="font-medium">
+                                {seg.layover_city}
+                              </span>
+                              {seg.layover_duration && (
+                                <>
+                                  {" "}
+                                  · {seg.layover_duration}
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              <div className="pt-2 border-t border-slate-800/70 text-[11px] text-slate-400">
+                <div className="flex flex-wrap items-center gap-2">
+                  {paxLabel && <span>{paxLabel}</span>}
+                  {totalStops && (
+                    <>
+                      <span className="w-1 h-1 rounded-full bg-slate-600" />
+                      <span>{totalStops}</span>
+                    </>
+                  )}
+                  {cabinLabel && (
+                    <>
+                      <span className="w-1 h-1 rounded-full bg-slate-600" />
+                      <span>{cabinLabel}</span>
+                    </>
+                  )}
+                </div>
+                <p className="mt-1">
+                  Times and durations are approximate and may differ slightly at
+                  booking.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer: compare & booking buttons */}
+        <div className="pt-3 border-t border-slate-800/70">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleCompareClick}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                isCompared
+                  ? "bg-sky-500 text-white border-sky-400"
+                  : "bg-transparent text-slate-200 border-slate-500 hover:bg-slate-800/60"
+              }`}
+            >
+              {isCompared ? "Added to Compare" : "Compare"}
+            </button>
+
+            <button className="px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-500/80 text-white hover:bg-sky-500 border border-sky-400 transition-colors">
+              Google Flights
+            </button>
+
+            {showHotel && (
+              <button className="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/90 text-white hover:bg-emerald-500 border border-emerald-400 transition-colors">
+                Booking / Hotels
+              </button>
+            )}
+
+            <div className="flex flex-wrap items-center gap-1 text-[11px] text-slate-400 ml-auto">
+              <span>More flight options</span>
+              <span className="inline-flex items-center rounded-full border border-slate-500/70 px-2 py-0.5">
+                Skyscanner
+              </span>
+              <span className="inline-flex items-center rounded-full border border-slate-500/70 px-2 py-0.5">
+                KAYAK
+              </span>
+              <span className="inline-flex items-center rounded-full border border-slate-500/70 px-2 py-0.5">
+                Airline sites
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+            {showHotel && (
+              <>
+                <span>More hotel options</span>
+                <span className="inline-flex items-center rounded-full border border-slate-600 px-2 py-0.5">
+                  Expedia
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-600 px-2 py-0.5">
+                  Hotels.com
+                </span>
+              </>
+            )}
+            <span className="ml-auto">
+              Prices and availability are examples only and may change at
+              booking.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-function getSegAirport(seg: SegmentLike, kind: "from" | "to") {
-  const keys =
-    kind === "from"
-      ? ["from", "origin", "from_code", "from_city", "departure_airport"]
-      : ["to", "destination", "to_code", "to_city", "arrival_airport"];
+export default ResultCard;
 
-  for (const k of keys) {
-    const v = (seg as any)[k];
-    if (typeof v === "string" && v.trim()) return v.trim();
+/**
+ * Optional: if you need a small utility for "From → To" representation
+ * from a segment, you can adapt this. Kept in file in case other
+ * components import it.
+ */
+export function formatSegmentCityPair(seg: SegmentLike): string {
+  const from =
+    seg.depart_city || seg.depart_airport || seg.arrive_city || "Origin";
+  const to =
+    seg.arrive_city || seg.arrive_airport || seg.depart_city || "Destination";
+  return `${from} → ${to}`;
+}
+
+/**
+ * Another helper for times in case different shapes appear
+ */
+export function formatSegmentTimeRange(seg: SegmentLike): string {
+  const d =
+    seg.depart_time && typeof seg.depart_time === "string"
+      ? seg.depart_time
+      : "";
+  const a =
+    seg.arrive_time && typeof seg.arrive_time === "string"
+      ? seg.arrive_time
+      : "";
+  if (!d && !a) return "";
+  if (!d) return `Arr ${a}`;
+  if (!a) return `Dep ${d}`;
+  return `Dep ${d} · Arr ${a}`;
+}
+
+/**
+ * Utility to get a fallback location label if city is missing
+ */
+export function getLocationLabel(seg: SegmentLike, kind: "from" | "to") {
+  const city =
+    kind === "from" ? seg.depart_city || seg.depart_airport : seg.arrive_city || seg.arrive_airport;
+  if (city && typeof city === "string") {
+    return city;
   }
   return kind === "from" ? "Origin" : "Destination";
 }
@@ -76,433 +809,9 @@ function getSegTime(seg: SegmentLike, kind: "depart" | "arrive") {
     const v = (seg as any)[k];
     if (typeof v === "string" && v.trim()) {
       const str = v.trim();
-      if (str.includes("T")) return str.slice(11, 16); // HH:MM from ISO
-      if (str.length >= 5) return str.slice(-5);        // last HH:MM
+      // Optional: basic normalisation
       return str;
     }
   }
   return "";
 }
-
-function getSegFlightLabel(seg: SegmentLike) {
-  const carrier =
-    (seg as any).carrier_name ||
-    (seg as any).carrier_code ||
-    (seg as any).airline ||
-    "";
-  const num = (seg as any).flight_number || (seg as any).number || "";
-  if (carrier && num) return `${carrier} ${num}`;
-  if (carrier) return String(carrier);
-  if (num) return `Flight ${num}`;
-  return "Flight";
-}
-
-const ResultCard: React.FC<ResultCardProps> = ({
-  pkg,
-  index,
-  currency,
-  pax,
-  showHotel,
-  hotelNights,
-  showAllHotels,
-  comparedIds,
-  onToggleCompare,
-}) => {
-  const id = pkg?.id ?? `opt-${index + 1}`;
-  const optionLabel = `Option ${index + 1}`;
-
-  // Price & currency
-  const pkgCurrency =
-    currency || pkg?.currency || pkg?.price_currency || "USD";
-  const totalPrice =
-    pkg?.price_converted ??
-    pkg?.total_price ??
-    pkg?.price_usd ??
-    null;
-
-  // Hotel bundle
-  const hotelBundle = pkg?.hotel_bundle || pkg?.hotels || {};
-  const hotelTitle =
-    hotelBundle.title || hotelBundle.name || "Hotel bundle";
-  const hotelList: any[] =
-    hotelBundle.hotels ||
-    hotelBundle.options ||
-    [];
-
-  // Flight data (defensive)
-  const flight =
-    pkg?.flight ||
-    pkg?.flight_option ||
-    (pkg?.carrier_name ? pkg : null);
-
-  const carrierName =
-    flight?.carrier_name ||
-    flight?.marketing_carrier ||
-    "Flight";
-
-  const flightLabel = `${carrierName}`;
-  const cabin = flight?.cabin || "ECONOMY";
-  const stops = typeof flight?.stops === "number" ? flight.stops : 0;
-  const greener = !!flight?.greener;
-  const refundable = !!flight?.refundable;
-  const duration = minutesToHrsMins(flight?.duration_minutes);
-
-  const segOut: SegmentLike[] = Array.isArray(flight?.segments_out)
-    ? flight.segments_out
-    : [];
-  const segIn: SegmentLike[] = Array.isArray(flight?.segments_in)
-    ? flight.segments_in
-    : [];
-
-  const deeplinks = flight?.deeplinks || {};
-  const googleFlightsUrl =
-    deeplinks.googleFlights ||
-    deeplinks.google_flights ||
-    deeplinks.google ||
-    "";
-  const skyscannerUrl = deeplinks.skyscanner || "";
-  const kayakUrl = deeplinks.kayak || "";
-  const airlineUrl =
-    deeplinks.airline ||
-    deeplinks.airlineSites ||
-    deeplinks.carrier ||
-    "";
-  const expediaUrl = deeplinks.expedia || "";
-  const hotelsUrl =
-    deeplinks.hotels || deeplinks.hotelsCom || "";
-  const bookingUrl =
-    hotelBundle?.deeplinks?.booking ||
-    deeplinks.booking ||
-    "";
-
-  const compareActive = comparedIds.includes(id);
-
-  return (
-    <div className="mb-6 rounded-3xl border border-slate-800 bg-slate-950/90 text-slate-50 shadow-xl overflow-hidden">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-6 py-4 text-sm md:text-base"
-        style={{
-          background:
-            "linear-gradient(90deg, #0ea5e9 0%, #6366f1 40%, #ec4899 100%)",
-        }}
-      >
-        <div className="flex flex-col gap-1">
-          <div className="text-xs uppercase tracking-widest text-slate-100/80">
-            {optionLabel}
-          </div>
-          <div className="font-semibold text-base md:text-lg flex items-center gap-2">
-            ✈️ Flight
-            {flightLabel && (
-              <span className="ml-2 text-slate-100/90 text-sm md:text-base">
-                {flightLabel}
-              </span>
-            )}
-          </div>
-          <div className="text-xs md:text-sm text-slate-100/80">
-            {pax} traveler{pax > 1 ? "s" : ""} • Cabin {cabin}
-            {duration && <> • {duration} total</>}
-            {stops != null && (
-              <>
-                {" "}
-                • {stops === 0 ? "Nonstop" : `${stops} stop${stops > 1 ? "s" : ""}`}
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="text-right">
-          <div className="text-[0.7rem] md:text-xs text-slate-100/80">
-            {pkgCurrency} — total for {pax} traveler
-            {pax > 1 ? "s" : ""}
-          </div>
-          <div className="text-xl md:text-2xl font-bold text-slate-50">
-            {formatMoney(totalPrice, pkgCurrency)}
-          </div>
-          {hotelNights > 0 && showHotel && (
-            <div className="mt-1 inline-flex items-center rounded-full bg-slate-950/25 px-3 py-1 text-[0.7rem] md:text-xs text-slate-100/90 border border-white/30">
-              🏨 {hotelNights} night{hotelNights > 1 ? "s" : ""} hotel bundle
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="grid gap-4 px-4 py-4 md:px-6 md:py-5 md:grid-cols-2">
-        {/* Hotel bundle */}
-        {showHotel && (
-          <div className="rounded-2xl bg-slate-900/70 px-4 py-3 md:px-5 md:py-4">
-            <div className="mb-2 flex items-center gap-2 text-sm md:text-base font-semibold">
-              <span>🏨 Hotel bundle</span>
-            </div>
-            <div className="mb-2 text-xs md:text-sm text-slate-400">
-              {hotelTitle || "Suggested hotels for this trip."}
-            </div>
-
-            <ul className="mt-2 space-y-2 text-xs md:text-sm">
-              {Array.isArray(hotelList) && hotelList.length > 0 ? (
-                hotelList.map((h, i) => {
-                  const name = h?.name || "Hotel option";
-                  const stars = h?.star || h?.stars;
-                  const city = h?.city || "";
-                  const nightly =
-                    h?.price_converted ??
-                    h?.price ??
-                    h?.price_usd ??
-                    null;
-                  const nightlyStr =
-                    nightly != null
-                      ? formatMoney(nightly, h?.currency || pkgCurrency)
-                      : "";
-
-                  return (
-                    <li
-                      key={`${name}-${i}`}
-                      className="flex items-center justify-between rounded-xl bg-slate-950/40 px-3 py-2"
-                    >
-                      <div>
-                        <div className="font-medium text-slate-50">
-                          {name}
-                          {stars ? (
-                            <span className="ml-1 text-amber-400">
-                              {"★".repeat(Math.round(Number(stars)))}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="text-[0.7rem] md:text-xs text-slate-400">
-                          {city || "Hotel"} • {hotelNights} night
-                          {hotelNights > 1 ? "s" : ""}
-                        </div>
-                      </div>
-                      {nightlyStr && (
-                        <div className="text-right text-[0.7rem] md:text-xs text-slate-200">
-                          {nightlyStr}
-                          <div className="text-slate-500">
-                            per night (approx)
-                          </div>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })
-              ) : (
-                <li className="text-xs text-slate-400">
-                  Hotel ideas will appear here when bundling is available.
-                </li>
-              )}
-            </ul>
-          </div>
-        )}
-
-        {/* Flight details */}
-        <div className="rounded-2xl bg-slate-900/70 px-4 py-3 md:px-5 md:py-4">
-          <div className="mb-2 flex items-center justify-between text-sm md:text-base font-semibold">
-            <span>✈️ Flight details</span>
-          </div>
-
-          {flight ? (
-            <div className="space-y-3 text-xs md:text-sm">
-              {/* Outbound */}
-              {segOut.length > 0 && (
-                <div>
-                  <div className="mb-1 font-semibold text-slate-200">
-                    Outbound
-                  </div>
-                  <ul className="space-y-1.5">
-                    {segOut.map((seg: SegmentLike, i: number) => {
-                      const from = getSegAirport(seg, "from");
-                      const to = getSegAirport(seg, "to");
-                      const dep = getSegTime(seg, "depart");
-                      const arr = getSegTime(seg, "arrive");
-                      const lab = getSegFlightLabel(seg);
-                      const dur = minutesToHrsMins(
-                        seg.duration_minutes as number
-                      );
-
-                      return (
-                        <li key={`out-${i}`} className="pl-1">
-                          <div className="font-medium text-slate-50">
-                            {from} → {to}{" "}
-                            <span className="text-[0.7rem] md:text-xs text-slate-400 ml-1">
-                              {lab}
-                            </span>
-                          </div>
-                          <div className="text-[0.7rem] md:text-xs text-slate-400">
-                            {dep && <span>Dep {dep}</span>}
-                            {dep && arr && <span> • </span>}
-                            {arr && <span>Arr {arr}</span>}
-                            {dur && <span> • {dur}</span>}
-                          </div>
-                          {i < segOut.length - 1 && (
-                            <div className="text-[0.7rem] md:text-xs text-amber-300 mt-0.5">
-                              Layover between flights
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-
-              {/* Return */}
-              {segIn.length > 0 && (
-                <div>
-                  <div className="mt-2 mb-1 font-semibold text-slate-200">
-                    Return
-                  </div>
-                  <ul className="space-y-1.5">
-                    {segIn.map((seg: SegmentLike, i: number) => {
-                      const from = getSegAirport(seg, "from");
-                      const to = getSegAirport(seg, "to");
-                      const dep = getSegTime(seg, "depart");
-                      const arr = getSegTime(seg, "arrive");
-                      const lab = getSegFlightLabel(seg);
-                      const dur = minutesToHrsMins(
-                        seg.duration_minutes as number
-                      );
-
-                      return (
-                        <li key={`in-${i}`} className="pl-1">
-                          <div className="font-medium text-slate-50">
-                            {from} → {to}{" "}
-                            <span className="text-[0.7rem] md:text-xs text-slate-400 ml-1">
-                              {lab}
-                            </span>
-                          </div>
-                          <div className="text-[0.7rem] md:text-xs text-slate-400">
-                            {dep && <span>Dep {dep}</span>}
-                            {dep && arr && <span> • </span>}
-                            {arr && <span>Arr {arr}</span>}
-                            {dur && <span> • {dur}</span>}
-                          </div>
-                          {i < segIn.length - 1 && (
-                            <div className="text-[0.7rem] md:text-xs text-amber-300 mt-0.5">
-                              Layover between flights
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-
-              {/* Meta */}
-              <div className="mt-2 text-[0.7rem] md:text-xs text-slate-400 space-x-2">
-                <span>{stops === 0 ? "Nonstop" : `${stops} stop(s)`}</span>
-                <span>• Cabin {cabin}</span>
-                {refundable && <span>• Refundable</span>}
-                {greener && <span>• Greener option</span>}
-              </div>
-            </div>
-          ) : (
-            <div className="text-xs md:text-sm text-slate-400">
-              Live flight details will appear here once available from our
-              partners.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Footer actions */}
-      <div className="border-t border-slate-800 px-4 py-3 md:px-6 md:py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between text-xs md:text-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onToggleCompare(id)}
-            className={`rounded-full px-4 py-1.5 border text-xs md:text-sm ${
-              compareActive
-                ? "border-emerald-400 bg-emerald-500/10 text-emerald-200"
-                : "border-slate-600 bg-slate-900 text-slate-100 hover:border-slate-400"
-            }`}
-          >
-            {compareActive ? "✓ In comparison" : "Compare"}
-          </button>
-
-          {googleFlightsUrl && (
-            <a
-              href={googleFlightsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full px-4 py-1.5 text-xs md:text-sm font-medium bg-sky-500 hover:bg-sky-400 text-slate-950"
-            >
-              Google Flights
-            </a>
-          )}
-
-          {bookingUrl && (
-            <a
-              href={bookingUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full px-4 py-1.5 text-xs md:text-sm font-medium bg-emerald-500 hover:bg-emerald-400 text-slate-950"
-            >
-              Booking.com
-            </a>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 text-[0.7rem] md:text-xs">
-          {skyscannerUrl && (
-            <a
-              href={skyscannerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-slate-600 px-3 py-1 hover:border-sky-400"
-            >
-              Skyscanner
-            </a>
-          )}
-          {kayakUrl && (
-            <a
-              href={kayakUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-slate-600 px-3 py-1 hover:border-amber-400"
-            >
-              KAYAK
-            </a>
-          )}
-          {airlineUrl && (
-            <a
-              href={airlineUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-slate-600 px-3 py-1 hover:border-emerald-400"
-            >
-              Airline sites
-            </a>
-          )}
-
-          {expediaUrl && (
-            <a
-              href={expediaUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-slate-600 px-3 py-1 hover:border-indigo-400"
-            >
-              Expedia
-            </a>
-          )}
-          {hotelsUrl && (
-            <a
-              href={hotelsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-slate-600 px-3 py-1 hover:border-pink-400"
-            >
-              Hotels.com
-            </a>
-          )}
-        </div>
-      </div>
-
-      <div className="border-t border-slate-900/80 bg-slate-950/80 px-4 py-2 md:px-6 md:py-2.5 text-[0.65rem] md:text-[0.7rem] text-slate-500">
-        Prices and availability are examples only and may change at booking.
-      </div>
-    </div>
-  );
-};
-
-export default ResultCard;
