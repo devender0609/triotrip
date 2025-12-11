@@ -15,7 +15,7 @@ export interface ResultCardProps {
   onSavedChangeGlobal: () => void;
 }
 
-/* ========== SMALL HELPERS TO READ ALPHA / BETA STRUCTURES ========== */
+/* ----------------- GENERIC FIELD HELPERS ----------------- */
 
 function getPkgField(pkg: any, paths: string[]): any {
   for (const path of paths) {
@@ -88,7 +88,6 @@ function getTotalDuration(pkg: any): string {
   ]);
   if (typeof val === "string") return val;
 
-  // Fallback: compute from minutes if present
   const mins =
     getPkgField(pkg, ["flight.total_duration_minutes"]) ??
     getPkgField(pkg, ["flight.duration_minutes"]);
@@ -125,6 +124,7 @@ function getCabin(pkg: any): string {
     "alpha.hi_level.class",
     "beta.class",
     "flight.cabin",
+    "cabin",
   ]);
   return typeof val === "string" ? val : "";
 }
@@ -150,7 +150,6 @@ function getTotalPrice(pkg: any, currency: string): string {
     return `${betaPrice.toLocaleString()} ${betaCur}`;
   }
 
-  // our AI / manual payload uses these:
   const flightTotal =
     getPkgField(pkg, ["display_total"]) ??
     getPkgField(pkg, ["flight_total"]) ??
@@ -170,14 +169,13 @@ function getHotels(pkg: any): any[] {
   const betaHotels = getPkgField(pkg, ["beta.hotels", "beta.hotel_list"]);
   if (Array.isArray(betaHotels) && betaHotels.length > 0) return betaHotels;
 
-  // our current /api/search shape:
   const h = getPkgField(pkg, ["hotels"]);
   if (Array.isArray(h) && h.length > 0) return h;
 
   return [];
 }
 
-/* ===== segments + directions ===== */
+/* ----------------- SEGMENTS + DIRECTIONS ----------------- */
 
 interface SegmentLike {
   depart_city?: string;
@@ -190,8 +188,6 @@ interface SegmentLike {
   airline?: string;
   flight_number?: string;
   cabin?: string;
-  layover_city?: string;
-  layover_duration?: string;
 }
 
 interface DirectionLike {
@@ -211,7 +207,7 @@ function normalizeSegment(seg: any): SegmentLike {
     arrive_time: seg.arrive_time || seg.arrival_time,
     duration:
       seg.duration ||
-      (seg.duration_minutes
+      (typeof seg.duration_minutes === "number"
         ? `${Math.floor(seg.duration_minutes / 60)}h ${
             seg.duration_minutes % 60
           }m`
@@ -219,8 +215,6 @@ function normalizeSegment(seg: any): SegmentLike {
     airline: seg.airline || seg.carrier,
     flight_number: seg.flight_number || seg.flight_no,
     cabin: seg.cabin || seg.class,
-    layover_city: seg.layover_city,
-    layover_duration: seg.layover_duration,
   };
 }
 
@@ -246,7 +240,6 @@ function getFlightDirections(pkg: any): DirectionLike[] {
     });
   }
 
-  // fallback: our current AI/manual structure in `flight`
   if (directions.length === 0) {
     const out = getPkgField(pkg, ["flight.segments_out"]) || [];
     const ret = getPkgField(pkg, ["flight.segments_in"]) || [];
@@ -267,6 +260,8 @@ function getFlightDirections(pkg: any): DirectionLike[] {
 
   return directions;
 }
+
+/* ----------------- LABEL HELPERS ----------------- */
 
 function getOptionLabel(index: number, pkg: any): string {
   const label = getPkgField(pkg, ["alpha.hi_level.option_label"]);
@@ -310,7 +305,124 @@ function getPkgId(pkg: any): string {
   return String(pkg.id ?? Math.random().toString(36).slice(2));
 }
 
-/* ========== STYLES ========== */
+/* ----------------- BOOKING URL HELPERS ----------------- */
+
+interface FlightParams {
+  origin?: string;
+  destination?: string;
+  departDate?: string;
+  returnDate?: string;
+  adults: number;
+  cabin: string;
+  hotelCheckIn?: string;
+  hotelCheckOut?: string;
+  cityForHotels?: string;
+  airlineUrl?: string;
+}
+
+function getFlightParams(pkg: any, pax: number): FlightParams {
+  const origin =
+    pkg.origin || pkg.originCode || pkg.from || getDepartCity(pkg);
+  const destination =
+    pkg.destination || pkg.destinationCity || pkg.to || getArriveCity(pkg);
+  const departDate = pkg.departDate || pkg.depart_date;
+  const returnDate = pkg.returnDate || pkg.return_date;
+  const adults = pkg.passengersAdults || pkg.adults || pax || 1;
+  const cabin = getCabin(pkg) || "ECONOMY";
+
+  const cityForHotels =
+    getHotels(pkg)[0]?.city ||
+    getArriveCity(pkg) ||
+    destination ||
+    "Destination";
+
+  const airlineUrl = getPkgField(pkg, ["flight.deeplinks.airline.url"]);
+
+  return {
+    origin,
+    destination,
+    departDate,
+    returnDate,
+    adults,
+    cabin,
+    hotelCheckIn: pkg.hotelCheckIn,
+    hotelCheckOut: pkg.hotelCheckOut,
+    cityForHotels,
+    airlineUrl,
+  };
+}
+
+function buildGoogleFlightsUrl(p: FlightParams): string {
+  const q = `Flights from ${p.origin || ""} to ${p.destination || ""} ${
+    p.departDate || ""
+  } ${p.returnDate || ""} ${p.cabin || ""}`;
+  return `https://www.google.com/travel/flights?q=${encodeURIComponent(q)}`;
+}
+
+function buildSkyscannerUrl(p: FlightParams): string {
+  if (!p.origin || !p.destination || !p.departDate) {
+    return "https://www.skyscanner.com/";
+  }
+  const depart = p.departDate.replace(/-/g, "");
+  const ret = p.returnDate ? `/${p.returnDate.replace(/-/g, "")}` : "";
+  const cabin = (p.cabin || "ECONOMY").toLowerCase();
+  return `https://www.skyscanner.com/transport/flights/${p.origin}/${p.destination}/${depart}${ret}/?adultsv2=${p.adults}&cabinclass=${cabin}`;
+}
+
+function buildKayakUrl(p: FlightParams): string {
+  if (!p.origin || !p.destination || !p.departDate) {
+    return "https://www.kayak.com/flights";
+  }
+  const retPart = p.returnDate ? `/${p.returnDate}` : "";
+  const cabin = (p.cabin || "ECONOMY").toLowerCase();
+  return `https://www.kayak.com/flights/${p.origin}-${p.destination}/${p.departDate}${retPart}/${p.adults}adults?cabin=${cabin}`;
+}
+
+function buildAirlineUrl(p: FlightParams, airlineName: string): string {
+  if (p.airlineUrl && typeof p.airlineUrl === "string") return p.airlineUrl;
+  const q = `${airlineName || "airline"} flights ${p.origin || ""} ${
+    p.destination || ""
+  } ${p.departDate || ""}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+}
+
+function buildBookingUrl(p: FlightParams): string {
+  const city = encodeURIComponent(p.cityForHotels || "Destination");
+  const checkin = p.hotelCheckIn || p.departDate || "";
+  const checkout = p.hotelCheckOut || p.returnDate || "";
+  return `https://www.booking.com/searchresults.html?ss=${city}&checkin=${checkin}&checkout=${checkout}&group_adults=${p.adults}&no_rooms=1`;
+}
+
+function buildExpediaUrl(p: FlightParams): string {
+  const city = encodeURIComponent(p.cityForHotels || "Destination");
+  const checkin = p.hotelCheckIn || p.departDate || "";
+  const checkout = p.hotelCheckOut || p.returnDate || "";
+  return `https://www.expedia.com/Hotel-Search?destination=${city}&startDate=${checkin}&endDate=${checkout}&adults=${p.adults}`;
+}
+
+function buildHotelsDotComUrl(p: FlightParams): string {
+  const city = encodeURIComponent(p.cityForHotels || "Destination");
+  const checkin = p.hotelCheckIn || p.departDate || "";
+  const checkout = p.hotelCheckOut || p.returnDate || "";
+  return `https://www.hotels.com/Hotel-Search?destination=${city}&startDate=${checkin}&endDate=${checkout}&adults=${p.adults}`;
+}
+
+/* ----------------- LAYOVER HELPERS ----------------- */
+
+function formatLayoverDuration(arrive?: string, nextDepart?: string): string {
+  if (!arrive || !nextDepart) return "";
+  const a = new Date(arrive).getTime();
+  const b = new Date(nextDepart).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return "";
+  const mins = Math.round((b - a) / 60000);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (!h) return `${m}m layover`;
+  if (!m) return `${h}h layover`;
+  return `${h}h ${m}m layover`;
+}
+
+/* ----------------- STYLES ----------------- */
 
 const outerCard: React.CSSProperties = {
   background: "#050816",
@@ -337,29 +449,6 @@ const headerInner: React.CSSProperties = {
     "linear-gradient(90deg, rgba(15,23,42,0.92), rgba(15,23,42,0.88))",
 };
 
-const headerLeft: React.CSSProperties = {
-  display: "grid",
-  gap: 4,
-};
-
-const headerRight: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-end",
-  gap: 6,
-};
-
-const pillButton: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 999,
-  border: "1px solid rgba(248,250,252,0.8)",
-  background: "rgba(15,23,42,0.4)",
-  color: "#f9fafb",
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
 const mainBody: React.CSSProperties = {
   padding: "16px 18px 18px",
   display: "grid",
@@ -368,12 +457,8 @@ const mainBody: React.CSSProperties = {
 
 const twoColGrid: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0,1fr)",
+  gridTemplateColumns: "minmax(0,1.1fr) minmax(0,1fr)", // side-by-side
   gap: 16,
-};
-
-const twoColGridWide: React.CSSProperties = {
-  ...twoColGrid,
 };
 
 const paneCard: React.CSSProperties = {
@@ -399,21 +484,9 @@ const paneHeaderLeft: React.CSSProperties = {
   gap: 8,
 };
 
-const footerBar: React.CSSProperties = {
-  paddingTop: 10,
-  borderTop: "1px solid rgba(30,64,175,0.5)",
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 8,
-  alignItems: "center",
-};
-
-const footerRight: React.CSSProperties = {
-  marginLeft: "auto",
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 6,
-  alignItems: "center",
+const tinyText: React.CSSProperties = {
+  fontSize: 11,
+  color: "#9ca3af",
 };
 
 const chipButton: React.CSSProperties = {
@@ -436,12 +509,33 @@ const smallTag: React.CSSProperties = {
   alignItems: "center",
 };
 
-const tinyText: React.CSSProperties = {
-  fontSize: 11,
-  color: "#9ca3af",
+const footerBar: React.CSSProperties = {
+  paddingTop: 10,
+  borderTop: "1px solid rgba(30,64,175,0.5)",
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+  alignItems: "center",
 };
 
-/* ========== COMPONENT ========== */
+const footerRight: React.CSSProperties = {
+  marginLeft: "auto",
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 6,
+  alignItems: "center",
+};
+
+const directionBox: React.CSSProperties = {
+  borderRadius: 14,
+  border: "1px solid rgba(30,64,175,0.7)",
+  padding: "10px 10px 8px",
+  background: "#020617",
+  display: "grid",
+  gap: 6,
+};
+
+/* ----------------- COMPONENT ----------------- */
 
 export const ResultCard: React.FC<ResultCardProps> = ({
   pkg,
@@ -470,19 +564,25 @@ export const ResultCard: React.FC<ResultCardProps> = ({
   const optionLabel = getOptionLabel(index, pkg);
   const paxLabel = getPaxString(pkg, pax);
 
+  const params = getFlightParams(pkg, pax);
+  const googleFlightsUrl = buildGoogleFlightsUrl(params);
+  const skyscannerUrl = buildSkyscannerUrl(params);
+  const kayakUrl = buildKayakUrl(params);
+  const airlineSiteUrl = buildAirlineUrl(params, airlineName);
+  const bookingUrl = buildBookingUrl(params);
+  const expediaUrl = buildExpediaUrl(params);
+  const hotelsDotComUrl = buildHotelsDotComUrl(params);
+
   const handleCompareClick = () => {
     onToggleCompare(id);
   };
-
-  // responsive tweak: make the inner two-column grid become 2 cols on wide screens
-  // (we don't have CSS media queries here, but the layout will still stack nicely)
 
   return (
     <div style={outerCard}>
       {/* HEADER */}
       <div style={headerWrapper}>
         <div style={headerInner}>
-          <div style={headerLeft}>
+          <div style={{ display: "grid", gap: 4 }}>
             <div
               style={{
                 fontSize: 11,
@@ -549,7 +649,14 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             )}
           </div>
 
-          <div style={headerRight}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              alignItems: "flex-end",
+            }}
+          >
             <div
               style={{
                 fontSize: 12,
@@ -561,7 +668,20 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             >
               {priceSummary}
             </div>
-            <button style={pillButton}>Trip bundle</button>
+            <button
+              style={{
+                padding: "6px 14px",
+                borderRadius: 999,
+                border: "1px solid rgba(248,250,252,0.8)",
+                background: "rgba(15,23,42,0.4)",
+                color: "#f9fafb",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Trip bundle
+            </button>
           </div>
         </div>
       </div>
@@ -569,7 +689,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       {/* MAIN CONTENT */}
       <div style={mainBody}>
         {/* HOTEL + FLIGHT ROW */}
-        <div style={twoColGridWide}>
+        <div style={twoColGrid}>
           {/* HOTEL BUNDLE */}
           <div style={paneCard}>
             <div style={paneHeader}>
@@ -616,12 +736,20 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                             ? h.stars
                             : undefined;
 
+                        const price =
+                          typeof h.price_converted === "number"
+                            ? h.price_converted
+                            : typeof h.price === "number"
+                            ? h.price
+                            : undefined;
+
                         return (
                           <div
                             key={idx}
                             style={{
                               borderRadius: 12,
-                              border: "1px solid rgba(30,64,175,0.7)",
+                              border:
+                                "1px solid rgba(30,64,175,0.7)",
                               background: "#020617",
                               padding: "8px 10px",
                               display: "flex",
@@ -681,7 +809,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                                 gap: 3,
                               }}
                             >
-                              {typeof h.price_converted === "number" ? (
+                              {price !== undefined && (
                                 <div
                                   style={{
                                     fontSize: 12,
@@ -689,7 +817,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                                     color: "#22c55e",
                                   }}
                                 >
-                                  {h.price_converted.toLocaleString()}{" "}
+                                  {price.toLocaleString()}{" "}
                                   <span
                                     style={{
                                       fontSize: 11,
@@ -699,27 +827,14 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                                     {h.currency || currency}
                                   </span>
                                 </div>
-                              ) : typeof h.price === "number" ? (
-                                <div
-                                  style={{
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    color: "#22c55e",
-                                  }}
-                                >
-                                  {h.price.toLocaleString()}{" "}
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 400,
-                                    }}
-                                  >
-                                    {h.currency || currency}
-                                  </span>
-                                </div>
-                              ) : null}
+                              )}
                               {h.price_label && (
-                                <div style={{ ...tinyText, color: "#4ade80" }}>
+                                <div
+                                  style={{
+                                    ...tinyText,
+                                    color: "#4ade80",
+                                  }}
+                                >
                                   {h.price_label}
                                 </div>
                               )}
@@ -778,20 +893,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             <div style={{ display: "grid", gap: 10 }}>
               {directions.length === 0 ? (
                 <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                  No detailed itinerary available. Summary: {totalDuration} ·{" "}
+                  No detailed itinerary available. Summary:{" "}
+                  {totalDuration} ·{" "}
                   {totalStops || "Stops info pending"} · {cabinLabel}.
                 </div>
               ) : (
                 directions.map((dir, dIdx) => (
-                  <div
-                    key={dIdx}
-                    style={{
-                      display: "grid",
-                      gap: 4,
-                      fontSize: 13,
-                      color: "#e5e7eb",
-                    }}
-                  >
+                  <div key={dIdx} style={directionBox}>
                     <div
                       style={{
                         display: "flex",
@@ -815,94 +923,126 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                       )}
                     </div>
 
-                    <div style={{ display: "grid", gap: 6 }}>
-                      {dir.segments.map((seg, sIdx) => (
-                        <div key={sIdx} style={{ display: "grid", gap: 2 }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                            }}
-                          >
-                            <span style={{ fontWeight: 600 }}>
-                              {(seg.depart_city || seg.depart_airport || "Origin") +
-                                " → " +
-                                (seg.arrive_city ||
-                                  seg.arrive_airport ||
-                                  "Destination")}
-                            </span>
-                            {seg.duration && (
-                              <span style={tinyText}>{seg.duration}</span>
-                            )}
-                          </div>
-                          <div
-                            style={{
-                              ...tinyText,
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: 6,
-                            }}
-                          >
-                            {seg.depart_time && (
-                              <span>Dep {seg.depart_time}</span>
-                            )}
-                            {seg.arrive_time && (
-                              <span>Arr {seg.arrive_time}</span>
-                            )}
-                            {seg.airline && <span>{seg.airline}</span>}
-                            {seg.flight_number && (
-                              <span>Flight {seg.flight_number}</span>
-                            )}
-                            {seg.cabin && <span>Cabin {seg.cabin}</span>}
-                          </div>
-                          {seg.layover_city && (
-                            <div style={{ ...tinyText, marginLeft: 4 }}>
-                              Layover in{" "}
-                              <span style={{ fontWeight: 500 }}>
-                                {seg.layover_city}
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {dir.segments.map((seg, sIdx) => {
+                        const next =
+                          sIdx < dir.segments.length - 1
+                            ? dir.segments[sIdx + 1]
+                            : null;
+
+                        const layCity =
+                          next?.depart_city ||
+                          next?.depart_airport ||
+                          "";
+                        const layDur = formatLayoverDuration(
+                          seg.arrive_time,
+                          next?.depart_time
+                        );
+
+                        return (
+                          <div key={sIdx} style={{ display: "grid", gap: 4 }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <span style={{ fontWeight: 600 }}>
+                                {(seg.depart_city ||
+                                  seg.depart_airport ||
+                                  "Origin") +
+                                  " → " +
+                                  (seg.arrive_city ||
+                                    seg.arrive_airport ||
+                                    "Destination")}
                               </span>
-                              {seg.layover_duration && (
-                                <> · {seg.layover_duration}</>
+                              {seg.duration && (
+                                <span style={tinyText}>{seg.duration}</span>
                               )}
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            <div
+                              style={{
+                                ...tinyText,
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 6,
+                              }}
+                            >
+                              {seg.depart_time && (
+                                <span>Dep {seg.depart_time}</span>
+                              )}
+                              {seg.arrive_time && (
+                                <span>Arr {seg.arrive_time}</span>
+                              )}
+                              {seg.airline && <span>{seg.airline}</span>}
+                              {seg.flight_number && (
+                                <span>Flight {seg.flight_number}</span>
+                              )}
+                              {seg.cabin && (
+                                <span>Cabin {seg.cabin}</span>
+                              )}
+                            </div>
+
+                            {next && (
+                              <div
+                                style={{
+                                  marginTop: 4,
+                                  marginLeft: 6,
+                                  paddingLeft: 6,
+                                  borderLeft:
+                                    "2px solid rgba(148,163,184,0.7)",
+                                  ...tinyText,
+                                }}
+                              >
+                                Layover in{" "}
+                                <span style={{ fontWeight: 500 }}>
+                                  {layCity || "connection"}
+                                </span>
+                                {layDur && <> · {layDur}</>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div
+                      style={{
+                        borderTop: "1px solid rgba(30,64,175,0.75)",
+                        paddingTop: 6,
+                        display: "grid",
+                        gap: 2,
+                        fontSize: 11,
+                        color: "#9ca3af",
+                        marginTop: 2,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 6,
+                          alignItems: "center",
+                        }}
+                      >
+                        {paxLabel && <span>{paxLabel}</span>}
+                        {totalStops && <span>{totalStops}</span>}
+                        {cabinLabel && <span>{cabinLabel}</span>}
+                      </div>
+                      <div>
+                        Times and durations are approximate and may
+                        differ slightly at booking.
+                      </div>
                     </div>
                   </div>
                 ))
               )}
-
-              <div
-                style={{
-                  borderTop: "1px solid rgba(30,64,175,0.75)",
-                  paddingTop: 6,
-                  display: "grid",
-                  gap: 2,
-                  fontSize: 11,
-                  color: "#9ca3af",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 6,
-                    alignItems: "center",
-                  }}
-                >
-                  {paxLabel && <span>{paxLabel}</span>}
-                  {totalStops && <span>{totalStops}</span>}
-                  {cabinLabel && <span>{cabinLabel}</span>}
-                </div>
-                <div>Times and durations are approximate and may differ slightly at booking.</div>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* FOOTER BUTTONS */}
+        {/* FOOTER BUTTONS + LINKS */}
         <div style={footerBar}>
           <button
             onClick={handleCompareClick}
@@ -915,34 +1055,63 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             {isCompared ? "Added to Compare" : "Compare"}
           </button>
 
-          <button
+          <a
+            href={googleFlightsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               ...chipButton,
+              textDecoration: "none",
               background:
                 "linear-gradient(90deg,#0ea5e9,#6366f1)",
               borderColor: "transparent",
             }}
           >
             Google Flights
-          </button>
+          </a>
 
           {showHotel && (
-            <button
+            <a
+              href={bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 ...chipButton,
+                textDecoration: "none",
                 background: "#16a34a",
                 borderColor: "#16a34a",
               }}
             >
               Booking / Hotels
-            </button>
+            </a>
           )}
 
           <div style={footerRight}>
             <span style={tinyText}>More flight options</span>
-            <span style={smallTag}>Skyscanner</span>
-            <span style={smallTag}>KAYAK</span>
-            <span style={smallTag}>Airline sites</span>
+            <a
+              href={skyscannerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...smallTag, textDecoration: "none" }}
+            >
+              Skyscanner
+            </a>
+            <a
+              href={kayakUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...smallTag, textDecoration: "none" }}
+            >
+              KAYAK
+            </a>
+            <a
+              href={airlineSiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...smallTag, textDecoration: "none" }}
+            >
+              Airline sites
+            </a>
           </div>
         </div>
 
@@ -958,10 +1127,25 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             }}
           >
             <span>More hotel options</span>
-            <span style={smallTag}>Expedia</span>
-            <span style={smallTag}>Hotels.com</span>
+            <a
+              href={expediaUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...smallTag, textDecoration: "none" }}
+            >
+              Expedia
+            </a>
+            <a
+              href={hotelsDotComUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...smallTag, textDecoration: "none" }}
+            >
+              Hotels.com
+            </a>
             <span style={{ marginLeft: "auto" }}>
-              Prices and availability are examples only and may change at booking.
+              Prices and availability are examples only and may change
+              at booking.
             </span>
           </div>
         )}
@@ -974,7 +1158,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               textAlign: "right",
             }}
           >
-            Prices and availability are examples only and may change at booking.
+            Prices and availability are examples only and may change at
+            booking.
           </div>
         )}
       </div>
