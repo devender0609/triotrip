@@ -29,6 +29,35 @@ function extractIATA(display: string): string {
   return "";
 }
 
+
+async function resolveAirportCode(code: string, display: string): Promise<string> {
+  // Prefer explicit selected code
+  if (code && String(code).trim()) return String(code).trim().toUpperCase();
+
+  const disp = String(display || "").trim();
+  if (!disp) return "";
+
+  // Try to extract (IATA) from display like "Austin (AUS)"
+  const extracted = extractIATA(disp);
+  if (extracted) return extracted;
+
+  // If user typed a 3-letter code directly
+  const maybeCode = disp.toUpperCase();
+  if (/^[A-Z]{3}$/.test(maybeCode)) return maybeCode;
+
+  // Fallback: query local airport search API for best match
+  try {
+    const url = `/api/airports?q=${encodeURIComponent(disp)}&limit=1`;
+    const r = await fetch(url);
+    const j: any = await r.json().catch(() => null);
+    const first = j && Array.isArray(j.results) ? j.results[0] : null;
+    const c = first?.code ? String(first.code).trim().toUpperCase() : "";
+    return c;
+  } catch {
+    return "";
+  }
+}
+
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -258,7 +287,6 @@ export default function Page() {
   }, []);
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
-const [refundable, setRefundable] = useState(false);
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
@@ -510,10 +538,10 @@ const [refundable, setRefundable] = useState(false);
     setLoading(true);
     clearResults();
     try {
-      const origin = originCode || extractIATA(originDisplay);
-      const destination = destCode || extractIATA(destDisplay);
+      const origin = await resolveAirportCode(originCode, originDisplay);
+      const destination = await resolveAirportCode(destCode, destDisplay);
       if (!origin || !destination)
-        throw new Error("Please select origin and destination.");
+        throw new Error("Please select origin and destination (pick from the dropdown, or type a 3-letter airport code).");
       if (!departDate) throw new Error("Please pick a departure date.");
       if (roundTrip && !returnDate)
         throw new Error("Please pick a return date.");
@@ -548,32 +576,10 @@ const [refundable, setRefundable] = useState(false);
         body: JSON.stringify(payload),
         cache: "no-store",
       });
-      // Handle JSON or non-JSON error bodies safely
-      const ct = r.headers.get("content-type") || "";
-      const raw = await r.text();
-      let j: any = {};
-      try {
-        j = ct.includes("application/json") ? JSON.parse(raw) : {};
-      } catch {
-        j = {};
-      }
-      if (!r.ok) {
-        const msg =
-          (j && (j.error || j.message)) ||
-          (raw ? raw.slice(0, 200) : "") ||
-          "Search failed";
-        throw new Error(msg);
-      }
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || "Search failed");
 
-      // Accept multiple possible response shapes
-      const arr =
-        (Array.isArray(j?.results) && j.results) ||
-        (Array.isArray(j?.data?.results) && j.data.results) ||
-        (Array.isArray(j?.data) && j.data) ||
-        (Array.isArray(j?.items) && j.items) ||
-        (Array.isArray(j?.offers) && j.offers) ||
-        (Array.isArray(j) && j) ||
-        [];
+      const arr = Array.isArray(j.results) ? j.results : [];
       const withIds = arr.map((res: any, i: number) => ({
         id: res.id ?? `r-${i}`,
         ...payload,
