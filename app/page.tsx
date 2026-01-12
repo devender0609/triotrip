@@ -539,6 +539,7 @@ export default function Page() {
           includeHotel && minBudget ? Number(minBudget) : undefined,
         maxBudget:
           includeHotel && maxBudget ? Number(maxBudget) : undefined,
+        refundable,
         currency,
         maxStops,
       };
@@ -1564,7 +1565,7 @@ export default function Page() {
                   <input
                     type="date"
                     value={hotelCheckOut}
-                    min={todayLocal}
+                    min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : todayLocal}
                     onChange={(e) => setHotelCheckOut(e.target.value)}
                     style={{
                       width: "100%",
@@ -1608,29 +1609,7 @@ export default function Page() {
                 gap: 12,
               }}
             >
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Currency</div>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                  <option value="CAD">CAD</option>
-                  <option value="INR">INR</option>
-                  <option value="AUD">AUD</option>
-                </select>
-              </div>
+              
 
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
@@ -1762,7 +1741,7 @@ export default function Page() {
             "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
-          font-size: 20px;
+          font-size: 18px;
           color: #0f172a;
         }
 
@@ -1795,7 +1774,7 @@ export default function Page() {
         }
 
         .result-card-title {
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 800;
         }
 
