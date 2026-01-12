@@ -287,7 +287,8 @@ export default function Page() {
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
 const [refundable, setRefundable] = useState(false);
-  const [includeHotel, setIncludeHotel] = useState(false);
+  const [greener, setGreener] = useState(false);
+const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
   const [minHotelStar, setMinHotelStar] = useState(0);
