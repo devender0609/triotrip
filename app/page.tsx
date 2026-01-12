@@ -259,6 +259,7 @@ export default function Page() {
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
   const [refundable, setRefundable] = useState(false);
+  const [searchedOnce, setSearchedOnce] = useState(false);
 
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
@@ -456,7 +457,19 @@ export default function Page() {
       const j = await resp.json();
       if (!resp.ok) throw new Error(j?.error || "Search failed");
 
-      const arr = Array.isArray(j.results) ? j.results : [];
+      const arr = Array.isArray(j?.results)
+        ? j.results
+        : Array.isArray(j)
+        ? j
+        : Array.isArray(j?.data?.results)
+        ? j.data.results
+        : Array.isArray(j?.data)
+        ? j.data
+        : Array.isArray(j?.offers)
+        ? j.offers
+        : Array.isArray(j?.items)
+        ? j.items
+        : [];
       const withIds = arr.map((res: any, i: number) => ({
         id: res.id ?? `ai-${i}`,
         ...body,
@@ -510,6 +523,7 @@ export default function Page() {
   async function runSearch() {
     setLoading(true);
     clearResults();
+    setSearchedOnce(true);
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
@@ -1112,6 +1126,12 @@ export default function Page() {
               </button>
             </div>
           </div>
+
+          {searchedOnce && !loading && !error && (!results || results.length === 0) && (
+            <div style={{ marginTop: 16, padding: 12, borderRadius: 12, border: "1px solid #e2e8f0", background: "#ffffff", color: "#334155" }}>
+              No results returned. Try changing dates, using airport codes, or widening filters (e.g., max stops).
+            </div>
+          )}
 
           {results && results.length > 0 && (
             <div style={{ marginTop: 16 }}>
