@@ -258,9 +258,6 @@ export default function Page() {
   }, []);
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
-  const [refundable, setRefundable] = useState(false);
-  const [searchedOnce, setSearchedOnce] = useState(false);
-
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
@@ -457,19 +454,7 @@ export default function Page() {
       const j = await resp.json();
       if (!resp.ok) throw new Error(j?.error || "Search failed");
 
-      const arr = Array.isArray(j?.results)
-        ? j.results
-        : Array.isArray(j)
-        ? j
-        : Array.isArray(j?.data?.results)
-        ? j.data.results
-        : Array.isArray(j?.data)
-        ? j.data
-        : Array.isArray(j?.offers)
-        ? j.offers
-        : Array.isArray(j?.items)
-        ? j.items
-        : [];
+      const arr = Array.isArray(j.results) ? j.results : [];
       const withIds = arr.map((res: any, i: number) => ({
         id: res.id ?? `ai-${i}`,
         ...body,
@@ -523,7 +508,6 @@ export default function Page() {
   async function runSearch() {
     setLoading(true);
     clearResults();
-    setSearchedOnce(true);
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
@@ -553,7 +537,6 @@ export default function Page() {
           includeHotel && minBudget ? Number(minBudget) : undefined,
         maxBudget:
           includeHotel && maxBudget ? Number(maxBudget) : undefined,
-        refundable,
         currency,
         maxStops,
       };
@@ -564,10 +547,32 @@ export default function Page() {
         body: JSON.stringify(payload),
         cache: "no-store",
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || "Search failed");
+      // Handle JSON or non-JSON error bodies safely
+      const ct = r.headers.get("content-type") || "";
+      const raw = await r.text();
+      let j: any = {};
+      try {
+        j = ct.includes("application/json") ? JSON.parse(raw) : {};
+      } catch {
+        j = {};
+      }
+      if (!r.ok) {
+        const msg =
+          (j && (j.error || j.message)) ||
+          (raw ? raw.slice(0, 200) : "") ||
+          "Search failed";
+        throw new Error(msg);
+      }
 
-      const arr = Array.isArray(j.results) ? j.results : [];
+      // Accept multiple possible response shapes
+      const arr =
+        (Array.isArray(j?.results) && j.results) ||
+        (Array.isArray(j?.data?.results) && j.data.results) ||
+        (Array.isArray(j?.data) && j.data) ||
+        (Array.isArray(j?.items) && j.items) ||
+        (Array.isArray(j?.offers) && j.offers) ||
+        (Array.isArray(j) && j) ||
+        [];
       const withIds = arr.map((res: any, i: number) => ({
         id: res.id ?? `r-${i}`,
         ...payload,
@@ -1127,12 +1132,6 @@ export default function Page() {
             </div>
           </div>
 
-          {searchedOnce && !loading && !error && (!results || results.length === 0) && (
-            <div style={{ marginTop: 16, padding: 12, borderRadius: 12, border: "1px solid #e2e8f0", background: "#ffffff", color: "#334155" }}>
-              No results returned. Try changing dates, using airport codes, or widening filters (e.g., max stops).
-            </div>
-          )}
-
           {results && results.length > 0 && (
             <div style={{ marginTop: 16 }}>
               {(() => {
@@ -1585,7 +1584,7 @@ export default function Page() {
                   <input
                     type="date"
                     value={hotelCheckOut}
-                    min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : todayLocal}
+                    min={todayLocal}
                     onChange={(e) => setHotelCheckOut(e.target.value)}
                     style={{
                       width: "100%",
@@ -1629,7 +1628,29 @@ export default function Page() {
                 gap: 12,
               }}
             >
-              
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Currency</div>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: 54,
+                    borderRadius: 14,
+                    border: "1px solid #e2e8f0",
+                    padding: "0 14px",
+                    fontSize: 18,
+                    background: "#fff",
+                  }}
+                >
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                  <option value="CAD">CAD</option>
+                  <option value="INR">INR</option>
+                  <option value="AUD">AUD</option>
+                </select>
+              </div>
 
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
@@ -1761,7 +1782,7 @@ export default function Page() {
             "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
-          font-size: 18px;
+          font-size: 20px;
           color: #0f172a;
         }
 
@@ -1794,7 +1815,7 @@ export default function Page() {
         }
 
         .result-card-title {
-          font-size: 18px;
+          font-size: 20px;
           font-weight: 800;
         }
 
