@@ -30,33 +30,32 @@ function extractIATA(display: string): string {
 }
 
 
-async function resolveAirportCode(code: string, display: string): Promise<string> {
-  // Prefer explicit selected code
-  if (code && String(code).trim()) return String(code).trim().toUpperCase();
+  async function resolveAirportCode(input: string, selectedCode?: string) {
+    // 1) if user selected from dropdown, trust that
+    if (selectedCode) return selectedCode.trim().toUpperCase();
+    // 2) if text contains (IATA)
+    const extracted = extractIATA(input || "");
+    if (extracted) return extracted;
+    // 3) if user typed 3-letter code
+    const trimmed = (input || "").trim().toUpperCase();
+    if (/^[A-Z]{3}$/.test(trimmed)) return trimmed;
 
-  const disp = String(display || "").trim();
-  if (!disp) return "";
-
-  // Try to extract (IATA) from display like "Austin (AUS)"
-  const extracted = extractIATA(disp);
-  if (extracted) return extracted;
-
-  // If user typed a 3-letter code directly
-  const maybeCode = disp.toUpperCase();
-  if (/^[A-Z]{3}$/.test(maybeCode)) return maybeCode;
-
-  // Fallback: query local airport search API for best match
-  try {
-    const url = `/api/airports?q=${encodeURIComponent(disp)}&limit=1`;
-    const r = await fetch(url);
-    const j: any = await r.json().catch(() => null);
-    const first = j && Array.isArray(j.results) ? j.results[0] : null;
-    const c = first?.code ? String(first.code).trim().toUpperCase() : "";
-    return c;
-  } catch {
-    return "";
+    // 4) fallback: ask our free local endpoint for best match
+    try {
+      const r = await fetch(`/api/airports?q=${encodeURIComponent(input || "")}&limit=1`, {
+        cache: "no-store",
+      });
+      if (!r.ok) return null;
+      const j = await r.json();
+      const arr = Array.isArray(j?.airports) ? j.airports : Array.isArray(j) ? j : [];
+      const best = arr?.[0];
+      const code = best?.iata || best?.code || best?.IATA;
+      return code ? String(code).trim().toUpperCase() : null;
+    } catch {
+      return null;
+    }
   }
-}
+
 
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
@@ -539,10 +538,10 @@ const [refundable, setRefundable] = useState(false);
     setLoading(true);
     clearResults();
     try {
-      const origin = await resolveAirportCode(originCode, originDisplay);
-      const destination = await resolveAirportCode(destCode, destDisplay);
+      const origin = await resolveAirportCode(originDisplay, originCode);
+      const destination = await resolveAirportCode(destDisplay, destCode);
       if (!origin || !destination)
-        throw new Error("Please select origin and destination (pick from the dropdown, or type a 3-letter airport code).");
+        throw new Error("Please select origin and destination (pick from dropdown or enter an airport code). ");
       if (!departDate) throw new Error("Please pick a departure date.");
       if (roundTrip && !returnDate)
         throw new Error("Please pick a return date.");
@@ -569,6 +568,10 @@ const [refundable, setRefundable] = useState(false);
           includeHotel && maxBudget ? Number(maxBudget) : undefined,
         currency,
         maxStops,
+        refundable,
+        greener,
+        sort,
+        sortBasis,
       };
 
       const r = await fetch(`/api/search`, {
