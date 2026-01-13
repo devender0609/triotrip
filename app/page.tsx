@@ -222,7 +222,6 @@ function cityToCountry(city: string): { country: string; flag: string } {
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
   const [aiResetKey, setAiResetKey] = useState(0);
-  const [refundable, setRefundable] = useState(false);
   const [heroImageIndex, setHeroImageIndex] = useState(0);
 
   // NEW: for AI hero city
@@ -259,6 +258,8 @@ export default function Page() {
   }, []);
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
+  const [refundable, setRefundable] = useState(false);
+
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
@@ -506,26 +507,41 @@ export default function Page() {
     }
   }
 
+  
   async function runSearch() {
     setLoading(true);
     clearResults();
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
-      if (!origin || !destination) {
-        throw new Error(
-          "Please select origin and destination (choose from the dropdown so the airport code is captured)."
-        );
-      }
+
+      if (!origin || !destination) throw new Error("Please select origin and destination.");
       if (!departDate) throw new Error("Please pick a departure date.");
+
+      // Enforce return date >= depart date for round trips
       if (roundTrip) {
         if (!returnDate) throw new Error("Please pick a return date.");
-        if (returnDate < departDate) {
-          throw new Error("Return date must be on or after the departure date.");
-        }
+        if (returnDate < departDate) throw new Error("Return date must be after the departure date.");
       }
-const payload = {
-        id: undefined as any,
+
+      // Make sure hotel dates are valid when includeHotel is enabled
+      const effectiveHotelCheckIn = includeHotel ? (hotelCheckIn || departDate) : undefined;
+
+      // If no return date (one-way), default hotel checkout to +1 day
+      const defaultHotelOut =
+        includeHotel
+          ? (roundTrip && returnDate ? returnDate : plusDays(effectiveHotelCheckIn!, 1))
+          : undefined;
+
+      const effectiveHotelCheckOut = includeHotel ? (hotelCheckOut || defaultHotelOut) : undefined;
+
+      // If user picked a checkout before checkin, bump it to +1 day
+      const normalizedHotelCheckOut =
+        includeHotel && effectiveHotelCheckIn && effectiveHotelCheckOut && effectiveHotelCheckOut < effectiveHotelCheckIn
+          ? plusDays(effectiveHotelCheckIn, 1)
+          : effectiveHotelCheckOut;
+
+      const body: any = {
         origin,
         destination,
         departDate,
@@ -537,32 +553,30 @@ const payload = {
         passengersInfants: infants,
         cabin,
         includeHotel,
-        hotelCheckIn: includeHotel ? (hotelCheckIn || departDate) : undefined,
-        hotelCheckOut: includeHotel
-          ? (hotelCheckOut || (roundTrip ? returnDate : plusDays(hotelCheckIn || departDate, 1)))
-          : undefined,
-        minHotelStar: includeHotel ? minHotelStar : undefined,
-        minBudget:
-          includeHotel && minBudget ? Number(minBudget) : undefined,
-        maxBudget:
-          includeHotel && maxBudget ? Number(maxBudget) : undefined,
+        hotelCheckIn: includeHotel ? effectiveHotelCheckIn : undefined,
+        hotelCheckOut: includeHotel ? normalizedHotelCheckOut : undefined,
+        minHotelStar: typeof minHotelStar === "number" ? minHotelStar : 0,
+        minBudget: includeHotel && minBudget ? Number(minBudget) : undefined,
+        maxBudget: includeHotel && maxBudget ? Number(maxBudget) : undefined,
         currency,
-        maxStops,
+        maxStops: maxStops === 0 || maxStops === 1 || maxStops === 2 ? maxStops : 2,
       };
 
-      const r = await fetch(`/api/search`, {
+      const resp = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
         cache: "no-store",
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || "Search failed");
 
+      const j = await resp.json();
+      if (!resp.ok) throw new Error(j?.error || "Search failed.");
+
+      // /api/search returns { results, hotels, ... } depending on your backend
       const arr = Array.isArray(j.results) ? j.results : [];
       const withIds = arr.map((res: any, i: number) => ({
         id: res.id ?? `r-${i}`,
-        ...payload,
+        ...body,
         ...res,
       }));
       setResults(withIds);
@@ -573,7 +587,7 @@ const payload = {
       setSubPanelOpen(false);
       setComparedIds([]);
     } catch (e: any) {
-      setError(e?.message || "Search failed");
+      setError(e?.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -1276,52 +1290,58 @@ const payload = {
               style={{
                 display: "flex",
                 gap: 12,
-                alignItems: "center",
+                alignItems: "flex-end",
                 flexWrap: "nowrap",
               }}
             >
-              <AirportField
-                id="origin"
-                label="From"
-                code={originCode}
-                initialDisplay={originDisplay}
-                onTextChange={setOriginDisplay}
-                onChangeCode={(code, display) => {
-                  setOriginCode(code);
-                  setOriginDisplay(display);
-                }}
-                autoFocus
-              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <AirportField
+                  id="origin"
+                  label="From"
+                  code={originCode}
+                  initialDisplay={originDisplay}
+                  onTextChange={setOriginDisplay}
+                  onChangeCode={(code, display) => {
+                    setOriginCode(code);
+                    setOriginDisplay(display);
+                  }}
+                  autoFocus
+                />
+              </div>
 
               <button
                 type="button"
                 onClick={swapOriginDest}
                 title="Swap"
                 style={{
-                  flex: "0 0 auto",
                   height: 46,
+                  width: 46,
+                  minWidth: 46,
                   borderRadius: 12,
-                  border: "1px solid #e2e8f0",
-                  background: "#f8fafc",
-                  cursor: "pointer",
-                  fontSize: 22,
+                  border: "1px solid rgba(0,0,0,0.12)",
+                  background: "white",
+                  display: "grid",
+                  placeItems: "center",
                   fontWeight: 800,
+                  cursor: "pointer",
                 }}
               >
                 ⇄
               </button>
 
-              <AirportField
-                id="destination"
-                label="To"
-                code={destCode}
-                initialDisplay={destDisplay}
-                onTextChange={setDestDisplay}
-                onChangeCode={(code, display) => {
-                  setDestCode(code);
-                  setDestDisplay(display);
-                }}
-              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <AirportField
+                  id="destination"
+                  label="To"
+                  code={destCode}
+                  initialDisplay={destDisplay}
+                  onTextChange={setDestDisplay}
+                  onChangeCode={(code, display) => {
+                    setDestCode(code);
+                    setDestDisplay(display);
+                  }}
+                />
+              </div>
             </div>
 
             <div
@@ -1339,11 +1359,21 @@ const payload = {
                 <input
                   type="date"
                   value={departDate}
-                  min={departDate || todayLocal}
-                  onChange={(e) => setDepartDate(e.target.value)}
+                  min={todayLocal}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDepartDate(v);
+                    // Keep return date >= depart date
+                    if (roundTrip && returnDate && v && returnDate < v) setReturnDate(v);
+                    // Keep hotel dates sensible
+                    if (includeHotel) {
+                      if (!hotelCheckIn || hotelCheckIn < v) setHotelCheckIn(v);
+                      if (hotelCheckOut && hotelCheckIn && hotelCheckOut < plusDays(v, 1)) setHotelCheckOut(plusDays(v, 1));
+                    }
+                  }}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1378,10 +1408,17 @@ const payload = {
                   value={returnDate}
                   min={departDate || todayLocal}
                   disabled={!roundTrip}
-                  onChange={(e) => setReturnDate(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (departDate && v && v < departDate) {
+                      setReturnDate(departDate);
+                    } else {
+                      setReturnDate(v);
+                    }
+                  }}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1409,7 +1446,7 @@ const payload = {
                   onChange={(e) => setAdults(Math.max(1, Number(e.target.value || 1)))}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1427,7 +1464,7 @@ const payload = {
                   onChange={(e) => setChildren(Math.max(0, Number(e.target.value || 0)))}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1445,7 +1482,7 @@ const payload = {
                   onChange={(e) => setInfants(Math.max(0, Number(e.target.value || 0)))}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1461,7 +1498,7 @@ const payload = {
                   onChange={(e) => setCabin(e.target.value as Cabin)}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1510,7 +1547,7 @@ const payload = {
                   placeholder="e.g., 500"
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1529,7 +1566,7 @@ const payload = {
                   placeholder="e.g., 2500"
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1553,11 +1590,11 @@ const payload = {
                   <input
                     type="date"
                     value={hotelCheckIn}
-                    min={departDate || todayLocal}
+                    min={todayLocal}
                     onChange={(e) => setHotelCheckIn(e.target.value)}
                     style={{
                       width: "100%",
-                      height: 46,
+                      height: 54,
                       borderRadius: 14,
                       border: "1px solid #e2e8f0",
                       padding: "0 14px",
@@ -1572,11 +1609,11 @@ const payload = {
                   <input
                     type="date"
                     value={hotelCheckOut}
-                    min={departDate || todayLocal}
+                    min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : (departDate || todayLocal)}
                     onChange={(e) => setHotelCheckOut(e.target.value)}
                     style={{
                       width: "100%",
-                      height: 46,
+                      height: 54,
                       borderRadius: 14,
                       border: "1px solid #e2e8f0",
                       padding: "0 14px",
@@ -1591,7 +1628,7 @@ const payload = {
                     onChange={(e) => setMinHotelStar(Number(e.target.value))}
                     style={{
                       width: "100%",
-                      height: 46,
+                      height: 54,
                       borderRadius: 14,
                       border: "1px solid #e2e8f0",
                       padding: "0 14px",
@@ -1623,7 +1660,7 @@ const payload = {
                   onChange={(e) => setCurrency(e.target.value)}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1647,7 +1684,7 @@ const payload = {
                   onChange={(e) => setSort(e.target.value as SortKey)}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1669,7 +1706,7 @@ const payload = {
                   onChange={(e) => setSortBasis(e.target.value as any)}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
@@ -1689,7 +1726,7 @@ const payload = {
                   onChange={(e) => setMaxStops(Number(e.target.value) as any)}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 54,
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
