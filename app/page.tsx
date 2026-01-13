@@ -29,34 +29,6 @@ function extractIATA(display: string): string {
   return "";
 }
 
-
-  async function resolveAirportCode(input: string, selectedCode?: string) {
-    // 1) if user selected from dropdown, trust that
-    if (selectedCode) return selectedCode.trim().toUpperCase();
-    // 2) if text contains (IATA)
-    const extracted = extractIATA(input || "");
-    if (extracted) return extracted;
-    // 3) if user typed 3-letter code
-    const trimmed = (input || "").trim().toUpperCase();
-    if (/^[A-Z]{3}$/.test(trimmed)) return trimmed;
-
-    // 4) fallback: ask our free local endpoint for best match
-    try {
-      const r = await fetch(`/api/airports?q=${encodeURIComponent(input || "")}&limit=1`, {
-        cache: "no-store",
-      });
-      if (!r.ok) return null;
-      const j = await r.json();
-      const arr = Array.isArray(j?.airports) ? j.airports : Array.isArray(j) ? j : [];
-      const best = arr?.[0];
-      const code = best?.iata || best?.code || best?.IATA;
-      return code ? String(code).trim().toUpperCase() : null;
-    } catch {
-      return null;
-    }
-  }
-
-
 function plusDays(iso: string, days: number) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -286,9 +258,7 @@ export default function Page() {
   }, []);
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
-const [refundable, setRefundable] = useState(false);
-  const [greener, setGreener] = useState(false);
-const [includeHotel, setIncludeHotel] = useState(false);
+  const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
   const [minHotelStar, setMinHotelStar] = useState(0);
@@ -539,10 +509,10 @@ const [includeHotel, setIncludeHotel] = useState(false);
     setLoading(true);
     clearResults();
     try {
-      const origin = await resolveAirportCode(originDisplay, originCode);
-      const destination = await resolveAirportCode(destDisplay, destCode);
+      const origin = originCode || extractIATA(originDisplay);
+      const destination = destCode || extractIATA(destDisplay);
       if (!origin || !destination)
-        throw new Error("Please select origin and destination (pick from dropdown or enter an airport code). ");
+        throw new Error("Please select origin and destination.");
       if (!departDate) throw new Error("Please pick a departure date.");
       if (roundTrip && !returnDate)
         throw new Error("Please pick a return date.");
@@ -569,10 +539,6 @@ const [includeHotel, setIncludeHotel] = useState(false);
           includeHotel && maxBudget ? Number(maxBudget) : undefined,
         currency,
         maxStops,
-        refundable,
-        greener,
-        sort,
-        sortBasis,
       };
 
       const r = await fetch(`/api/search`, {
@@ -1285,505 +1251,390 @@ const [includeHotel, setIncludeHotel] = useState(false);
         <>
           <div
             style={{
-              marginTop: 14,
-              padding: 16,
+              border: "1px solid #e2e8f0",
               borderRadius: 18,
               background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              boxShadow: "0 10px 26px rgba(2,6,23,0.08)",
+              padding: 14,
+              display: "grid",
+              gap: 12,
             }}
           >
-            <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 10 }}>
-              🔎 Manual Search
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 64px 1fr",
-                gap: 12,
-                alignItems: "end",
-              }}
-            >
-              <AirportField
-                id="origin"
-                label="From"
-                code={originCode}
-                initialDisplay={originDisplay}
-                onTextChange={setOriginDisplay}
-                onChangeCode={(code, display) => {
-                  setOriginCode(code);
-                  setOriginDisplay(display);
-                }}
-                autoFocus
-              />
-
-              <button
-                type="button"
-                onClick={swapOriginDest}
-                title="Swap"
-                style={{
-                  height: 54,
-                  borderRadius: 14,
-                  border: "1px solid #e2e8f0",
-                  background: "#f8fafc",
-                  cursor: "pointer",
-                  fontSize: 22,
-                  fontWeight: 800,
-                }}
-              >
-                ⇄
-              </button>
-
-              <AirportField
-                id="destination"
-                label="To"
-                code={destCode}
-                initialDisplay={destDisplay}
-                onTextChange={setDestDisplay}
-                onChangeCode={(code, display) => {
-                  setDestCode(code);
-                  setDestDisplay(display);
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                  Departure date
-                </div>
-                <input
-                  type="date"
-                  value={departDate}
-                  min={todayLocal}
-                  onChange={(e) => setDepartDate(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ display: "grid", gap: 6 }}>
+                <label style={sLabel}>From</label>
+                <AirportField
+                  value={originDisplay}
+                  onChange={(v: string) => setOriginDisplay(v)}
+                  onSelect={(item: any) => {
+                    const code = item?.code || extractIATA(item?.display || "");
+                    setOriginCode(code || "");
+                    setOriginDisplay(item?.display || item?.name || originDisplay);
                   }}
+                  placeholder="City or airport (e.g., Austin or AUS)"
                 />
               </div>
 
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    marginBottom: 6,
+              <div style={{ display: "grid", gap: 6 }}>
+                <label style={sLabel}>To</label>
+                <AirportField
+                  value={destDisplay}
+                  onChange={(v: string) => setDestDisplay(v)}
+                  onSelect={(item: any) => {
+                    const code = item?.code || extractIATA(item?.display || "");
+                    setDestCode(code || "");
+                    setDestDisplay(item?.display || item?.name || destDisplay);
                   }}
-                >
-                  <div style={{ fontWeight: 700 }}>Return date</div>
-                  <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={roundTrip}
-                      onChange={(e) => setRoundTrip(e.target.checked)}
-                    />
-                    <span style={{ fontWeight: 700 }}>Round trip</span>
-                  </label>
-                </div>
-
-                <input
-                  type="date"
-                  value={returnDate}
-                  min={todayLocal}
-                  disabled={!roundTrip}
-                  onChange={(e) => setReturnDate(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    opacity: roundTrip ? 1 : 0.5,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Adults</div>
-                <input
-                  type="number"
-                  min={1}
-                  value={adults}
-                  onChange={(e) => setAdults(Math.max(1, Number(e.target.value || 1)))}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
+                  placeholder="City or airport (e.g., Boston or BOS)"
                 />
               </div>
 
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Children</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={children}
-                  onChange={(e) => setChildren(Math.max(0, Number(e.target.value || 0)))}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Infants</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={infants}
-                  onChange={(e) => setInfants(Math.max(0, Number(e.target.value || 0)))}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Cabin</div>
-                <select
-                  value={cabin}
-                  onChange={(e) => setCabin(e.target.value as Cabin)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value="ECONOMY">Economy</option>
-                  <option value="PREMIUM_ECONOMY">Premium Economy</option>
-                  <option value="BUSINESS">Business</option>
-                  <option value="FIRST">First</option>
-                </select>
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-                alignItems: "end",
-              }}
-            >
-              <div style={{ gridColumn: "span 2" }}>
-                <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <input
                     type="checkbox"
-                    checked={includeHotel}
-                    onChange={(e) => setIncludeHotel(e.target.checked)}
+                    checked={roundTrip}
+                    onChange={(e) => setRoundTrip(e.target.checked)}
                   />
-                  <span style={{ fontWeight: 800 }}>Include hotel</span>
+                  <span style={{ fontSize: 18, fontWeight: 700 }}>Round trip</span>
                 </label>
-                <div style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>
-                  If enabled, results include flight + hotel bundle pricing.
-                </div>
-              </div>
 
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Min budget</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={minBudget}
-                  onChange={(e) => setMinBudget(e.target.value)}
-                  placeholder="e.g., 500"
+                <button
+                  type="button"
+                  onClick={swapOriginDest}
                   style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
+                    padding: "10px 14px",
+                    borderRadius: 12,
                     border: "1px solid #e2e8f0",
-                    padding: "0 14px",
+                    background: "#fff",
+                    fontWeight: 800,
                     fontSize: 18,
+                    cursor: "pointer",
                   }}
-                />
+                >
+                  ⇄ Swap
+                </button>
               </div>
 
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Max budget</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={maxBudget}
-                  onChange={(e) => setMaxBudget(e.target.value)}
-                  placeholder="e.g., 2500"
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
-            </div>
-
-            {includeHotel && (
-              <div
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr",
-                  gap: 12,
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Hotel check-in</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label style={sLabel}>Depart</label>
                   <input
+                    style={sInput}
                     type="date"
-                    value={hotelCheckIn}
+                    value={departDate}
                     min={todayLocal}
-                    onChange={(e) => setHotelCheckIn(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 54,
-                      borderRadius: 14,
-                      border: "1px solid #e2e8f0",
-                      padding: "0 14px",
-                      fontSize: 18,
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setDepartDate(v);
+                      if (includeHotel && v && (!hotelCheckIn || hotelCheckIn < v)) {
+                        setHotelCheckIn(v);
+                      }
+                      if (roundTrip && returnDate && v && returnDate < v) {
+                        setReturnDate(v);
+                      }
                     }}
                   />
                 </div>
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                    Hotel check-out
-                  </div>
+
+                <div style={{ display: "grid", gap: 6, opacity: roundTrip ? 1 : 0.5 }}>
+                  <label style={sLabel}>Return</label>
                   <input
+                    style={sInput}
                     type="date"
-                    value={hotelCheckOut}
-                    min={todayLocal}
-                    onChange={(e) => setHotelCheckOut(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 54,
-                      borderRadius: 14,
-                      border: "1px solid #e2e8f0",
-                      padding: "0 14px",
-                      fontSize: 18,
+                    value={returnDate}
+                    disabled={!roundTrip}
+                    min={departDate || todayLocal}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setReturnDate(v);
+                      if (includeHotel && hotelCheckOut && v && hotelCheckOut > v) {
+                        setHotelCheckOut(v);
+                      }
                     }}
                   />
                 </div>
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Min hotel stars</div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label style={sLabel}>Cabin</label>
                   <select
-                    value={minHotelStar}
-                    onChange={(e) => setMinHotelStar(Number(e.target.value))}
-                    style={{
-                      width: "100%",
-                      height: 54,
-                      borderRadius: 14,
-                      border: "1px solid #e2e8f0",
-                      padding: "0 14px",
-                      fontSize: 18,
-                      background: "#fff",
-                    }}
+                    style={sInput}
+                    value={cabin}
+                    onChange={(e) => setCabin(e.target.value as any)}
                   >
-                    <option value={0}>Any</option>
-                    <option value={3}>3+</option>
-                    <option value={4}>4+</option>
-                    <option value={5}>5</option>
+                    <option value="ECONOMY">Economy</option>
+                    <option value="PREMIUM_ECONOMY">Premium Economy</option>
+                    <option value="BUSINESS">Business</option>
+                    <option value="FIRST">First</option>
+                  </select>
+                </div>
+
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label style={sLabel}>Max stops</label>
+                  <select
+                    style={sInput}
+                    value={maxStops}
+                    onChange={(e) => setMaxStops(Number(e.target.value) as any)}
+                  >
+                    <option value={0}>Nonstop</option>
+                    <option value={1}>Up to 1 stop</option>
+                    <option value={2}>Up to 2 stops</option>
                   </select>
                 </div>
               </div>
-            )}
 
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Currency</div>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                  <option value="CAD">CAD</option>
-                  <option value="INR">INR</option>
-                  <option value="AUD">AUD</option>
-                </select>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label style={sLabel}>Adults</label>
+                  <input
+                    style={sInput}
+                    type="number"
+                    min={1}
+                    value={adults}
+                    onChange={(e) => setAdults(Math.max(1, Number(e.target.value) || 1))}
+                  />
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label style={sLabel}>Children</label>
+                  <input
+                    style={sInput}
+                    type="number"
+                    min={0}
+                    value={children}
+                    onChange={(e) => setChildren(Math.max(0, Number(e.target.value) || 0))}
+                  />
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label style={sLabel}>Infants</label>
+                  <input
+                    style={sInput}
+                    type="number"
+                    min={0}
+                    value={infants}
+                    onChange={(e) => setInfants(Math.max(0, Number(e.target.value) || 0))}
+                  />
+                </div>
               </div>
 
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as SortKey)}
+              {children > 0 && (
+                <div
                   style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
+                    border: "1px dashed #cbd5e1",
+                    borderRadius: 12,
+                    padding: 12,
+                    display: "grid",
+                    gap: 10,
                   }}
                 >
-                  <option value="best">Best</option>
-                  <option value="cheapest">Cheapest</option>
-                  <option value="fastest">Fastest</option>
-                  <option value="flexible">Flexible</option>
-                </select>
+                  <div style={{ fontWeight: 800, fontSize: 18 }}>Children ages</div>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {Array.from({ length: children }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "140px 1fr",
+                          gap: 10,
+                          alignItems: "center",
+                        }}
+                      >
+                        <div style={{ fontSize: 16, fontWeight: 700 }}>Child {idx + 1}</div>
+                        <input
+                          style={sInput}
+                          type="number"
+                          min={0}
+                          max={17}
+                          value={childAges[idx] ?? 8}
+                          onChange={(e) => {
+                            const v = Math.max(0, Math.min(17, Number(e.target.value) || 0));
+                            setChildAges((prev) => {
+                              const copy = [...prev];
+                              copy[idx] = v;
+                              return copy;
+                            });
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: "grid", gap: 10 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <input
+                    type="checkbox"
+                    checked={includeHotel}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      setIncludeHotel(v);
+                      if (v) {
+                        if (!hotelCheckIn && departDate) setHotelCheckIn(departDate);
+                        if (!hotelCheckOut) {
+                          const base = departDate || todayLocal;
+                          setHotelCheckOut(plusDays(base, 1));
+                        }
+                      } else {
+                        setHotelCheckIn("");
+                        setHotelCheckOut("");
+                        setMinHotelStar(0);
+                        setMinBudget("");
+                        setMaxBudget("");
+                      }
+                    }}
+                  />
+                  <span style={{ fontSize: 18, fontWeight: 800 }}>Include hotel</span>
+                </label>
+
+                {includeHotel && (
+                  <div
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 14,
+                      padding: 12,
+                      display: "grid",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <label style={sLabel}>Hotel check-in</label>
+                        <input
+                          style={sInput}
+                          type="date"
+                          value={hotelCheckIn}
+                          min={departDate || todayLocal}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setHotelCheckIn(v);
+                            if (hotelCheckOut && v && hotelCheckOut <= v) {
+                              setHotelCheckOut(plusDays(v, 1));
+                            }
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <label style={sLabel}>Hotel check-out</label>
+                        <input
+                          style={sInput}
+                          type="date"
+                          value={hotelCheckOut}
+                          min={hotelCheckIn ? plusDays(hotelCheckIn, 1) : (departDate || todayLocal)}
+                          onChange={(e) => setHotelCheckOut(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <label style={sLabel}>Min stars</label>
+                        <select
+                          style={sInput}
+                          value={minHotelStar}
+                          onChange={(e) => setMinHotelStar(Number(e.target.value) || 0)}
+                        >
+                          <option value={0}>Any</option>
+                          <option value={3}>3+</option>
+                          <option value={4}>4+</option>
+                          <option value={5}>5</option>
+                        </select>
+                      </div>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <label style={sLabel}>Min budget</label>
+                        <input
+                          style={sInput}
+                          inputMode="numeric"
+                          value={minBudget}
+                          onChange={(e) => setMinBudget(e.target.value)}
+                          placeholder="e.g., 200"
+                        />
+                      </div>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <label style={sLabel}>Max budget</label>
+                        <input
+                          style={sInput}
+                          inputMode="numeric"
+                          value={maxBudget}
+                          onChange={(e) => setMaxBudget(e.target.value)}
+                          placeholder="e.g., 600"
+                        />
+                      </div>
+                    </div>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={refundable}
+                        onChange={(e) => setRefundable(e.target.checked)}
+                      />
+                      <span style={{ fontSize: 18, fontWeight: 800 }}>Refundable preferred</span>
+                    </label>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
-                <select
-                  value={sortBasis}
-                  onChange={(e) => setSortBasis(e.target.value as any)}
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => runSearch()}
+                  disabled={loading}
                   style={{
-                    width: "100%",
-                    height: 54,
+                    padding: "12px 16px",
                     borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
+                    border: "none",
+                    background: "#0f172a",
+                    color: "white",
+                    fontWeight: 900,
+                    fontSize: 20,
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.7 : 1,
                   }}
                 >
-                  <option value="flightOnly">Flight only</option>
-                  <option value="bundle">Flight + hotel</option>
-                </select>
-              </div>
+                  {loading ? "Searching..." : "Search"}
+                </button>
 
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Max stops</div>
-                <select
-                  value={maxStops}
-                  onChange={(e) => setMaxStops(Number(e.target.value) as any)}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOriginCode("");
+                    setOriginDisplay("");
+                    setDestCode("");
+                    setDestDisplay("");
+                    setDepartDate("");
+                    setReturnDate("");
+                    setAdults(1);
+                    setChildren(0);
+                    setInfants(0);
+                    setChildAges([]);
+                    setCabin("ECONOMY");
+                    setMaxStops(2);
+                    setIncludeHotel(false);
+                    setHotelCheckIn("");
+                    setHotelCheckOut("");
+                    setMinHotelStar(0);
+                    setMinBudget("");
+                    setMaxBudget("");
+                    setRefundable(false);
+                    clearResults();
+                  }}
                   style={{
-                    width: "100%",
-                    height: 54,
+                    padding: "12px 16px",
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
                     background: "#fff",
+                    fontWeight: 900,
+                    fontSize: 18,
+                    cursor: "pointer",
                   }}
                 >
-                  <option value={0}>0</option>
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
-                </select>
+                  Reset
+                </button>
               </div>
             </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={refundable}
-                  onChange={(e) => setRefundable(e.target.checked)}
-                />
-                <span style={{ fontWeight: 800 }}>Refundable</span>
-              </label>
-
-              <button
-                type="button"
-                onClick={runSearch}
-                disabled={loading}
-                style={{
-                  height: 56,
-                  padding: "0 18px",
-                  borderRadius: 14,
-                  border: "1px solid #0f172a",
-                  background: loading ? "#cbd5e1" : "#0f172a",
-                  color: "#fff",
-                  fontWeight: 900,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  fontSize: 18,
-                  minWidth: 200,
-                }}
-              >
-                {loading ? "Searching..." : "Search"}
-              </button>
-            </div>
-
-            {error && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: 12,
-                  borderRadius: 14,
-                  border: "1px solid #fecaca",
-                  background: "#fef2f2",
-                  color: "#991b1b",
-                  fontWeight: 700,
-                }}
-              >
-                {error}
-              </div>
-            )}
           </div>
+
+          <ResultsArea />
         </>
       )}
 
