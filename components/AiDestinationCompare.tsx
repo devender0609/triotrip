@@ -141,7 +141,7 @@ function normalizeComparePayload(payload: any): CompareCard[] {
   return cards.filter((c) => c.title && c.title !== "Destination");
 }
 
-export default function AiDestinationCompare() {
+export default function AiDestinationCompare({ currency }: { currency?: string } = {}) {
   const [destinations, setDestinations] = useState("Bali, Thailand, Hawaii");
   const [month, setMonth] = useState("Decembe");
   const [days, setDays] = useState<number>(7);
