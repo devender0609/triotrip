@@ -137,7 +137,7 @@ export function AiDestinationCompare({ currency }: Props) {
           '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
       }}
     >
-      <div style={{ height: 6, borderRadius: 999, background: a.bar, marginBottom: 10 }} />
+      <div style={{ height: 6, borderRadius: 999, background: accent.bar, marginBottom: 10 }} />
       <div>
         <h2
           style={{
@@ -429,8 +429,8 @@ function DestinationCard({ d, idx }: { d: Comparison; idx: number }) {
             padding: "3px 8px",
             borderRadius: 999,
             border: `1px solid ${a.border}`,
-            background: a.badgeBg,
-            color: a.badgeText,
+            background: accent.badgeBg,
+            color: accent.badgeText,
             whiteSpace: "nowrap",
           }}
         >
