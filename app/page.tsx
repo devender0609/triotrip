@@ -169,13 +169,13 @@ function getHeroImages(city: string): HeroImage[] {
     ];
   }
 
-  // Neutral city skyline fallback (no cars)
-  return [
-    {
-      url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80",
-      alt: "Generic modern city skyline at night",
-    },
-  ];
+  
+// Fallback: dynamic city-based images (better chance it matches the requested city)
+const q = encodeURIComponent(`${city} skyline city travel`);
+return [0, 1, 2].map((sig) => ({
+  url: `https://source.unsplash.com/1600x900/?${q}&sig=${sig}`,
+  alt: `${city} skyline`,
+}));
 }
 
 function cityGuideUrl(city: string): string {
@@ -1244,7 +1244,6 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
           )}
 
           {/* ✅ Pass currency prop so TypeScript is satisfied */}
-          <AiDestinationCompare currency={currency} />
         </>
       )}
 
@@ -1756,6 +1755,13 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
 
 
       <ResultsArea />
+
+      {mode === "ai" && (
+        <div style={{ marginTop: 18 }}>
+          <AiDestinationCompare currency={currency} />
+        </div>
+      )}
+
 
       <style jsx global>{`
         html,
