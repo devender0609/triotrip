@@ -296,7 +296,7 @@ export default function AiDestinationCompare({ currency }: { currency?: string }
                     <img
                       src={c.imageUrl}
                       alt={`${c.title} skyline`}
-                      style={{ width: "100%", height: "100%", objectFit: "cove", display: "block" }}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                       loading="lazy"
                       onError={(e) => {
                         // Hard fallback: ensure it becomes a skyline query instead of random/blank
