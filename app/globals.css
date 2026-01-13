@@ -247,7 +247,20 @@ input:focus, select:focus, button:focus, textarea:focus {
 table { border-collapse: collapse; }
 th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
 
-html, body {
-  font-size: 15px;
-  line-height: 1.55;
+/* --- TrioTrip: unified typography --- */
+:root{
+  --tt-font-size: 15px;
+  --tt-line-height: 1.55;
+}
+html, body{
+  font-size: var(--tt-font-size);
+  line-height: var(--tt-line-height);
+}
+/* Force a single font size everywhere (overrides inline fontSize unless !important is used inline) */
+body *{
+  font-size: var(--tt-font-size) !important;
+  line-height: var(--tt-line-height);
+}
+button, input, select, textarea{
+  font: inherit;
 }
