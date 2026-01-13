@@ -490,7 +490,7 @@ const paneHeaderLeft: React.CSSProperties = {
 };
 
 const tinyText: React.CSSProperties = {
-  fontSize: 11,
+  // fontSize: 11,
   color: "#9ca3af",
 };
 
@@ -500,7 +500,7 @@ const chipButton: React.CSSProperties = {
   border: "1px solid #e2e8f0",
   background: "#0b1120",
   color: "#e5e7eb",
-  fontSize: 12,
+  // fontSize: 12,
   fontWeight: 600,
   cursor: "pointer",
 };
@@ -509,7 +509,7 @@ const smallTag: React.CSSProperties = {
   borderRadius: 999,
   border: "1px solid rgba(148,163,184,0.7)",
   padding: "3px 9px",
-  fontSize: 11,
+  // fontSize: 11,
   display: "inline-flex",
   alignItems: "center",
 };
@@ -590,7 +590,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           <div style={{ display: "grid", gap: 4 }}>
             <div
               style={{
-                fontSize: 11,
+                // fontSize: 11,
                 letterSpacing: 3,
                 textTransform: "uppercase",
                 color: "rgba(226,232,240,0.9)",
@@ -605,7 +605,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 flexWrap: "wrap",
                 gap: 8,
                 alignItems: "center",
-                fontSize: 13,
+                // fontSize: 13,
                 color: "rgba(226,232,240,0.9)",
               }}
             >
@@ -633,7 +633,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                   flexWrap: "wrap",
                   gap: 6,
                   alignItems: "center",
-                  fontSize: 13,
+                  // fontSize: 13,
                   color: "rgba(226,232,240,0.9)",
                 }}
               >
@@ -664,7 +664,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           >
             <div
               style={{
-                fontSize: 12,
+                // fontSize: 12,
                 letterSpacing: 2,
                 textTransform: "uppercase",
                 color: "rgba(226,232,240,0.95)",
@@ -681,7 +681,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 background:
                   "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,64,175,0.9))",
                 color: "#f9fafb",
-                fontSize: 12,
+                // fontSize: 12,
                 fontWeight: 600,
                 cursor: "pointer",
                 boxShadow: "0 4px 10px rgba(15,23,42,0.7)",
@@ -701,11 +701,11 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           <div style={paneCard}>
             <div style={paneHeader}>
               <div style={paneHeaderLeft}>
-                <span style={{ fontSize: 20 }}>🏨</span>
+                <span style={{ // fontSize: 20 }}>🏨</span>
                 <div>
                   <div
                     style={{
-                      fontSize: 14,
+                      // fontSize: 14,
                       fontWeight: 600,
                       color: "#e5e7eb",
                     }}
@@ -769,7 +769,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                             <div style={{ minWidth: 0 }}>
                               <div
                                 style={{
-                                  fontSize: 13,
+                                  // fontSize: 13,
                                   fontWeight: 600,
                                   color: "#f9fafb",
                                   display: "flex",
@@ -786,7 +786,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                                 {stars && (
                                   <span
                                     style={{
-                                      fontSize: 11,
+                                      // fontSize: 11,
                                       color: "#fbbf24",
                                     }}
                                   >
@@ -820,7 +820,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                               {price !== undefined && (
                                 <div
                                   style={{
-                                    fontSize: 12,
+                                    // fontSize: 12,
                                     fontWeight: 700,
                                     color: "#22c55e",
                                   }}
@@ -828,7 +828,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                                   {price.toLocaleString()}{" "}
                                   <span
                                     style={{
-                                      fontSize: 11,
+                                      // fontSize: 11,
                                       fontWeight: 400,
                                     }}
                                   >
@@ -862,12 +862,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                   )}
                 </>
               ) : showHotel ? (
-                <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                <div style={{ // fontSize: 12, color: "#9ca3af" }}>
                   • Hotel ideas will appear here when bundling is
                   available.
                 </div>
               ) : (
-                <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                <div style={{ // fontSize: 12, color: "#9ca3af" }}>
                   • Hotel bundle not requested for this search.
                 </div>
               )}
@@ -878,11 +878,11 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           <div style={paneCard}>
             <div style={paneHeader}>
               <div style={paneHeaderLeft}>
-                <span style={{ fontSize: 20 }}>✈️</span>
+                <span style={{ // fontSize: 20 }}>✈️</span>
                 <div>
                   <div
                     style={{
-                      fontSize: 14,
+                      // fontSize: 14,
                       fontWeight: 600,
                       color: "#e5e7eb",
                     }}
@@ -900,7 +900,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
             <div style={{ display: "grid", gap: 10 }}>
               {directions.length === 0 ? (
-                <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                <div style={{ // fontSize: 12, color: "#9ca3af" }}>
                   No detailed itinerary available. Summary:{" "}
                   {totalDuration} ·{" "}
                   {totalStops || "Stops info pending"} · {cabinLabel}.
@@ -917,7 +917,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                     >
                       <div
                         style={{
-                          fontSize: 11,
+                          // fontSize: 11,
                           textTransform: "uppercase",
                           letterSpacing: 1,
                           color: "#9ca3af",
@@ -1021,7 +1021,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                         paddingTop: 6,
                         display: "grid",
                         gap: 2,
-                        fontSize: 11,
+                        // fontSize: 11,
                         color: "#9ca3af",
                         marginTop: 2,
                       }}

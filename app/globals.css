@@ -246,3 +246,8 @@ input:focus, select:focus, button:focus, textarea:focus {
 /* Keep tables tidy if any appear */
 table { border-collapse: collapse; }
 th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+
+html, body {
+  font-size: 15px;
+  line-height: 1.55;
+}
