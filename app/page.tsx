@@ -1263,28 +1263,31 @@ export default function Page() {
               <div style={{ display: "grid", gap: 6 }}>
                 <label style={sLabel}>From</label>
                 <AirportField
-                  value={originDisplay}
-                  onChange={(v: string) => setOriginDisplay(v)}
-                  onSelect={(item: any) => {
-                    const code = item?.code || extractIATA(item?.display || "");
-                    setOriginCode(code || "");
-                    setOriginDisplay(item?.display || item?.name || originDisplay);
+                  id="origin"
+                  label="From"
+                  code={originCode}
+                  initialDisplay={originDisplay}
+                  onTextChange={setOriginDisplay}
+                  onChangeCode={(code, display) => {
+                    setOriginCode(code);
+                    setOriginDisplay(display);
                   }}
-                  placeholder="City or airport (e.g., Austin or AUS)"
+                  autoFocus
                 />
               </div>
 
               <div style={{ display: "grid", gap: 6 }}>
                 <label style={sLabel}>To</label>
                 <AirportField
-                  value={destDisplay}
-                  onChange={(v: string) => setDestDisplay(v)}
-                  onSelect={(item: any) => {
-                    const code = item?.code || extractIATA(item?.display || "");
-                    setDestCode(code || "");
-                    setDestDisplay(item?.display || item?.name || destDisplay);
+                  id="dest"
+                  label="To"
+                  code={destCode}
+                  initialDisplay={destDisplay}
+                  onTextChange={setDestDisplay}
+                  onChangeCode={(code, display) => {
+                    setDestCode(code);
+                    setDestDisplay(display);
                   }}
-                  placeholder="City or airport (e.g., Boston or BOS)"
                 />
               </div>
 
