@@ -115,18 +115,18 @@ function normalizeComparePayload(payload: any): CompareCard[] {
 
     // Extract sections
     const grab = (label: string) => {
-      const rx = new RegExp(label + r"\s*:\s*([\s\S]+)$", "i");
+      const rx = new RegExp(label + "\\s*:\\s*([\\s\\S]+)$", "i");
       const m = b.match(rx);
       return m ? m[1].trim() : "";
     };
 
-    const bestFor = grab("Best for");
+    const bestFor = grab("Best fo");
     if (bestFor) current.bestFor = bestFor;
 
-    const weather = grab("Weather");
+    const weather = grab("Weathe");
     if (weather) current.weather = weather;
 
-    if (/Pros\s*:/i.test(b)) current.pros = softParseListBlock(grab("Pros"));
+    if (/Pros\\s*:/i.test(b)) current.pros = softParseListBlock(grab("Pros"));
     if (/Cons\s*:/i.test(b)) current.cons = softParseListBlock(grab("Cons"));
 
     const dining = b.match(/DINING\s*&\s*LOCAL\s*EATS[\s\S]*?/i) ? b : "";
@@ -143,7 +143,7 @@ function normalizeComparePayload(payload: any): CompareCard[] {
 
 export default function AiDestinationCompare() {
   const [destinations, setDestinations] = useState("Bali, Thailand, Hawaii");
-  const [month, setMonth] = useState("December");
+  const [month, setMonth] = useState("Decembe");
   const [days, setDays] = useState<number>(7);
   const [home, setHome] = useState("Austin, TX");
 
@@ -224,7 +224,7 @@ export default function AiDestinationCompare() {
     padding: "14px 16px",
     borderRadius: 999,
     border: "none",
-    cursor: "pointer",
+    cursor: "pointe",
     background: "linear-gradient(90deg, #2dd4bf, #3b82f6, #a855f7, #ec4899)",
     color: "white",
     fontWeight: 900,
@@ -233,7 +233,7 @@ export default function AiDestinationCompare() {
   return (
     <div style={{ marginTop: 18 }}>
       <div style={{ ...sCard, padding: 18 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "cente", gap: 10, marginBottom: 8 }}>
           <div style={{ fontWeight: 900, fontSize: 18 }}>Compare destinations with AI</div>
           <div style={{ width: 10, height: 10, borderRadius: 99, background: "#22c55e", boxShadow: "0 0 0 4px rgba(34,197,94,0.15)" }} />
         </div>
@@ -243,17 +243,17 @@ export default function AiDestinationCompare() {
           and the best airports to use. Images match the city you request.
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1f", gap: 14 }}>
           <div>
             <label style={sLabel}>Destinations (comma-separated)</label>
             <input value={destinations} onChange={(e) => setDestinations(e.target.value)} style={sInput} />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1f", gap: 12 }}>
             <div>
               <label style={sLabel}>Month</label>
               <select value={month} onChange={(e) => setMonth(e.target.value)} style={sInput}>
-                {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m) => (
+                {["January","February","March","April","May","June","July","August","Septembe","Octobe","Novembe","Decembe"].map((m) => (
                   <option key={m} value={m} style={{ color: "black" }}>
                     {m}
                   </option>
@@ -262,7 +262,7 @@ export default function AiDestinationCompare() {
             </div>
             <div>
               <label style={sLabel}>Days</label>
-              <input type="number" min={1} value={days} onChange={(e) => setDays(Number(e.target.value || 1))} style={sInput} />
+              <input type="numbe" min={1} value={days} onChange={(e) => setDays(Number(e.target.value || 1))} style={sInput} />
             </div>
             <div>
               <label style={sLabel}>Home city / airport</label>
@@ -296,7 +296,7 @@ export default function AiDestinationCompare() {
                     <img
                       src={c.imageUrl}
                       alt={`${c.title} skyline`}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      style={{ width: "100%", height: "100%", objectFit: "cove", display: "block" }}
                       loading="lazy"
                       onError={(e) => {
                         // Hard fallback: ensure it becomes a skyline query instead of random/blank
@@ -312,7 +312,7 @@ export default function AiDestinationCompare() {
                         background: "linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.70))",
                       }}
                     />
-                    <div style={{ position: "absolute", left: 14, bottom: 12, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ position: "absolute", left: 14, bottom: 12, right: 14, display: "flex", alignItems: "cente", justifyContent: "space-between", gap: 10 }}>
                       <div style={{ fontWeight: 950, fontSize: 18 }}>{c.title}</div>
                       {c.budget ? (
                         <div
@@ -331,7 +331,7 @@ export default function AiDestinationCompare() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ padding: 14, display: "flex", alignItems: "cente", justifyContent: "space-between" }}>
                     <div style={{ fontWeight: 950, fontSize: 18 }}>{c.title}</div>
                     {c.budget ? (
                       <div style={{ padding: "6px 10px", borderRadius: 999, border: `1px solid ${colors.accent}`, fontWeight: 900 }}>{c.budget}</div>
