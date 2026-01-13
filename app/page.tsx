@@ -222,7 +222,9 @@ function cityToCountry(city: string): { country: string; flag: string } {
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
   const [aiResetKey, setAiResetKey] = useState(0);
-  const [heroImageIndex, setHeroImageIndex] = useState(0);
+  
+  const [refundable, setRefundable] = useState(false);
+const [heroImageIndex, setHeroImageIndex] = useState(0);
 
   // NEW: for AI hero city
   const [aiDestinationCity, setAiDestinationCity] = useState<string>("");
