@@ -8,38 +8,6 @@ import ComparePanel from "../components/ComparePanel";
 import ExploreSavorTabs from "@/components/ExploreSavorTabs";
 import AiTripPlanner from "../components/AiTripPlanner";
 import AiDestinationCompare from "../components/AiDestinationCompare";
-// Simple client-side error boundary to avoid a blank screen if a section throws at runtime.
-class SectionErrorBoundary extends React.Component<
-  { title: string; children: React.ReactNode },
-  { hasError: boolean; message?: string }
-> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError(err: any) {
-    return { hasError: true, message: String(err?.message || err) };
-  }
-  componentDidCatch(err: any) {
-    console.error("[SectionErrorBoundary]", this.props.title, err);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ marginTop: 14, padding: 16, borderRadius: 12, border: "1px solid #fecaca", background: "#fff1f2" }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>{this.props.title} crashed</div>
-          <div style={{ opacity: 0.9, marginBottom: 6 }}>
-            Open DevTools → Console and copy the error right above <b>[SectionErrorBoundary]</b>.
-          </div>
-          <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", whiteSpace: "pre-wrap" }}>
-            {this.state.message}
-          </div>
-        </div>
-      );
-    }
-    return this.props.children as any;
-  }
-}
 
 type Cabin = "ECONOMY" | "PREMIUM_ECONOMY" | "BUSINESS" | "FIRST";
 type SortKey = "best" | "cheapest" | "fastest" | "flexible";
@@ -254,7 +222,6 @@ function cityToCountry(city: string): { country: string; flag: string } {
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
   const [aiResetKey, setAiResetKey] = useState(0);
-  const [refundable, setRefundable] = useState(false);
   const [heroImageIndex, setHeroImageIndex] = useState(0);
 
   // NEW: for AI hero city
@@ -1111,8 +1078,6 @@ export default function Page() {
       )}
 
       {mode === "ai" && (
-        <SectionErrorBoundary title="AI Trip Planning">
-
         <>
           <div className="ai-trip-wrapper">
             <AiTripPlanner key={aiResetKey} onSearchComplete={handleAiSearchComplete} />
@@ -1276,16 +1241,12 @@ export default function Page() {
             </div>
           )}
 
-          <ResultsArea />
           {/* ✅ Pass currency prop so TypeScript is satisfied */}
           <AiDestinationCompare currency={currency} />
         </>
-        </SectionErrorBoundary>
       )}
 
       {mode === "manual" && (
-        <SectionErrorBoundary title="Manual Search">
-
         <>
           <div
             style={{
@@ -1367,7 +1328,7 @@ export default function Page() {
                 <input
                   type="date"
                   value={departDate}
-                  min={todayLocal}
+                  min={departDate || todayLocal}
                   onChange={(e) => setDepartDate(e.target.value)}
                   style={{
                     width: "100%",
@@ -1404,7 +1365,7 @@ export default function Page() {
                 <input
                   type="date"
                   value={returnDate}
-                  min={todayLocal}
+                  min={departDate || todayLocal}
                   disabled={!roundTrip}
                   onChange={(e) => setReturnDate(e.target.value)}
                   style={{
@@ -1789,8 +1750,10 @@ export default function Page() {
             )}
           </div>
         </>
-        </SectionErrorBoundary>
       )}
+
+
+      <ResultsArea />
 
       <style jsx global>{`
         html,
