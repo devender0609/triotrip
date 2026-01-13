@@ -1243,7 +1243,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
             </div>
           )}
 
-          <ResultsArea />
+          <div style={{ fontSize: 16 }}><ResultsArea /></div>
           {/* ✅ Pass currency prop so TypeScript is satisfied */}
           <AiDestinationCompare currency={currency} />
         </>
@@ -1261,7 +1261,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
               gap: 12,
             }}
           >
-            <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "end" }}>
               <div style={{ display: "grid", gap: 6 }}>
                 <label style={sLabel}>From</label>
                 <AirportField
@@ -1639,7 +1639,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
             </div>
           </div>
 
-          <ResultsArea />
+          <div style={{ fontSize: 16 }}><ResultsArea /></div>
         </>
       )}
 
