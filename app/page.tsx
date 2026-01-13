@@ -170,12 +170,29 @@ function getHeroImages(city: string): HeroImage[] {
   }
 
   
-// Fallback: dynamic city-based images (better chance it matches the requested city)
-const q = encodeURIComponent(`${city} skyline city travel`);
-return [0, 1, 2].map((sig) => ({
-  url: `https://source.unsplash.com/1600x900/?${q}&sig=${sig}`,
-  alt: `${city} skyline`,
-}));
+// Fallback: dynamic city-based images (try multiple providers + deterministic seed)
+  // NOTE: Some CDNs (e.g., source.unsplash.com) may intermittently fail or block hotlinking.
+  // We return multiple URLs and the <img> tag cycles through them onError.
+  const citySlug = encodeURIComponent(city.trim());
+  const q = encodeURIComponent(`${city} skyline city travel`);
+
+  return [
+    {
+      // often works without redirect
+      url: `https://loremflickr.com/1600/900/${citySlug},skyline,city`,
+      alt: `${city} skyline`,
+    },
+    {
+      // may redirect to images.unsplash.com
+      url: `https://source.unsplash.com/1600x900/?${q}&sig=1`,
+      alt: `${city} skyline`,
+    },
+    {
+      // deterministic fallback that always returns an image
+      url: `https://picsum.photos/seed/${citySlug}/1600/900`,
+      alt: `${city} skyline`,
+    },
+  ];
 }
 
 function cityGuideUrl(city: string): string {
@@ -1130,6 +1147,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
                 }
 
                 const images = getHeroImages(cityGuess);
+                const heroFallbacks = images.map((im) => im.url);
                 const safeIndex =
                   images.length > 0 ? heroImageIndex % images.length : 0;
                 const current = images[safeIndex] || images[0];
@@ -1154,6 +1172,19 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
                       src={current.url}
                       alt={current.alt}
                       className="hero-image"
+                      data-fallbacks={heroFallbacks.join("||")}
+                      data-fbidx="0"
+                      onError={(e) => {
+                        const el = e.currentTarget as HTMLImageElement;
+                        const list = (el.getAttribute("data-fallbacks") || "").split("||").filter(Boolean);
+                        const idx = Number(el.getAttribute("data-fbidx") || "0");
+                        const next = idx + 1;
+                        if (next < list.length) {
+                          el.setAttribute("data-fbidx", String(next));
+                          el.src = list[next];
+                        }
+                      }}
+
                       style={{
                         width: "100%",
                         maxHeight: 260,
