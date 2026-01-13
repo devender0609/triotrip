@@ -1,426 +1,566 @@
+// components/AiDestinationCompare.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
+import { aiCompareDestinations } from "@/lib/api";
 
-type CompareCard = {
-  title: string;
-  budget: string;
-  bestFor?: string;
-  weather?: string;
-  pros?: string[];
-  cons?: string[];
-  dining?: string;
-  hotels?: string;
-  nightlife?: string;
-  family?: string;
-  safety?: string;
-  airports?: string;
-  imageUrl?: string;
+const AI_ENABLED =
+  process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
+  process.env.NEXT_PUBLIC_AI_ENABLED === "1";
+
+type AirportRec = {
+  role: string; // e.g. "primary_hub"
+  name: string;
+  code: string;
+  reason: string;
 };
 
-const PALETTE = [
-  { accent: "#4F46E5", accent2: "#06B6D4" }, // indigo -> cyan
-  { accent: "#10B981", accent2: "#22C55E" }, // emerald -> green
-  { accent: "#F97316", accent2: "#EF4444" }, // orange -> red
-  { accent: "#A855F7", accent2: "#EC4899" }, // purple -> pink
-  { accent: "#3B82F6", accent2: "#60A5FA" }, // blue -> sky
-];
+type Comparison = {
+  name: string;
+  approx_cost_level: string;
+  weather_summary: string;
+  best_for: string;
+  pros: string[];
+  cons: string[];
+  overall_vibe: string;
+  dining_and_local_eats?: string;
+  hotels_and_areas?: string;
+  entertainment_and_nightlife?: string;
+  family_friendly?: string;
+  kids_activities?: string;
+  safety_tips?: string;
+  currency?: string;
+  typical_daily_budget?: string;
+  airports?: AirportRec[];
+};
 
-function slugifyTitle(t: string) {
-  return (t || "").trim();
-}
+type CompareResponse = {
+  comparisons: Comparison[];
+};
 
-/** Best-effort: Wikipedia city thumbnail (reliable), fallback to Unsplash skyline query */
-async function resolveCityImage(place: string): Promise<string | null> {
-  const q = (place || "").trim();
-  if (!q) return null;
+// NEW: accept currency prop so it matches usage in page.tsx
+type Props = {
+  currency: string;
+};
 
-  // Try Wikipedia REST summary thumbnail first
-  try {
-    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`;
-    const r = await fetch(url, { cache: "no-store" });
-    if (r.ok) {
-      const j: any = await r.json();
-      const thumb = j?.thumbnail?.source || j?.originalimage?.source;
-      if (typeof thumb === "string" && thumb.startsWith("http")) return thumb;
-    }
-  } catch {}
-
-  // Fallback to Unsplash Source (no key required)
-  // "featured" sometimes returns unrelated; add skyline/landmark to reduce cars.
-  const unsplash = `https://source.unsplash.com/1200x700/?${encodeURIComponent(q + " skyline landmark city")}`;
-  return unsplash;
-}
-
-function softParseListBlock(text: string): string[] {
-  if (!text) return [];
-  // split bullets or newline lists
-  return text
-    .split(/\n|•|- /g)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-}
-
-/**
- * Accepts either:
- * - array of objects returned by your API, OR
- * - a big string blob with headings, and extracts best-effort fields.
- */
-function normalizeComparePayload(payload: any): CompareCard[] {
-  if (!payload) return [];
-
-  // If API returns cards directly
-  if (Array.isArray(payload)) {
-    return payload.map((x) => ({
-      title: String(x.title ?? x.destination ?? x.name ?? ""),
-      budget: String(x.budget ?? x.cost ?? ""),
-      bestFor: x.bestFor ?? x.best_for ?? "",
-      weather: x.weather ?? "",
-      pros: Array.isArray(x.pros) ? x.pros : softParseListBlock(String(x.pros ?? "")),
-      cons: Array.isArray(x.cons) ? x.cons : softParseListBlock(String(x.cons ?? "")),
-      dining: x.dining ?? x.food ?? x.eats ?? "",
-      hotels: x.hotels ?? x.stay ?? x.areasToStay ?? "",
-      nightlife: x.nightlife ?? "",
-      family: x.family ?? x.familyFriendly ?? "",
-      safety: x.safety ?? "",
-      airports: x.airports ?? "",
-      imageUrl: x.imageUrl ?? x.image_url ?? undefined,
-    }));
-  }
-
-  // If API returns {results:[...]}
-  if (Array.isArray(payload?.results)) return normalizeComparePayload(payload.results);
-
-  // If API returns text, we do best-effort splitting on blank lines with a leading title
-  const text = String(payload?.text ?? payload?.content ?? payload ?? "");
-  const blocks = text.split(/\n{2,}/g).map((b) => b.trim()).filter(Boolean);
-  const cards: CompareCard[] = [];
-
-  // Try to detect "Title" blocks like: "Bali" then "Pros:" etc.
-  let current: CompareCard | null = null;
-
-  for (const b of blocks) {
-    // A title-only block (single line) likely marks new card
-    const lines = b.split("\n").map((l) => l.trim()).filter(Boolean);
-    if (lines.length === 1 && lines[0].length <= 40 && !/pros|cons|weather|dining|hotels|nightlife|family|safety/i.test(lines[0])) {
-      if (current) cards.push(current);
-      current = { title: lines[0], budget: "" };
-      continue;
-    }
-    if (!current) current = { title: "Destination", budget: "" };
-
-    // Extract budget label if present
-    const budgetMatch = b.match(/(\$+)\s*·?\s*([A-Za-z -]{3,30})/);
-    if (budgetMatch && !current.budget) current.budget = `${budgetMatch[1]} · ${budgetMatch[2].trim()}`;
-
-    // Extract sections
-    const grab = (label: string) => {
-      const rx = new RegExp(label + "\\s*:\\s*([\\s\\S]+)$", "i");
-      const m = b.match(rx);
-      return m ? m[1].trim() : "";
-    };
-
-    const bestFor = grab("Best fo");
-    if (bestFor) current.bestFor = bestFor;
-
-    const weather = grab("Weathe");
-    if (weather) current.weather = weather;
-
-    if (/Pros\\s*:/i.test(b)) current.pros = softParseListBlock(grab("Pros"));
-    if (/Cons\s*:/i.test(b)) current.cons = softParseListBlock(grab("Cons"));
-
-    const dining = b.match(/DINING\s*&\s*LOCAL\s*EATS[\s\S]*?/i) ? b : "";
-    if (/DINING\s*&\s*LOCAL\s*EATS/i.test(b)) current.dining = b.replace(/^DINING\s*&\s*LOCAL\s*EATS\s*/i, "").trim();
-
-    if (/HOTELS\s*&\s*AREAS\s*TO\s*STAY/i.test(b)) current.hotels = b.replace(/^HOTELS\s*&\s*AREAS\s*TO\s*STAY\s*/i, "").trim();
-    if (/ENTERTAINMENT\s*&\s*NIGHTLIFE/i.test(b)) current.nightlife = b.replace(/^ENTERTAINMENT\s*&\s*NIGHTLIFE\s*/i, "").trim();
-    if (/FAMILY-?FRIENDLY/i.test(b)) current.family = b.replace(/^FAMILY-?FRIENDLY\s*/i, "").trim();
-  }
-  if (current) cards.push(current);
-
-  return cards.filter((c) => c.title && c.title !== "Destination");
-}
-
-export default function AiDestinationCompare({ currency }: { currency?: string } = {}) {
-  const [destinations, setDestinations] = useState("Bali, Thailand, Hawaii");
-  const [month, setMonth] = useState("Decembe");
-  const [days, setDays] = useState<number>(7);
+export function AiDestinationCompare({ currency }: Props) {
+  const [input, setInput] = useState("Bali, Thailand, Hawaii");
+  const [month, setMonth] = useState("December");
+  const [days, setDays] = useState(7);
   const [home, setHome] = useState("Austin, TX");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cards, setCards] = useState<CompareCard[]>([]);
+  const [data, setData] = useState<Comparison[] | null>(null);
 
-  const places = useMemo(
-    () =>
-      destinations
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    [destinations]
-  );
+  if (!AI_ENABLED) {
+    return (
+      <section
+        style={{
+          marginTop: 24,
+          padding: 20,
+          borderRadius: 16,
+          border: "1px solid #e2e8f0",
+          background: "#f8fafc",
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+        }}
+      >
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
+          Compare destinations with AI 🌍 (temporarily disabled)
+        </h2>
+        <p style={{ fontSize: 15, color: "#475569" }}>
+          Once AI is enabled again, you&apos;ll be able to compare destinations
+          side-by-side here.
+        </p>
+      </section>
+    );
+  }
 
-  async function onCompare() {
-    setLoading(true);
-    setError(null);
+  async function handleCompare(e: React.FormEvent) {
+    e.preventDefault();
+    const destinations = input
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (!destinations.length) {
+      setError("Please enter at least one destination.");
+      return;
+    }
 
     try {
-      // Use your existing API if present; fall back to client-side dummy if not.
-      const r = await fetch("/api/ai/compare-destinations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destinations: places, month, days, home }),
-      });
-
-      if (!r.ok) {
-        // still show something rather than blank
-        const t = await r.text();
-        throw new Error(t || `Compare request failed (${r.status})`);
-      }
-
-      const j = await r.json();
-      const normalized = normalizeComparePayload(j?.results ?? j);
-
-      // Resolve images
-      const withImages: CompareCard[] = await Promise.all(
-        normalized.map(async (c, idx) => {
-          const imageUrl = c.imageUrl || (await resolveCityImage(c.title));
-          return { ...c, imageUrl: imageUrl || undefined };
-        })
-      );
-
-      setCards(withImages);
-    } catch (e: any) {
-      setError(e?.message || "Compare request failed.");
-      setCards([]);
+      setLoading(true);
+      setError(null);
+      setData(null);
+      const res = (await aiCompareDestinations({
+        destinations,
+        month: month || undefined,
+        home,
+        days,
+      })) as CompareResponse;
+      setData(res.comparisons as any);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
   }
 
-  // --- UI styles (colorful but still clean) ---
-  const sCard: React.CSSProperties = {
-    borderRadius: 18,
-    background: "linear-gradient(180deg, rgba(10,15,28,0.92), rgba(4,8,16,0.92))",
-    border: "1px solid rgba(255,255,255,0.08)",
-    boxShadow: "0 18px 60px rgba(0,0,0,0.35)",
-    overflow: "hidden",
-  };
-
-  const sInput: React.CSSProperties = {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.06)",
-    color: "white",
-    outline: "none",
-  };
-
-  const sLabel: React.CSSProperties = { fontWeight: 800, marginBottom: 8, display: "block" };
-
-  const sBtn: React.CSSProperties = {
-    width: "100%",
-    padding: "14px 16px",
-    borderRadius: 999,
-    border: "none",
-    cursor: "pointe",
-    background: "linear-gradient(90deg, #2dd4bf, #3b82f6, #a855f7, #ec4899)",
-    color: "white",
-    fontWeight: 900,
-  };
+  const MONTH_OPTIONS = [
+    "Any time",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
 
   return (
-    <div style={{ marginTop: 18 }}>
-      <div style={{ ...sCard, padding: 18 }}>
-        <div style={{ display: "flex", alignItems: "cente", gap: 10, marginBottom: 8 }}>
-          <div style={{ fontWeight: 900, fontSize: 18 }}>Compare destinations with AI</div>
-          <div style={{ width: 10, height: 10, borderRadius: 99, background: "#22c55e", boxShadow: "0 0 0 4px rgba(34,197,94,0.15)" }} />
-        </div>
-
-        <div style={{ opacity: 0.9, marginBottom: 16 }}>
-          Drop in a few places and we’ll compare them for cost, weather, food, hotels, nightlife, family-friendliness, safety,
-          and the best airports to use. Images match the city you request.
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1f", gap: 14 }}>
-          <div>
-            <label style={sLabel}>Destinations (comma-separated)</label>
-            <input value={destinations} onChange={(e) => setDestinations(e.target.value)} style={sInput} />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1f", gap: 12 }}>
-            <div>
-              <label style={sLabel}>Month</label>
-              <select value={month} onChange={(e) => setMonth(e.target.value)} style={sInput}>
-                {["January","February","March","April","May","June","July","August","Septembe","Octobe","Novembe","Decembe"].map((m) => (
-                  <option key={m} value={m} style={{ color: "black" }}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={sLabel}>Days</label>
-              <input type="numbe" min={1} value={days} onChange={(e) => setDays(Number(e.target.value || 1))} style={sInput} />
-            </div>
-            <div>
-              <label style={sLabel}>Home city / airport</label>
-              <input value={home} onChange={(e) => setHome(e.target.value)} style={sInput} />
-            </div>
-          </div>
-
-          <button onClick={onCompare} style={sBtn} disabled={loading}>
-            {loading ? "Comparing..." : "Compare these places"}
-          </button>
-
-          {error ? (
-            <div style={{ padding: 12, borderRadius: 12, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)" }}>
-              <div style={{ fontWeight: 900, marginBottom: 4 }}>Compare failed</div>
-              <div style={{ opacity: 0.95 }}>{error}</div>
-            </div>
-          ) : null}
-        </div>
+    <section
+      style={{
+        marginTop: 32,
+        background: "#020617",
+        color: "white",
+        borderRadius: 24,
+        padding: 24,
+        display: "grid",
+        gap: 16,
+        boxShadow: "0 18px 40px rgba(15,23,42,0.55)",
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+      }}
+    >
+      <div style={{ height: 6, borderRadius: 999, background: a.bar, marginBottom: 10 }} />
+      <div>
+        <h2
+          style={{
+            fontSize: 24,
+            fontWeight: 800,
+              color: "#93c5fd",
+            marginBottom: 6,
+          }}
+        >
+          Compare destinations with AI 🌍
+        </h2>
+        <p
+          style={{
+            fontSize: 16,
+            opacity: 0.9,
+            maxWidth: 900,
+            lineHeight: 1.6,
+          }}
+        >
+          Drop in a few places and we&apos;ll compare them for cost, weather,
+          food, hotels, nightlife, family-friendliness, safety, and the best
+          airports to use. Prices are summarized in{" "}
+          <span style={{ fontWeight: 700 }}>{currency}</span> where possible.
+        </p>
       </div>
 
-      {/* RESULTS */}
-      {cards.length > 0 ? (
-        <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 }}>
-          {cards.map((c, idx) => {
-            const colors = PALETTE[idx % PALETTE.length];
-            return (
-              <div key={slugifyTitle(c.title) + idx} style={{ ...sCard }}>
-                {/* IMAGE */}
-                {c.imageUrl ? (
-                  <div style={{ position: "relative", height: 180, overflow: "hidden" }}>
-                    <img
-                      src={c.imageUrl}
-                      alt={`${c.title} skyline`}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                      loading="lazy"
-                      onError={(e) => {
-                        // Hard fallback: ensure it becomes a skyline query instead of random/blank
-                        const img = e.currentTarget as HTMLImageElement;
-                        const fallback = `https://source.unsplash.com/1200x700/?${encodeURIComponent(c.title + " skyline landmark")}`;
-                        if (img.src !== fallback) img.src = fallback;
-                      }}
-                    />
-                    <div
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: "linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.70))",
-                      }}
-                    />
-                    <div style={{ position: "absolute", left: 14, bottom: 12, right: 14, display: "flex", alignItems: "cente", justifyContent: "space-between", gap: 10 }}>
-                      <div style={{ fontWeight: 950, fontSize: 18 }}>{c.title}</div>
-                      {c.budget ? (
-                        <div
-                          style={{
-                            padding: "6px 10px",
-                            borderRadius: 999,
-                            border: `1px solid ${colors.accent}`,
-                            background: "rgba(0,0,0,0.35)",
-                            fontWeight: 900,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {c.budget}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ padding: 14, display: "flex", alignItems: "cente", justifyContent: "space-between" }}>
-                    <div style={{ fontWeight: 950, fontSize: 18 }}>{c.title}</div>
-                    {c.budget ? (
-                      <div style={{ padding: "6px 10px", borderRadius: 999, border: `1px solid ${colors.accent}`, fontWeight: 900 }}>{c.budget}</div>
-                    ) : null}
-                  </div>
-                )}
-
-                {/* BODY */}
-                <div style={{ padding: 14 }}>
-                  {c.bestFor ? (
-                    <div style={{ marginBottom: 10 }}>
-                      <span style={{ fontWeight: 900, color: colors.accent2 }}>Best for: </span>
-                      <span style={{ opacity: 0.96 }}>{c.bestFor}</span>
-                    </div>
-                  ) : null}
-
-                  {c.weather ? (
-                    <div style={{ marginBottom: 10 }}>
-                      <span style={{ fontWeight: 900, color: colors.accent2 }}>Weather: </span>
-                      <span style={{ opacity: 0.96 }}>{c.weather}</span>
-                    </div>
-                  ) : null}
-
-                  {c.pros?.length ? (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ fontWeight: 950, marginBottom: 6, color: colors.accent2 }}>Pros</div>
-                      <ul style={{ paddingLeft: 18, margin: 0, display: "grid", gap: 6 }}>
-                        {c.pros.slice(0, 6).map((p, i) => (
-                          <li key={i} style={{ opacity: 0.96 }}>
-                            {p}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-
-                  {c.cons?.length ? (
-                    <div style={{ marginTop: 12 }}>
-                      <div style={{ fontWeight: 950, marginBottom: 6, color: "#FCA5A5" }}>Cons</div>
-                      <ul style={{ paddingLeft: 18, margin: 0, display: "grid", gap: 6 }}>
-                        {c.cons.slice(0, 6).map((p, i) => (
-                          <li key={i} style={{ opacity: 0.96 }}>
-                            {p}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-
-                  {c.dining ? (
-                    <div style={{ marginTop: 14 }}>
-                      <div style={{ fontWeight: 950, marginBottom: 6, color: colors.accent2 }}>Dining & local eats</div>
-                      <div style={{ opacity: 0.96, lineHeight: 1.6 }}>{c.dining}</div>
-                    </div>
-                  ) : null}
-
-                  {c.hotels ? (
-                    <div style={{ marginTop: 14 }}>
-                      <div style={{ fontWeight: 950, marginBottom: 6, color: colors.accent2 }}>Hotels & areas to stay</div>
-                      <div style={{ opacity: 0.96, lineHeight: 1.6 }}>{c.hotels}</div>
-                    </div>
-                  ) : null}
-
-                  {c.nightlife ? (
-                    <div style={{ marginTop: 14 }}>
-                      <div style={{ fontWeight: 950, marginBottom: 6, color: colors.accent2 }}>Entertainment & nightlife</div>
-                      <div style={{ opacity: 0.96, lineHeight: 1.6 }}>{c.nightlife}</div>
-                    </div>
-                  ) : null}
-
-                  {c.family ? (
-                    <div style={{ marginTop: 14 }}>
-                      <div style={{ fontWeight: 950, marginBottom: 6, color: colors.accent2 }}>Family-friendly</div>
-                      <div style={{ opacity: 0.96, lineHeight: 1.6 }}>{c.family}</div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div
-                  style={{
-                    height: 4,
-                    background: `linear-gradient(90deg, ${colors.accent}, ${colors.accent2})`,
-                  }}
-                />
-              </div>
-            );
-          })}
+      {/* Form */}
+      <form
+        onSubmit={handleCompare}
+        style={{
+          display: "grid",
+          gap: 12,
+          gridTemplateColumns: "2fr 1fr 1fr 1.5fr",
+          alignItems: "center",
+        }}
+      >
+        {/* Destinations */}
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Destinations (comma-separated)
+          </label>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Bali, Thailand, Hawaii"
+            style={{
+              width: "100%",
+              padding: 12,
+              borderRadius: 14,
+              border: "1px solid #1e293b",
+              fontSize: 15,
+              color: "#0f172a",
+            }}
+          />
         </div>
-      ) : null}
+
+        {/* Month */}
+        <div>
+          <label
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Month
+          </label>
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            style={{
+              width: "100%",
+              padding: 10,
+              borderRadius: 14,
+              border: "1px solid #1e293b",
+              fontSize: 15,
+              color: "#0f172a",
+            }}
+          >
+            {MONTH_OPTIONS.map((m) => (
+              <option key={m} value={m === "Any time" ? "" : m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Days */}
+        <div>
+          <label
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Days
+          </label>
+          <input
+            type="number"
+            min={2}
+            max={30}
+            value={days}
+            onChange={(e) =>
+              setDays(Math.max(2, Math.min(30, Number(e.target.value || 7))))
+            }
+            style={{
+              width: "100%",
+              padding: 10,
+              borderRadius: 14,
+              border: "1px solid #1e293b",
+              fontSize: 15,
+              color: "#0f172a",
+            }}
+          />
+        </div>
+
+        {/* Home city */}
+        <div>
+          <label
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Home city / airport
+          </label>
+          <input
+            value={home}
+            onChange={(e) => setHome(e.target.value)}
+            placeholder="Austin, TX or AUS"
+            style={{
+              width: "100%",
+              padding: 10,
+              borderRadius: 14,
+              border: "1px solid #1e293b",
+              fontSize: 15,
+              color: "#0f172a",
+            }}
+          />
+        </div>
+
+        {/* Button full-width */}
+        <div style={{ gridColumn: "1 / -1", marginTop: 6 }}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%",
+              borderRadius: 999,
+              padding: "12px 16px",
+              border: "none",
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: loading ? "default" : "pointer",
+              background:
+                "linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%)",
+              color: "white",
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? "Comparing destinations…" : "Compare these places"}
+          </button>
+        </div>
+      </form>
+
+      {/* Error */}
+      {error && (
+        <p style={{ color: "#fecaca", fontSize: 14 }}>❌ {error}</p>
+      )}
+
+      {/* Results */}
+      {data && (
+        <div
+          style={{
+            marginTop: 12,
+            display: "grid",
+            gap: 14,
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          }}
+        >
+          {data.map((d, idx) => (
+            <DestinationCard key={idx} d={d} idx={idx} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function labelForRole(role: string): string {
+  const r = role.toLowerCase();
+  if (r.includes("primary")) return "Primary hub";
+  if (r.includes("cheapest")) return "Cheapest to fly";
+  if (r.includes("convenient")) return "Most convenient";
+  if (r.includes("happening") || r.includes("busiest"))
+    return "Most happening / busiest";
+  if (r.includes("safest")) return "Safest reputation";
+  return "Recommended";
+}
+
+function costLabel(level: string): string {
+  switch (level) {
+    case "$":
+      return "Very budget-friendly";
+    case "$$":
+      return "Moderate";
+    case "$$$":
+      return "Pricey";
+    case "$$$$":
+      return "Luxury";
+    default:
+      return "Varies";
+  }
+}
+
+function SectionRow({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string;
+}) {
+  if (!value) return null;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
+          opacity: 0.9,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 14, marginTop: 2 }}>{value}</div>
     </div>
   );
 }
+
+function DestinationCard({ d, idx }: { d: Comparison; idx: number }) {
+  const accents = [
+    { bar: "linear-gradient(90deg,#22c55e,#06b6d4)", border: "#22c55e", badgeBg: "rgba(34,197,94,.12)", badgeText: "#bbf7d0" },
+    { bar: "linear-gradient(90deg,#60a5fa,#a78bfa)", border: "#60a5fa", badgeBg: "rgba(96,165,250,.12)", badgeText: "#dbeafe" },
+    { bar: "linear-gradient(90deg,#f97316,#f43f5e)", border: "#fb7185", badgeBg: "rgba(244,63,94,.12)", badgeText: "#ffe4e6" },
+    { bar: "linear-gradient(90deg,#f59e0b,#22c55e)", border: "#f59e0b", badgeBg: "rgba(245,158,11,.12)", badgeText: "#fef3c7" },
+  ];
+  const a = accents[idx % accents.length];
+  const cLabel = costLabel(d.approx_cost_level);
+
+  return (
+    <div
+      style={{
+        borderRadius: 16,
+        background: "#020617",
+        border: "1px solid #1e293b",
+        padding: 14,
+        fontSize: 14,
+        display: "grid",
+        gap: 6,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 2,
+          gap: 8,
+        }}
+      >
+        <h3 style={{ fontSize: 16, fontWeight: 700 }}>{d.name}</h3>
+        <span
+          style={{
+            fontSize: 12,
+            padding: "3px 8px",
+            borderRadius: 999,
+            border: `1px solid ${a.border}`,
+            background: a.badgeBg,
+            color: a.badgeText,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {d.approx_cost_level} · {cLabel}
+        </span>
+      </div>
+
+      <div>
+        <strong>Best for:</strong> {d.best_for}
+      </div>
+      <div>
+        <strong>Weather:</strong> {d.weather_summary}
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <strong>Pros:</strong>
+        <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+          {(d.pros || []).map((p, i) => (
+            <li key={i}>{p}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <strong>Cons:</strong>
+        <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+          {(d.cons || []).map((c, i) => (
+            <li key={i}>{c}</li>
+          ))}
+        </ul>
+      </div>
+
+      <SectionRow
+        label="Dining & local eats"
+        value={d.dining_and_local_eats}
+      />
+      <SectionRow
+        label="Hotels & areas to stay"
+        value={d.hotels_and_areas}
+      />
+      <SectionRow
+        label="Entertainment & nightlife"
+        value={d.entertainment_and_nightlife}
+      />
+      <SectionRow
+        label="Family-friendly"
+        value={d.family_friendly}
+      />
+      <SectionRow
+        label="Activities for kids"
+        value={d.kids_activities}
+      />
+      <SectionRow label="Safety tips" value={d.safety_tips} />
+      <SectionRow
+        label="Currency"
+        value={d.currency}
+      />
+      <SectionRow
+        label="Typical daily budget"
+        value={d.typical_daily_budget}
+      />
+
+      {d.airports && d.airports.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.3,
+              opacity: 0.9,
+            }}
+          >
+            Suggested airports
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gap: 6,
+              marginTop: 4,
+            }}
+          >
+            {d.airports.map((a, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: 8,
+                  borderRadius: 10,
+                  border: "1px solid #1e293b",
+                  background: "#020617",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 13,
+                    gap: 8,
+                  }}
+                >
+                  <span>
+                    <strong>
+                      {a.name} ({a.code})
+                    </strong>
+                  </span>
+                  <span style={{ opacity: 0.85 }}>
+                    {labelForRole(a.role)}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, marginTop: 2 }}>
+                  {a.reason}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          marginTop: 6,
+          fontStyle: "italic",
+          color: "#cbd5f5",
+        }}
+      >
+        {d.overall_vibe}
+      </div>
+    </div>
+  );
+}
+
+// default export so both default and named imports work
+export default AiDestinationCompare;
