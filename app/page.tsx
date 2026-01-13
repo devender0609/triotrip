@@ -512,13 +512,19 @@ export default function Page() {
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
-      if (!origin || !destination)
-        throw new Error("Please select origin and destination.");
+      if (!origin || !destination) {
+        throw new Error(
+          "Please select origin and destination (choose from the dropdown so the airport code is captured)."
+        );
+      }
       if (!departDate) throw new Error("Please pick a departure date.");
-      if (roundTrip && !returnDate)
-        throw new Error("Please pick a return date.");
-
-      const payload = {
+      if (roundTrip) {
+        if (!returnDate) throw new Error("Please pick a return date.");
+        if (returnDate < departDate) {
+          throw new Error("Return date must be on or after the departure date.");
+        }
+      }
+const payload = {
         id: undefined as any,
         origin,
         destination,
@@ -531,8 +537,10 @@ export default function Page() {
         passengersInfants: infants,
         cabin,
         includeHotel,
-        hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
-        hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
+        hotelCheckIn: includeHotel ? (hotelCheckIn || departDate) : undefined,
+        hotelCheckOut: includeHotel
+          ? (hotelCheckOut || (roundTrip ? returnDate : plusDays(hotelCheckIn || departDate, 1)))
+          : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
         minBudget:
           includeHotel && minBudget ? Number(minBudget) : undefined,
@@ -1290,6 +1298,7 @@ export default function Page() {
                 onClick={swapOriginDest}
                 title="Swap"
                 style={{
+                  flex: "0 0 auto",
                   height: 46,
                   borderRadius: 12,
                   border: "1px solid #e2e8f0",
@@ -1330,7 +1339,7 @@ export default function Page() {
                 <input
                   type="date"
                   value={departDate}
-                  min={todayLocal}
+                  min={departDate || todayLocal}
                   onChange={(e) => setDepartDate(e.target.value)}
                   style={{
                     width: "100%",
@@ -1367,7 +1376,7 @@ export default function Page() {
                 <input
                   type="date"
                   value={returnDate}
-                  min={todayLocal}
+                  min={departDate || todayLocal}
                   disabled={!roundTrip}
                   onChange={(e) => setReturnDate(e.target.value)}
                   style={{
@@ -1544,7 +1553,7 @@ export default function Page() {
                   <input
                     type="date"
                     value={hotelCheckIn}
-                    min={todayLocal}
+                    min={departDate || todayLocal}
                     onChange={(e) => setHotelCheckIn(e.target.value)}
                     style={{
                       width: "100%",
@@ -1563,7 +1572,7 @@ export default function Page() {
                   <input
                     type="date"
                     value={hotelCheckOut}
-                    min={todayLocal}
+                    min={departDate || todayLocal}
                     onChange={(e) => setHotelCheckOut(e.target.value)}
                     style={{
                       width: "100%",
