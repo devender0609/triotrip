@@ -4,6 +4,15 @@
 import { useState } from "react";
 import { aiCompareDestinations } from "@/lib/api";
 
+
+const ACCENTS = [
+  { bar: "linear-gradient(90deg, #22c55e, #06b6d4)", badge: "#0ea5e9" },
+  { bar: "linear-gradient(90deg, #a855f7, #ec4899)", badge: "#a855f7" },
+  { bar: "linear-gradient(90deg, #f59e0b, #ef4444)", badge: "#f59e0b" },
+  { bar: "linear-gradient(90deg, #3b82f6, #10b981)", badge: "#3b82f6" },
+];
+
+
 const AI_ENABLED =
   process.env.NEXT_PUBLIC_AI_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_AI_ENABLED === "1";
@@ -122,6 +131,7 @@ export function AiDestinationCompare({ currency }: Props) {
     "December",
   ];
 
+      const accent = ACCENTS[(0) % ACCENTS.length];
   return (
     <section
       style={{
