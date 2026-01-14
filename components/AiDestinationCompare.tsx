@@ -147,7 +147,7 @@ export function AiDestinationCompare({ currency }: Props) {
           '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
       }}
     >
-      <div style={{ height: 6, borderRadius: 999, background: a.bar, marginBottom: 10 }} />
+      <div style={{ height: 6, borderRadius: 999, background: accent.bar, marginBottom: 10 }} />
       <div>
         <h2
           style={{
