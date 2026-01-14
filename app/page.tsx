@@ -262,7 +262,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
 
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
-  const [currency: undefined, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("USD");
   useEffect(() => {
     try {
       const cur = localStorage.getItem("triptrio:currency");
