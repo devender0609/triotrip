@@ -6,10 +6,10 @@ import { aiCompareDestinations } from "@/lib/api";
 
 
 const ACCENTS = [
-  { bar: "linear-gradient(90deg, #22c55e, #06b6d4)", badge: "#0ea5e9" },
-  { bar: "linear-gradient(90deg, #a855f7, #ec4899)", badge: "#a855f7" },
-  { bar: "linear-gradient(90deg, #f59e0b, #ef4444)", badge: "#f59e0b" },
-  { bar: "linear-gradient(90deg, #3b82f6, #10b981)", badge: "#3b82f6" },
+  {  badgeBg: "rgba(255,255,255,0.06)", badgeText: "#e5e7eb", border: "rgba(255,255,255,0.14)", bar: "linear-gradient(90deg, #22c55e, #06b6d4)", badge: "#0ea5e9" },
+  {  badgeBg: "rgba(255,255,255,0.06)", badgeText: "#e5e7eb", border: "rgba(255,255,255,0.14)", bar: "linear-gradient(90deg, #a855f7, #ec4899)", badge: "#a855f7" },
+  {  badgeBg: "rgba(255,255,255,0.06)", badgeText: "#e5e7eb", border: "rgba(255,255,255,0.14)", bar: "linear-gradient(90deg, #f59e0b, #ef4444)", badge: "#f59e0b" },
+  {  badgeBg: "rgba(255,255,255,0.06)", badgeText: "#e5e7eb", border: "rgba(255,255,255,0.14)", bar: "linear-gradient(90deg, #3b82f6, #10b981)", badge: "#3b82f6" },
 ];
 
 
@@ -147,7 +147,7 @@ export function AiDestinationCompare({ currency }: Props) {
           '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
       }}
     >
-      <div style={{ height: 6, borderRadius: 999, background: accent.bar, marginBottom: 10 }} />
+      <div style={{ height: 6, borderRadius: 999, background: a.bar, marginBottom: 10 }} />
       <div>
         <h2
           style={{
@@ -439,8 +439,8 @@ function DestinationCard({ d, idx }: { d: Comparison; idx: number }) {
             padding: "3px 8px",
             borderRadius: 999,
             border: `1px solid ${a.border}`,
-            background: accent.badgeBg,
-            color: accent.badgeText,
+            background: a.badgeBg,
+            color: a.badgeText,
             whiteSpace: "nowrap",
           }}
         >
