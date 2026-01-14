@@ -451,7 +451,7 @@ function swapOriginDest() {
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
         minBudget: typeof sp.minBudget === "number" ? sp.minBudget : undefined,
         maxBudget: typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
-        currency: sp.currency || currency: undefined,
+        currency: sp.currency || currency || "USD",
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
             ? sp.maxStops
