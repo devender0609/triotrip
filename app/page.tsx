@@ -262,7 +262,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
 
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
-  const [currency, setCurrency] = useState("USD");
+  const [currency: undefined, setCurrency] = useState("USD");
   useEffect(() => {
     try {
       const cur = localStorage.getItem("triptrio:currency");
@@ -294,10 +294,15 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
   const [subPanelOpen, setSubPanelOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [aiResults, setAiResults] = useState<any[] | null>(null);
+  const [manualResults, setManualResults] = useState<any[] | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [manualError, setManualError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(false);
+
+  const activeResults = mode === "ai" ? aiResults : mode === "manual" ? manualResults : null;
+  const activeError = mode === "ai" ? aiError : mode === "manual" ? manualError : null;
 
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
@@ -338,11 +343,16 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
 
   useEffect(() => {
     setHeroImageIndex(0);
-  }, [results, destDisplay, aiDestinationCity]);
+  }, [activeResults, destDisplay, aiDestinationCity]);
 
   function clearResults() {
-    setResults(null);
-    setError(null);
+    if (mode === "ai") {
+      setAiResults(null);
+      setAiError(null);
+    } else {
+      setManualResults(null);
+      setManualError(null);
+    }
     setShowControls(false);
     setComparedIds([]);
     setAiTop3(null);
@@ -350,12 +360,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
     setSubPanelOpen(false);
     setListTab("all");
   }
-
-  useEffect(() => {
-    clearResults();
-  }, [mode]);
-
-  function swapOriginDest() {
+function swapOriginDest() {
     setOriginCode((oc) => {
       const dc = destCode;
       setDestCode(oc);
@@ -446,7 +451,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
         minBudget: typeof sp.minBudget === "number" ? sp.minBudget : undefined,
         maxBudget: typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
-        currency: sp.currency || currency,
+        currency: sp.currency || currency: undefined,
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
             ? sp.maxStops
@@ -480,13 +485,13 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
         ...res,
       }));
 
-      setResults(withIds);
+      setAiResults(withIds);
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
       setSubPanelOpen(false);
       setComparedIds([]);
-      setError(null);
+      setAiError(null);
 
       if (origin) setOriginCode(origin);
       if (destination) setDestCode(destination);
@@ -519,8 +524,8 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
       if (body.currency) setCurrency(body.currency);
       setMaxStops(body.maxStops as 0 | 1 | 2);
     } catch (err: any) {
-      console.error("handleAiSearchComplete error", err);
-      setError(err?.message || "AI search failed");
+      console.error("handleAiSearchComplete activeError", err);
+      setAiError(err?.message || "AI search failed");
     }
   }
 
@@ -554,9 +559,8 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
         minHotelStar: includeHotel ? minHotelStar : undefined,
         minBudget:
           includeHotel && minBudget ? Number(minBudget) : undefined,
-        maxBudget:
-          includeHotel && maxBudget ? Number(maxBudget) : undefined,
-        currency,
+        maxBudget: undefined,
+        currency: undefined,
         maxStops,
       };
 
@@ -575,7 +579,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
         ...payload,
         ...res,
       }));
-      setResults(withIds);
+      setManualResults(withIds);
 
       setShowControls(true);
       setListTab("all");
@@ -583,14 +587,14 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
       setSubPanelOpen(false);
       setComparedIds([]);
     } catch (e: any) {
-      setError(e?.message || "Search failed");
+      setManualError(e?.message || "Search failed");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!results || results.length === 0) {
+    if (!aiResults || aiResults.length === 0) {
       setAiTop3(null);
       return;
     }
@@ -600,7 +604,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
         const res = await fetch("/api/ai/top3", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ results }),
+          body: JSON.stringify({ activeResults: aiResults }),
         });
         const data = await res.json();
         if (data.ok) setAiTop3(data.top3 || null);
@@ -611,11 +615,11 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
       }
     }
     go();
-  }, [results]);
+  }, [aiResults]);
 
   const sortedResults = useMemo(() => {
-    if (!results) return null;
-    const items = [...results];
+    if (!activeResults) return null;
+    const items = [...activeResults];
 
     const flightPrice = (p: any) =>
       num(p.flight_total) ??
@@ -658,7 +662,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
     }
 
     return items;
-  }, [results, sort, sortBasis]);
+  }, [activeResults, sort, sortBasis]);
 
   const top3 = useMemo(
     () => (sortedResults ? sortedResults.slice(0, 3) : null),
@@ -703,8 +707,8 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
       return fromDisplay;
     }
 
-    if (results && results.length > 0) {
-      const p = results[0] || {};
+    if (activeResults && activeResults.length > 0) {
+      const p = activeResults[0] || {};
       let rawCity: string | undefined =
         p.destinationCity ||
         p.city ||
@@ -729,7 +733,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
   }
 
   const ResultsArea: React.FC = () => {
-    if (!showControls && !results && !error) return null;
+    if (!showControls && !activeResults && !activeError) return null;
 
     const exploreCity = getExploreCity();
 
@@ -872,7 +876,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
           </div>
         )}
 
-        {error && (
+        {activeError && (
           <div
             style={{
               background: "#fef2f2",
@@ -884,11 +888,11 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
               fontSize: 18,
             }}
           >
-            ⚠ {error}
+            ⚠ {activeError}
           </div>
         )}
 
-        {aiTop3 && results && results.length > 0 && (
+        {aiTop3 && activeResults && activeResults.length > 0 && (
           <div
             style={{
               background: "#0f172a",
@@ -941,7 +945,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
               {["best_overall", "best_budget", "best_comfort"].map((key) => {
                 const info = (aiTop3 as any)[key];
                 if (!info?.id) return null;
-                const pkg = results.find(
+                const pkg = activeResults.find(
                   (r) => String(r.id) === String(info.id)
                 );
                 if (!pkg) return null;
@@ -1090,7 +1094,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
               marginTop: 4,
             }}
           >
-            You can switch tabs anytime — results stay separate for AI and
+            You can switch tabs anytime — activeResults stay separate for AI and
             Manual modes.
           </div>
         </div>
@@ -1124,18 +1128,18 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
                   cursor: "pointer",
                 }}
               >
-                Reset AI trip results
+                Reset AI trip activeResults
               </button>
             </div>
           </div>
 
-          {results && results.length > 0 && (
+          {activeResults && activeResults.length > 0 && (
             <div style={{ marginTop: 16 }}>
               {(() => {
                 let cityGuess = aiDestinationCity;
 
                 if (!cityGuess) {
-                  const p = results[0] || {};
+                  const p = activeResults[0] || {};
                   let raw =
                     p.destinationCity ||
                     p.city ||
@@ -1417,7 +1421,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
+                gridTemplateColumns: mode === "manual" ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
                 gap: 12,
               }}
             >
@@ -1502,7 +1506,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
+                gridTemplateColumns: mode === "manual" ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
                 gap: 12,
                 alignItems: "end",
               }}
@@ -1517,10 +1521,11 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
                   <span style={{ fontWeight: 800 }}>Include hotel</span>
                 </label>
                 <div style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>
-                  If enabled, results include flight + hotel bundle pricing.
+                  If enabled, activeResults include flight + hotel bundle pricing.
                 </div>
               </div>
 
+              {mode !== "manual" && (
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Min budget</div>
                 <input
@@ -1539,7 +1544,9 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
                   }}
                 />
               </div>
+              )}
 
+              {mode !== "manual" && (
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Max budget</div>
                 <input
@@ -1633,10 +1640,11 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
+                gridTemplateColumns: mode === "manual" ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
                 gap: 12,
               }}
             >
+              {mode !== "manual" && (
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Currency</div>
                 <select
@@ -1660,7 +1668,9 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
                   <option value="AUD">AUD</option>
                 </select>
               </div>
+              )}
 
+              {mode !== "manual" && (
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
                 <select
@@ -1682,6 +1692,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
                   <option value="flexible">Flexible</option>
                 </select>
               </div>
+              )}
 
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
@@ -1765,7 +1776,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
               </button>
             </div>
 
-            {error && (
+            {activeError && (
               <div
                 style={{
                   marginTop: 12,
@@ -1777,7 +1788,7 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
                   fontWeight: 700,
                 }}
               >
-                {error}
+                {activeError}
               </div>
             )}
           </div>
