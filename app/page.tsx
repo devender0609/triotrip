@@ -334,10 +334,6 @@ export default function Page() {
     setListTab("all");
   }
 
-  useEffect(() => {
-    clearResults();
-  }, [mode]);
-
   function swapOriginDest() {
     setOriginCode((oc) => {
       const dc = destCode;
@@ -427,9 +423,7 @@ export default function Page() {
         hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
         hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
-        minBudget: typeof sp.minBudget === "number" ? sp.minBudget : undefined,
-        maxBudget: typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
-        currency: sp.currency || currency,
+currency: sp.currency || currency,
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
             ? sp.maxStops
@@ -535,12 +529,7 @@ export default function Page() {
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
-        minBudget:
-          includeHotel && minBudget ? Number(minBudget) : undefined,
-        maxBudget:
-          includeHotel && maxBudget ? Number(maxBudget) : undefined,
-        currency,
-        maxStops,
+maxStops,
       };
 
       const r = await fetch(`/api/search`, {
@@ -1495,43 +1484,6 @@ export default function Page() {
                 </div>
               </div>
 
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Min budget</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={minBudget}
-                  onChange={(e) => setMinBudget(e.target.value)}
-                  placeholder="e.g., 500"
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Max budget</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={maxBudget}
-                  onChange={(e) => setMaxBudget(e.target.value)}
-                  placeholder="e.g., 2500"
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
             </div>
 
             {includeHotel && (
@@ -1611,52 +1563,6 @@ export default function Page() {
                 gap: 12,
               }}
             >
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Currency</div>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                  <option value="CAD">CAD</option>
-                  <option value="INR">INR</option>
-                  <option value="AUD">AUD</option>
-                </select>
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as SortKey)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value="best">Best</option>
-                  <option value="cheapest">Cheapest</option>
-                  <option value="fastest">Fastest</option>
-                  <option value="flexible">Flexible</option>
-                </select>
-              </div>
-
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
                 <select
