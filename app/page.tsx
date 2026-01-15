@@ -264,8 +264,6 @@ export default function Page() {
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
   const [minHotelStar, setMinHotelStar] = useState(0);
-  const [minBudget, setMinBudget] = useState<string>("");
-  const [maxBudget, setMaxBudget] = useState<string>("");
 
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">(
@@ -333,6 +331,10 @@ export default function Page() {
     setSubPanelOpen(false);
     setListTab("all");
   }
+
+  useEffect(() => {
+    clearResults();
+  }, [mode]);
 
   function swapOriginDest() {
     setOriginCode((oc) => {
@@ -423,7 +425,7 @@ export default function Page() {
         hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
         hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
-currency: sp.currency || currency,
+        currency: sp.currency || currency,
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
             ? sp.maxStops
@@ -480,18 +482,9 @@ currency: sp.currency || currency,
         if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
         if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
         setMinHotelStar(body.minHotelStar || 0);
-        setMinBudget(
-          typeof body.minBudget === "number" ? String(body.minBudget) : ""
-        );
-        setMaxBudget(
-          typeof body.maxBudget === "number" ? String(body.maxBudget) : ""
-        );
       } else {
         setHotelCheckIn("");
         setHotelCheckOut("");
-        setMinHotelStar(0);
-        setMinBudget("");
-        setMaxBudget("");
       }
       if (body.currency) setCurrency(body.currency);
       setMaxStops(body.maxStops as 0 | 1 | 2);
@@ -529,7 +522,8 @@ currency: sp.currency || currency,
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
-maxStops,
+        currency,
+        maxStops,
       };
 
       const r = await fetch(`/api/search`, {
@@ -1484,7 +1478,7 @@ maxStops,
                 </div>
               </div>
 
-            </div>
+              <div>
 
             {includeHotel && (
               <div
@@ -1561,8 +1555,8 @@ maxStops,
                 display: "grid",
                 gridTemplateColumns: "repeat(4, 1fr)",
                 gap: 12,
-              }}
-            >
+
+
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
                 <select
