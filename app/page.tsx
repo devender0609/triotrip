@@ -249,7 +249,8 @@ export default function Page() {
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
   const [refundable, setRefundable] = useState<boolean>(false);
-  const [includeHotel, setIncludeHotel] = useState(false);
+  const [includeFlight, setIncludeFlight] = useState(true);
+  const [includeHotel, setIncludeHotel] = useState(true);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
   const [minHotelStar, setMinHotelStar] = useState(0);
@@ -421,6 +422,7 @@ export default function Page() {
         passengersChildrenAges,
         passengersInfants,
         cabin: sp.cabin || "ECONOMY",
+        includeFlight,
         includeHotel,
         hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
         hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
@@ -520,8 +522,9 @@ export default function Page() {
         passengersAdults: adults,
         passengersChildren: children,
         passengersChildrenAges: childAges,
-        passengersInfants: infants,
-        cabin,
+        passengersInfants: infants,    cabin,
+        includeFlight,
+        includeFlight,
         includeHotel,
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
@@ -1470,16 +1473,25 @@ export default function Page() {
                 <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <input
                     type="checkbox"
+                    checked={includeFlight}
+                    onChange={(e) => setIncludeFlight(e.target.checked)}
+                  />
+                  <span style={{ fontWeight: 800 }}>Include flights</span>
+                </label>
+
+                <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8 }}>
+                  <input
+                    type="checkbox"
                     checked={includeHotel}
                     onChange={(e) => setIncludeHotel(e.target.checked)}
                   />
-                  <span style={{ fontWeight: 800 }}>Include hotel</span>
+                  <span style={{ fontWeight: 800 }}>Include hotels</span>
                 </label>
+
                 <div style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>
                   If enabled, results include flight + hotel bundle pricing.
                 </div>
               </div>
-
             </div>
 
             {includeHotel && (
