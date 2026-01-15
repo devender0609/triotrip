@@ -243,17 +243,29 @@ export default function Page() {
 
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
-  // Currency selector removed from Manual Search per request.
-  // Keep a constant currency for formatting.
-  const currency = "USD";
+  const [currency, setCurrency] = useState("USD");
+  useEffect(() => {
+    try {
+      const cur = localStorage.getItem("triptrio:currency");
+      if (cur) setCurrency(cur);
+    } catch {}
+    const handler = (e: any) =>
+      setCurrency(
+        e?.detail || localStorage.getItem("triptrio:currency") || "USD"
+      );
+    window.addEventListener("triptrio:currency", handler);
+    return () => window.removeEventListener("triptrio:currency", handler);
+  }, []);
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
-  const [refundable, setRefundable] = useState<boolean>(false);
-  const [includeFlight, setIncludeFlight] = useState(true);
-  const [includeHotel, setIncludeHotel] = useState(true);
+  // API expects includeFlight/includeHotel flags. Flights are always included.
+  const includeFlight = true;
+  const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
   const [minHotelStar, setMinHotelStar] = useState(0);
+  const [minBudget, setMinBudget] = useState<string>("");
+  const [maxBudget, setMaxBudget] = useState<string>("");
 
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">(
@@ -264,13 +276,38 @@ export default function Page() {
   const [subTab, setSubTab] = useState<SubTab>("explore");
   const [subPanelOpen, setSubPanelOpen] = useState(false);
 
+  // Manual/AI search runtime state (kept in one place; do not duplicate these)
   const [loading, setLoading] = useState(false);
-  // Keep AI + Manual results in separate state so switching tabs does not wipe results.
-  const [resultsAI, setResultsAI] = useState<any[] | null>(null);
-  const [resultsManual, setResultsManual] = useState<any[] | null>(null);
+  const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(false);
+
+  // Preserve results per-mode so switching tabs doesn't wipe the UI.
+  const savedAiRef = useRef<{ results: any[] | null; error: string | null; showControls: boolean }>({
+    results: null,
+    error: null,
+    showControls: false,
+  });
+  const savedManualRef = useRef<{ results: any[] | null; error: string | null; showControls: boolean }>({
+    results: null,
+    error: null,
+    showControls: false,
+  });
+
+  useEffect(() => {
+    const ref = mode === "ai" ? savedAiRef : savedManualRef;
+    setResults(ref.current.results);
+    setError(ref.current.error);
+    setShowControls(ref.current.showControls);
+    // comparedIds is only relevant for AI compare UI; keep current value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  useEffect(() => {
+    const ref = mode === "ai" ? savedAiRef : savedManualRef;
+    ref.current = { results, error, showControls };
+  }, [mode, results, error, showControls]);
 
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
@@ -309,33 +346,22 @@ export default function Page() {
     });
   }, [children]);
 
-  const activeResults = mode === "ai" ? resultsAI : resultsManual;
-
-  // Compatibility alias for older helper logic in this file.
-  const results = activeResults;
-
   useEffect(() => {
     setHeroImageIndex(0);
-  }, [activeResults, destDisplay, aiDestinationCity, mode]);
+  }, [results, destDisplay, aiDestinationCity]);
 
-  function clearResults(scope: "current" | "all" = "current") {
-    if (scope === "all") {
-      setResultsAI(null);
-      setResultsManual(null);
-    } else {
-      if (mode === "ai") setResultsAI(null);
-      else setResultsManual(null);
-    }
+  function clearResults() {
+    setResults(null);
     setError(null);
     setShowControls(false);
     setComparedIds([]);
-    if (mode === "ai" || scope === "all") {
-      setAiTop3(null);
-      setAiTop3Loading(false);
-    }
+    setAiTop3(null);
+    setAiTop3Loading(false);
     setSubPanelOpen(false);
     setListTab("all");
   }
+
+  // Keep results visible when switching between AI and Manual.
 
   function swapOriginDest() {
     setOriginCode((oc) => {
@@ -422,13 +448,13 @@ export default function Page() {
         passengersChildrenAges,
         passengersInfants,
         cabin: sp.cabin || "ECONOMY",
-        includeFlight,
         includeHotel,
         hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
         hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
-        // Budgets removed from manual search UI (kept undefined)
-        currency,
+        minBudget: typeof sp.minBudget === "number" ? sp.minBudget : undefined,
+        maxBudget: typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
+        currency: sp.currency || currency,
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
             ? sp.maxStops
@@ -462,7 +488,7 @@ export default function Page() {
         ...res,
       }));
 
-      setResultsAI(withIds);
+      setResults(withIds);
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
@@ -485,14 +511,20 @@ export default function Page() {
         if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
         if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
         setMinHotelStar(body.minHotelStar || 0);
-        // min/max budget removed
+        setMinBudget(
+          typeof body.minBudget === "number" ? String(body.minBudget) : ""
+        );
+        setMaxBudget(
+          typeof body.maxBudget === "number" ? String(body.maxBudget) : ""
+        );
       } else {
         setHotelCheckIn("");
         setHotelCheckOut("");
         setMinHotelStar(0);
-        // min/max budget removed
+        setMinBudget("");
+        setMaxBudget("");
       }
-	      // currency is fixed to USD
+      if (body.currency) setCurrency(body.currency);
       setMaxStops(body.maxStops as 0 | 1 | 2);
     } catch (err: any) {
       console.error("handleAiSearchComplete error", err);
@@ -529,7 +561,6 @@ export default function Page() {
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
-        // Budgets intentionally omitted
         maxStops,
       };
 
@@ -548,7 +579,7 @@ export default function Page() {
         ...payload,
         ...res,
       }));
-      setResultsManual(withIds);
+      setResults(withIds);
 
       setShowControls(true);
       setListTab("all");
@@ -563,8 +594,7 @@ export default function Page() {
   }
 
   useEffect(() => {
-    // Only compute the AI Top-3 summary from AI results.
-    if (!resultsAI || resultsAI.length === 0) {
+    if (!results || results.length === 0) {
       setAiTop3(null);
       return;
     }
@@ -574,7 +604,7 @@ export default function Page() {
         const res = await fetch("/api/ai/top3", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ results: resultsAI }),
+          body: JSON.stringify({ results }),
         });
         const data = await res.json();
         if (data.ok) setAiTop3(data.top3 || null);
@@ -585,11 +615,11 @@ export default function Page() {
       }
     }
     go();
-  }, [resultsAI]);
+  }, [results]);
 
   const sortedResults = useMemo(() => {
-    if (!activeResults) return null;
-    const items = [...activeResults];
+    if (!results) return null;
+    const items = [...results];
 
     const flightPrice = (p: any) =>
       num(p.flight_total) ??
@@ -632,7 +662,7 @@ export default function Page() {
     }
 
     return items;
-  }, [activeResults, sort, sortBasis]);
+  }, [results, sort, sortBasis]);
 
   const top3 = useMemo(
     () => (sortedResults ? sortedResults.slice(0, 3) : null),
@@ -1464,7 +1494,7 @@ export default function Page() {
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
+                gridTemplateColumns: "repeat(4, 1fr)",
                 gap: 12,
                 alignItems: "end",
               }}
@@ -1473,25 +1503,17 @@ export default function Page() {
                 <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <input
                     type="checkbox"
-                    checked={includeFlight}
-                    onChange={(e) => setIncludeFlight(e.target.checked)}
-                  />
-                  <span style={{ fontWeight: 800 }}>Include flights</span>
-                </label>
-
-                <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8 }}>
-                  <input
-                    type="checkbox"
                     checked={includeHotel}
                     onChange={(e) => setIncludeHotel(e.target.checked)}
                   />
-                  <span style={{ fontWeight: 800 }}>Include hotels</span>
+                  <span style={{ fontWeight: 800 }}>Include hotel</span>
                 </label>
-
                 <div style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>
                   If enabled, results include flight + hotel bundle pricing.
                 </div>
               </div>
+
+              {/* Budget controls removed per request */}
             </div>
 
             {includeHotel && (
@@ -1567,12 +1589,11 @@ export default function Page() {
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
+                gridTemplateColumns: "repeat(4, 1fr)",
                 gap: 12,
               }}
             >
-              {/* Sort controls removed from the shared filter row.
-                 If you want Sort only for AI mode, render it in the AI panel instead. */}
+              {/* Currency & Sort removed from Manual search (kept in header) */}
 
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
@@ -1626,15 +1647,6 @@ export default function Page() {
                 flexWrap: "wrap",
               }}
             >
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={refundable}
-                  onChange={(e) => setRefundable(e.target.checked)}
-                />
-                <span style={{ fontWeight: 800 }}>Refundable</span>
-              </label>
-
               <button
                 type="button"
                 onClick={runSearch}
