@@ -626,7 +626,7 @@ export default function Page() {
     }
 
     return items;
-  }, [results, sort, sortBasis]);
+  }, [activeResults, sort, sortBasis]);
 
   const top3 = useMemo(
     () => (sortedResults ? sortedResults.slice(0, 3) : null),
