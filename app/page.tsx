@@ -219,12 +219,6 @@ export default function Page() {
 
   const currency = "USD";
 
-  useEffect(() => {
-    try {
-    } catch {}
-    const handler = (e: any) =>
-      );
-  }, []);
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
   const [refundable, setRefundable] = useState(false);
@@ -657,7 +651,7 @@ maxStops};
 
     return (
       <>
-        {showControls && (
+        {showControls && mode === "ai" && (
           <>
             <div
               style={{
