@@ -69,87 +69,113 @@ function getHeroImages(city: string): HeroImage[] {
     return [
       {
         url: "https://images.unsplash.com/photo-1516570161787-2fd917215a3d?auto=format&fit=crop&w=1600&q=80",
-        alt: "Las Vegas Strip hotels and casinos at night"},
+        alt: "Las Vegas Strip hotels and casinos at night",
+      },
       {
         url: "https://images.unsplash.com/photo-1517959105821-eaf2591984c2?auto=format&fit=crop&w=1600&q=80",
-        alt: "Las Vegas skyline with neon lights"}];
+        alt: "Las Vegas skyline with neon lights",
+      },
+    ];
   }
 
   if (c.includes("miami")) {
     return [
       {
         url: "https://images.unsplash.com/photo-1517898717281-8e4385f1c4a2?auto=format&fit=crop&w=1600&q=80",
-        alt: "Miami South Beach with palm trees and ocean"},
+        alt: "Miami South Beach with palm trees and ocean",
+      },
       {
         url: "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1600&q=80",
-        alt: "Art Deco buildings and palm trees in Miami"}];
+        alt: "Art Deco buildings and palm trees in Miami",
+      },
+    ];
   }
 
   if (c.includes("new york") || c.includes("nyc")) {
     return [
       {
         url: "https://images.unsplash.com/photo-1534432182912-63863115e106?auto=format&fit=crop&w=1600&q=80",
-        alt: "New York City skyline at dusk"},
+        alt: "New York City skyline at dusk",
+      },
       {
         url: "https://images.unsplash.com/photo-1518300670681-9bb0e0cfb4a1?auto=format&fit=crop&w=1600&q=80",
-        alt: "Times Square lights at night in New York City"}];
+        alt: "Times Square lights at night in New York City",
+      },
+    ];
   }
 
   if (c.includes("boston")) {
     return [
       {
         url: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1600&q=80",
-        alt: "Boston skyline and harbor"},
+        alt: "Boston skyline and harbor",
+      },
       {
         url: "https://images.unsplash.com/photo-1581351123004-757df051db8c?auto=format&fit=crop&w=1600&q=80",
-        alt: "Boston cityscape at sunset"}];
+        alt: "Boston cityscape at sunset",
+      },
+    ];
   }
 
   if (c.includes("paris")) {
     return [
       {
         url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80",
-        alt: "Eiffel Tower over Paris skyline"},
+        alt: "Eiffel Tower over Paris skyline",
+      },
       {
         url: "https://images.unsplash.com/photo-1522098635838-0062c7a07a14?auto=format&fit=crop&w=1600&q=80",
-        alt: "Seine river with Eiffel Tower in Paris"}];
+        alt: "Seine river with Eiffel Tower in Paris",
+      },
+    ];
   }
 
   if (c.includes("agra")) {
     return [
       {
         url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=80",
-        alt: "Taj Mahal in Agra at sunrise"},
+        alt: "Taj Mahal in Agra at sunrise",
+      },
       {
         url: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=1600&q=80",
-        alt: "Path to the Taj Mahal in Agra"}];
+        alt: "Path to the Taj Mahal in Agra",
+      },
+    ];
   }
 
   if (c.includes("hawaii") || c.includes("honolulu") || c.includes("maui")) {
     return [
       {
         url: "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=1600&q=80",
-        alt: "Tropical beach in Hawaii with palm trees"},
+        alt: "Tropical beach in Hawaii with palm trees",
+      },
       {
         url: "https://images.unsplash.com/photo-1528722828814-77b9b83aafb2?auto=format&fit=crop&w=1600&q=80",
-        alt: "Ocean and cliffs in Hawaii"}];
+        alt: "Ocean and cliffs in Hawaii",
+      },
+    ];
   }
 
   if (c.includes("london")) {
     return [
       {
         url: "https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?auto=format&fit=crop&w=1600&q=80",
-        alt: "Big Ben and Houses of Parliament in London"},
+        alt: "Big Ben and Houses of Parliament in London",
+      },
       {
         url: "https://images.unsplash.com/photo-1513639725746-c5d3e861f32a?auto=format&fit=crop&w=1600&q=80",
-        alt: "Tower Bridge in London at sunset"}];
+        alt: "Tower Bridge in London at sunset",
+      },
+    ];
   }
 
   // Neutral city skyline fallback (no cars)
   return [
     {
       url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80",
-      alt: "Generic modern city skyline at night"}];
+      alt: "Generic modern city skyline at night",
+    },
+  ];
 }
 
 function cityGuideUrl(city: string): string {
@@ -217,12 +243,11 @@ export default function Page() {
 
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
+  // Currency selector removed from Manual Search per request.
+  // Keep a constant currency for formatting.
   const currency = "USD";
 
-
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
-  const [refundable, setRefundable] = useState(false);
-
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
@@ -238,7 +263,9 @@ export default function Page() {
   const [subPanelOpen, setSubPanelOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any[] | null>(null);
+  // Keep AI + Manual results in separate state so switching tabs does not wipe results.
+  const [resultsAI, setResultsAI] = useState<any[] | null>(null);
+  const [resultsManual, setResultsManual] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(false);
@@ -280,17 +307,27 @@ export default function Page() {
     });
   }, [children]);
 
+  const activeResults = mode === "ai" ? resultsAI : resultsManual;
+
   useEffect(() => {
     setHeroImageIndex(0);
-  }, [results, destDisplay, aiDestinationCity]);
+  }, [activeResults, destDisplay, aiDestinationCity, mode]);
 
-  function clearResults() {
-    setResults(null);
+  function clearResults(scope: "current" | "all" = "current") {
+    if (scope === "all") {
+      setResultsAI(null);
+      setResultsManual(null);
+    } else {
+      if (mode === "ai") setResultsAI(null);
+      else setResultsManual(null);
+    }
     setError(null);
     setShowControls(false);
     setComparedIds([]);
-    setAiTop3(null);
-    setAiTop3Loading(false);
+    if (mode === "ai" || scope === "all") {
+      setAiTop3(null);
+      setAiTop3Loading(false);
+    }
     setSubPanelOpen(false);
     setListTab("all");
   }
@@ -384,10 +421,13 @@ export default function Page() {
         hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
         hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
+        // Budgets removed from manual search UI (kept undefined)
+        currency,
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
             ? sp.maxStops
-            : 2};
+            : 2,
+      };
 
       // NEW: capture destination city for hero image
       const rawCity =
@@ -404,7 +444,8 @@ export default function Page() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        cache: "no-store"});
+        cache: "no-store",
+      });
       const j = await resp.json();
       if (!resp.ok) throw new Error(j?.error || "Search failed");
 
@@ -412,9 +453,10 @@ export default function Page() {
       const withIds = arr.map((res: any, i: number) => ({
         id: res.id ?? `ai-${i}`,
         ...body,
-        ...res}));
+        ...res,
+      }));
 
-      setResults(withIds);
+      setResultsAI(withIds);
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
@@ -437,13 +479,14 @@ export default function Page() {
         if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
         if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
         setMinHotelStar(body.minHotelStar || 0);
-        );
-        );
+        // min/max budget removed
       } else {
         setHotelCheckIn("");
         setHotelCheckOut("");
         setMinHotelStar(0);
+        // min/max budget removed
       }
+	      // currency is fixed to USD
       setMaxStops(body.maxStops as 0 | 1 | 2);
     } catch (err: any) {
       console.error("handleAiSearchComplete error", err);
@@ -479,13 +522,17 @@ export default function Page() {
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
-maxStops};
+        // Budgets intentionally omitted
+        currency,
+        maxStops,
+      };
 
       const r = await fetch(`/api/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        cache: "no-store"});
+        cache: "no-store",
+      });
       const j = await r.json();
       if (!r.ok) throw new Error(j?.error || "Search failed");
 
@@ -493,8 +540,9 @@ maxStops};
       const withIds = arr.map((res: any, i: number) => ({
         id: res.id ?? `r-${i}`,
         ...payload,
-        ...res}));
-      setResults(withIds);
+        ...res,
+      }));
+      setResultsManual(withIds);
 
       setShowControls(true);
       setListTab("all");
@@ -509,7 +557,8 @@ maxStops};
   }
 
   useEffect(() => {
-    if (!results || results.length === 0) {
+    // Only compute the AI Top-3 summary from AI results.
+    if (!resultsAI || resultsAI.length === 0) {
       setAiTop3(null);
       return;
     }
@@ -519,7 +568,8 @@ maxStops};
         const res = await fetch("/api/ai/top3", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ results })});
+          body: JSON.stringify({ results: resultsAI }),
+        });
         const data = await res.json();
         if (data.ok) setAiTop3(data.top3 || null);
       } catch (e) {
@@ -529,11 +579,11 @@ maxStops};
       }
     }
     go();
-  }, [results]);
+  }, [resultsAI]);
 
   const sortedResults = useMemo(() => {
-    if (!results) return null;
-    const items = [...results];
+    if (!activeResults) return null;
+    const items = [...activeResults];
 
     const flightPrice = (p: any) =>
       num(p.flight_total) ??
@@ -595,7 +645,8 @@ maxStops};
     color: "#334155",
     display: "block",
     marginBottom: 6,
-    fontSize: 18};
+    fontSize: 18,
+  };
   const sInput: React.CSSProperties = {
     height: 48,
     padding: "0 14px",
@@ -603,7 +654,8 @@ maxStops};
     borderRadius: 12,
     width: "100%",
     background: "#fff",
-    fontSize: 18};
+    fontSize: 18,
+  };
 
   function clickSubTab(tab: SubTab) {
     if (tab === subTab) setSubPanelOpen((v) => !v);
@@ -651,7 +703,7 @@ maxStops};
 
     return (
       <>
-        {showControls && mode === "ai" && (
+        {showControls && (
           <>
             <div
               style={{
@@ -660,7 +712,8 @@ maxStops};
                 alignItems: "center",
                 flexWrap: "wrap",
                 color: "#475569",
-                fontWeight: 700}}
+                fontWeight: 700,
+              }}
             >
               <button
                 className={`subtab ${
@@ -710,7 +763,8 @@ maxStops};
                   borderRadius: 12,
                   background: "#fff",
                   padding: 12,
-                  marginTop: 8}}
+                  marginTop: 8,
+                }}
               >
                 <ExploreSavorTabs city={exploreCity} active={subTab} />
               </div>
@@ -725,7 +779,8 @@ maxStops};
               gap: 8,
               alignItems: "center",
               flexWrap: "wrap",
-              marginTop: 10}}
+              marginTop: 10,
+            }}
           >
             <button
               className={`chip ${sort === "best" ? "on" : ""}`}
@@ -794,7 +849,8 @@ maxStops};
               padding: 10,
               borderRadius: 10,
               marginTop: 8,
-              fontSize: 18}}
+              fontSize: 18,
+            }}
           >
             ⚠ {error}
           </div>
@@ -809,7 +865,8 @@ maxStops};
               padding: 14,
               display: "grid",
               gap: 6,
-              marginTop: 10}}
+              marginTop: 10,
+            }}
           >
             <div style={{ fontWeight: 700, fontSize: 24 }}>
               ✨ AI’s top picks
@@ -819,7 +876,8 @@ maxStops};
                     fontSize: 15,
                     marginLeft: 8,
                     opacity: 0.8,
-                    fontWeight: 400}}
+                    fontWeight: 400,
+                  }}
                 >
                   (refreshing…)
                 </span>
@@ -830,7 +888,8 @@ maxStops};
               style={{
                 fontSize: 18,
                 opacity: 0.9,
-                marginTop: 2}}
+                marginTop: 2,
+              }}
             >
               Shortcuts from your live{" "}
               <strong>flight + hotel bundles</strong>:{" "}
@@ -844,7 +903,8 @@ maxStops};
                 margin: 4,
                 marginLeft: 20,
                 paddingLeft: 0,
-                fontSize: 17}}
+                fontSize: 17,
+              }}
             >
               {["best_overall", "best_budget", "best_comfort"].map((key) => {
                 const info = (aiTop3 as any)[key];
@@ -924,7 +984,8 @@ maxStops};
           display: "flex",
           gap: 8,
           marginBottom: 4,
-          alignItems: "center"}}
+          alignItems: "center",
+        }}
       >
         <button
           type="button"
@@ -941,7 +1002,8 @@ maxStops};
             color: mode === "ai" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
             fontSize: 22,
-            cursor: "pointer"}}
+            cursor: "pointer",
+          }}
         >
           ✨ AI Trip Planning
         </button>
@@ -957,7 +1019,8 @@ maxStops};
             color: mode === "manual" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
             fontSize: 22,
-            cursor: "pointer"}}
+            cursor: "pointer",
+          }}
         >
           🔎 Manual Search
         </button>
@@ -979,7 +1042,8 @@ maxStops};
             flexDirection: "column",
             alignItems: "center",
             gap: 8,
-            marginTop: 12}}
+            marginTop: 12,
+          }}
         >
           <div style={{ fontSize: 34 }}>🧳 Ready to plan a trip?</div>
           <div>
@@ -991,7 +1055,8 @@ maxStops};
             style={{
               fontSize: 17,
               opacity: 0.8,
-              marginTop: 4}}
+              marginTop: 4,
+            }}
           >
             You can switch tabs anytime — results stay separate for AI and
             Manual modes.
@@ -999,8 +1064,7 @@ maxStops};
         </div>
       )}
 
-      <div style={{ display: mode === "ai" ? "block" : "none" }}>
-
+      {mode === "ai" && (
         <>
           <div className="ai-trip-wrapper">
             <AiTripPlanner key={aiResetKey} onSearchComplete={handleAiSearchComplete} />
@@ -1008,7 +1072,8 @@ maxStops};
             <div
               style={{
                 marginTop: 10,
-                textAlign: "right"}}
+                textAlign: "right",
+              }}
             >
               <button
                 type="button"
@@ -1024,7 +1089,8 @@ maxStops};
                   background: "#ffffff",
                   fontWeight: 700,
                   fontSize: 18,
-                  cursor: "pointer"}}
+                  cursor: "pointer",
+                }}
               >
                 Reset AI trip results
               </button>
@@ -1061,7 +1127,8 @@ maxStops};
                       position: "relative",
                       borderRadius: 18,
                       overflow: "hidden",
-                      cursor: "pointer"}}
+                      cursor: "pointer",
+                    }}
                     onClick={() =>
                       window.open(guideUrl, "_blank", "noopener,noreferrer")
                     }
@@ -1076,7 +1143,8 @@ maxStops};
                         width: "100%",
                         maxHeight: 260,
                         objectFit: "cover",
-                        display: "block"}}
+                        display: "block",
+                      }}
                     />
 
                     <div
@@ -1092,7 +1160,8 @@ maxStops};
                         fontSize: 16,
                         display: "flex",
                         alignItems: "center",
-                        gap: 8}}
+                        gap: 8,
+                      }}
                     >
                       <span style={{ fontSize: 20 }}>{flag}</span>
                       <span>
@@ -1112,7 +1181,8 @@ maxStops};
                         fontSize: 14,
                         display: "flex",
                         alignItems: "center",
-                        gap: 6}}
+                        gap: 6,
+                      }}
                     >
                       <span>Learn about {cityGuess}</span>
                       <span style={{ fontSize: 16 }}>↗</span>
@@ -1126,7 +1196,8 @@ maxStops};
                           bottom: 10,
                           transform: "translateX(-50%)",
                           display: "flex",
-                          gap: 8}}
+                          gap: 8,
+                        }}
                       >
                         {images.map((_, idx) => (
                           <button
@@ -1145,7 +1216,8 @@ maxStops};
                                 idx === safeIndex
                                   ? "#f97316"
                                   : "rgba(148,163,184,0.9)",
-                              cursor: "pointer"}}
+                              cursor: "pointer",
+                            }}
                           />
                         ))}
                       </div>
@@ -1160,11 +1232,9 @@ maxStops};
           {/* ✅ Pass currency prop so TypeScript is satisfied */}
           <AiDestinationCompare currency={currency} />
         </>
-      
-</div>
+      )}
 
-      <div style={{ display: mode === "manual" ? "block" : "none" }}>
-
+      {mode === "manual" && (
         <>
           <div
             style={{
@@ -1173,7 +1243,8 @@ maxStops};
               borderRadius: 18,
               background: "#ffffff",
               border: "1px solid #e2e8f0",
-              boxShadow: "0 10px 26px rgba(2,6,23,0.08)"}}
+              boxShadow: "0 10px 26px rgba(2,6,23,0.08)",
+            }}
           >
             <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 10 }}>
               🔎 Manual Search
@@ -1184,7 +1255,8 @@ maxStops};
                 display: "grid",
                 gridTemplateColumns: "1fr 64px 1fr",
                 gap: 12,
-                alignItems: "end"}}
+                alignItems: "end",
+              }}
             >
               <AirportField
                 id="origin"
@@ -1210,7 +1282,8 @@ maxStops};
                   background: "#f8fafc",
                   cursor: "pointer",
                   fontSize: 22,
-                  fontWeight: 800}}
+                  fontWeight: 800,
+                }}
               >
                 ⇄
               </button>
@@ -1233,7 +1306,8 @@ maxStops};
                 marginTop: 12,
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
-                gap: 12}}
+                gap: 12,
+              }}
             >
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>
@@ -1250,7 +1324,8 @@ maxStops};
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
-                    fontSize: 18}}
+                    fontSize: 18,
+                  }}
                 />
               </div>
 
@@ -1261,7 +1336,8 @@ maxStops};
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 10,
-                    marginBottom: 6}}
+                    marginBottom: 6,
+                  }}
                 >
                   <div style={{ fontWeight: 700 }}>Return date</div>
                   <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -1287,7 +1363,8 @@ maxStops};
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
                     fontSize: 18,
-                    opacity: roundTrip ? 1 : 0.5}}
+                    opacity: roundTrip ? 1 : 0.5,
+                  }}
                 />
               </div>
             </div>
@@ -1297,7 +1374,8 @@ maxStops};
                 marginTop: 12,
                 display: "grid",
                 gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12}}
+                gap: 12,
+              }}
             >
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Adults</div>
@@ -1312,7 +1390,8 @@ maxStops};
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
-                    fontSize: 18}}
+                    fontSize: 18,
+                  }}
                 />
               </div>
 
@@ -1329,7 +1408,8 @@ maxStops};
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
-                    fontSize: 18}}
+                    fontSize: 18,
+                  }}
                 />
               </div>
 
@@ -1346,7 +1426,8 @@ maxStops};
                     borderRadius: 14,
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
-                    fontSize: 18}}
+                    fontSize: 18,
+                  }}
                 />
               </div>
 
@@ -1362,7 +1443,8 @@ maxStops};
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
                     fontSize: 18,
-                    background: "#fff"}}
+                    background: "#fff",
+                  }}
                 >
                   <option value="ECONOMY">Economy</option>
                   <option value="PREMIUM_ECONOMY">Premium Economy</option>
@@ -1376,9 +1458,10 @@ maxStops};
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
+                gridTemplateColumns: "repeat(2, 1fr)",
                 gap: 12,
-                alignItems: "end"}}
+                alignItems: "end",
+              }}
             >
               <div style={{ gridColumn: "span 2" }}>
                 <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -1402,7 +1485,8 @@ maxStops};
                   marginTop: 12,
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr 1fr",
-                  gap: 12}}
+                  gap: 12,
+                }}
               >
                 <div>
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>Hotel check-in</div>
@@ -1417,7 +1501,8 @@ maxStops};
                       borderRadius: 14,
                       border: "1px solid #e2e8f0",
                       padding: "0 14px",
-                      fontSize: 18}}
+                      fontSize: 18,
+                    }}
                   />
                 </div>
                 <div>
@@ -1435,7 +1520,8 @@ maxStops};
                       borderRadius: 14,
                       border: "1px solid #e2e8f0",
                       padding: "0 14px",
-                      fontSize: 18}}
+                      fontSize: 18,
+                    }}
                   />
                 </div>
                 <div>
@@ -1450,7 +1536,8 @@ maxStops};
                       border: "1px solid #e2e8f0",
                       padding: "0 14px",
                       fontSize: 18,
-                      background: "#fff"}}
+                      background: "#fff",
+                    }}
                   >
                     <option value={0}>Any</option>
                     <option value={3}>3+</option>
@@ -1465,9 +1552,34 @@ maxStops};
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12}}
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 12,
+              }}
             >
+              {mode === "ai" && (
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as SortKey)}
+                    style={{
+                      width: "100%",
+                      height: 54,
+                      borderRadius: 14,
+                      border: "1px solid #e2e8f0",
+                      padding: "0 14px",
+                      fontSize: 18,
+                      background: "#fff",
+                    }}
+                  >
+                    <option value="best">Best</option>
+                    <option value="cheapest">Cheapest</option>
+                    <option value="fastest">Fastest</option>
+                    <option value="flexible">Flexible</option>
+                  </select>
+                </div>
+              )}
+
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
                 <select
@@ -1480,7 +1592,8 @@ maxStops};
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
                     fontSize: 18,
-                    background: "#fff"}}
+                    background: "#fff",
+                  }}
                 >
                   <option value="flightOnly">Flight only</option>
                   <option value="bundle">Flight + hotel</option>
@@ -1499,7 +1612,8 @@ maxStops};
                     border: "1px solid #e2e8f0",
                     padding: "0 14px",
                     fontSize: 18,
-                    background: "#fff"}}
+                    background: "#fff",
+                  }}
                 >
                   <option value={0}>0</option>
                   <option value={1}>1</option>
@@ -1515,7 +1629,8 @@ maxStops};
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: 12,
-                flexWrap: "wrap"}}
+                flexWrap: "wrap",
+              }}
             >
               <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <input
@@ -1540,7 +1655,8 @@ maxStops};
                   fontWeight: 900,
                   cursor: loading ? "not-allowed" : "pointer",
                   fontSize: 18,
-                  minWidth: 200}}
+                  minWidth: 200,
+                }}
               >
                 {loading ? "Searching..." : "Search"}
               </button>
@@ -1555,15 +1671,15 @@ maxStops};
                   border: "1px solid #fecaca",
                   background: "#fef2f2",
                   color: "#991b1b",
-                  fontWeight: 700}}
+                  fontWeight: 700,
+                }}
               >
                 {error}
               </div>
             )}
           </div>
         </>
-      
-</div>
+      )}
 
       <style jsx global>{`
         html,
