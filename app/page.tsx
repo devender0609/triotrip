@@ -309,6 +309,9 @@ export default function Page() {
 
   const activeResults = mode === "ai" ? resultsAI : resultsManual;
 
+  // Compatibility alias for older helper logic in this file.
+  const results = activeResults;
+
   useEffect(() => {
     setHeroImageIndex(0);
   }, [activeResults, destDisplay, aiDestinationCity, mode]);
