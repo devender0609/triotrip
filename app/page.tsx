@@ -248,6 +248,7 @@ export default function Page() {
   const currency = "USD";
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
+  const [refundable, setRefundable] = useState<boolean>(false);
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
@@ -526,7 +527,6 @@ export default function Page() {
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
         // Budgets intentionally omitted
-        currency,
         maxStops,
       };
 
