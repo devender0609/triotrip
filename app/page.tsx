@@ -1559,29 +1559,8 @@ export default function Page() {
                 gap: 12,
               }}
             >
-              {mode === "ai" && (
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
-                  <select
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value as SortKey)}
-                    style={{
-                      width: "100%",
-                      height: 54,
-                      borderRadius: 14,
-                      border: "1px solid #e2e8f0",
-                      padding: "0 14px",
-                      fontSize: 18,
-                      background: "#fff",
-                    }}
-                  >
-                    <option value="best">Best</option>
-                    <option value="cheapest">Cheapest</option>
-                    <option value="fastest">Fastest</option>
-                    <option value="flexible">Flexible</option>
-                  </select>
-                </div>
-              )}
+              {/* Sort controls removed from the shared filter row.
+                 If you want Sort only for AI mode, render it in the AI panel instead. */}
 
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
