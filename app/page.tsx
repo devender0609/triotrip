@@ -169,28 +169,11 @@ function getHeroImages(city: string): HeroImage[] {
     ];
   }
 
-  
-// Fallback: dynamic city-based images (try multiple providers + deterministic seed)
-  // NOTE: Some CDNs (e.g., source.unsplash.com) may intermittently fail or block hotlinking.
-  // We return multiple URLs and the <img> tag cycles through them onError.
-  const citySlug = encodeURIComponent(city.trim());
-  const q = encodeURIComponent(`${city} skyline city travel`);
-
+  // Neutral city skyline fallback (no cars)
   return [
     {
-      // often works without redirect
-      url: `https://loremflickr.com/1600/900/${citySlug},skyline,city`,
-      alt: `${city} skyline`,
-    },
-    {
-      // may redirect to images.unsplash.com
-      url: `https://source.unsplash.com/1600x900/?${q}&sig=1`,
-      alt: `${city} skyline`,
-    },
-    {
-      // deterministic fallback that always returns an image
-      url: `https://picsum.photos/seed/${citySlug}/1600/900`,
-      alt: `${city} skyline`,
+      url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80",
+      alt: "Generic modern city skyline at night",
     },
   ];
 }
@@ -239,9 +222,7 @@ function cityToCountry(city: string): { country: string; flag: string } {
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
   const [aiResetKey, setAiResetKey] = useState(0);
-  
-  const [refundable, setRefundable] = useState(false);
-const [heroImageIndex, setHeroImageIndex] = useState(0);
+  const [heroImageIndex, setHeroImageIndex] = useState(0);
 
   // NEW: for AI hero city
   const [aiDestinationCity, setAiDestinationCity] = useState<string>("");
@@ -277,6 +258,8 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
   }, []);
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
+  const [refundable, setRefundable] = useState(false);
+
   const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
@@ -294,15 +277,10 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
   const [subPanelOpen, setSubPanelOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [aiResults, setAiResults] = useState<any[] | null>(null);
-  const [manualResults, setManualResults] = useState<any[] | null>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [manualError, setManualError] = useState<string | null>(null);
+  const [results, setResults] = useState<any[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(false);
-
-  const activeResults = mode === "ai" ? aiResults : mode === "manual" ? manualResults : null;
-  const activeError = mode === "ai" ? aiError : mode === "manual" ? manualError : null;
 
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
@@ -343,16 +321,11 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
 
   useEffect(() => {
     setHeroImageIndex(0);
-  }, [activeResults, destDisplay, aiDestinationCity]);
+  }, [results, destDisplay, aiDestinationCity]);
 
   function clearResults() {
-    if (mode === "ai") {
-      setAiResults(null);
-      setAiError(null);
-    } else {
-      setManualResults(null);
-      setManualError(null);
-    }
+    setResults(null);
+    setError(null);
     setShowControls(false);
     setComparedIds([]);
     setAiTop3(null);
@@ -360,7 +333,12 @@ const [heroImageIndex, setHeroImageIndex] = useState(0);
     setSubPanelOpen(false);
     setListTab("all");
   }
-function swapOriginDest() {
+
+  useEffect(() => {
+    clearResults();
+  }, [mode]);
+
+  function swapOriginDest() {
     setOriginCode((oc) => {
       const dc = destCode;
       setDestCode(oc);
@@ -451,7 +429,7 @@ function swapOriginDest() {
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
         minBudget: typeof sp.minBudget === "number" ? sp.minBudget : undefined,
         maxBudget: typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
-        currency: sp.currency || currency || "USD",
+        currency: sp.currency || currency,
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
             ? sp.maxStops
@@ -485,13 +463,13 @@ function swapOriginDest() {
         ...res,
       }));
 
-      setAiResults(withIds);
+      setResults(withIds);
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
       setSubPanelOpen(false);
       setComparedIds([]);
-      setAiError(null);
+      setError(null);
 
       if (origin) setOriginCode(origin);
       if (destination) setDestCode(destination);
@@ -524,8 +502,8 @@ function swapOriginDest() {
       if (body.currency) setCurrency(body.currency);
       setMaxStops(body.maxStops as 0 | 1 | 2);
     } catch (err: any) {
-      console.error("handleAiSearchComplete activeError", err);
-      setAiError(err?.message || "AI search failed");
+      console.error("handleAiSearchComplete error", err);
+      setError(err?.message || "AI search failed");
     }
   }
 
@@ -559,8 +537,9 @@ function swapOriginDest() {
         minHotelStar: includeHotel ? minHotelStar : undefined,
         minBudget:
           includeHotel && minBudget ? Number(minBudget) : undefined,
-        maxBudget: undefined,
-        currency: undefined,
+        maxBudget:
+          includeHotel && maxBudget ? Number(maxBudget) : undefined,
+        currency,
         maxStops,
       };
 
@@ -579,7 +558,7 @@ function swapOriginDest() {
         ...payload,
         ...res,
       }));
-      setManualResults(withIds);
+      setResults(withIds);
 
       setShowControls(true);
       setListTab("all");
@@ -587,14 +566,14 @@ function swapOriginDest() {
       setSubPanelOpen(false);
       setComparedIds([]);
     } catch (e: any) {
-      setManualError(e?.message || "Search failed");
+      setError(e?.message || "Search failed");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!aiResults || aiResults.length === 0) {
+    if (!results || results.length === 0) {
       setAiTop3(null);
       return;
     }
@@ -604,7 +583,7 @@ function swapOriginDest() {
         const res = await fetch("/api/ai/top3", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ activeResults: aiResults }),
+          body: JSON.stringify({ results }),
         });
         const data = await res.json();
         if (data.ok) setAiTop3(data.top3 || null);
@@ -615,11 +594,11 @@ function swapOriginDest() {
       }
     }
     go();
-  }, [aiResults]);
+  }, [results]);
 
   const sortedResults = useMemo(() => {
-    if (!activeResults) return null;
-    const items = [...activeResults];
+    if (!results) return null;
+    const items = [...results];
 
     const flightPrice = (p: any) =>
       num(p.flight_total) ??
@@ -662,7 +641,7 @@ function swapOriginDest() {
     }
 
     return items;
-  }, [activeResults, sort, sortBasis]);
+  }, [results, sort, sortBasis]);
 
   const top3 = useMemo(
     () => (sortedResults ? sortedResults.slice(0, 3) : null),
@@ -707,8 +686,8 @@ function swapOriginDest() {
       return fromDisplay;
     }
 
-    if (activeResults && activeResults.length > 0) {
-      const p = activeResults[0] || {};
+    if (results && results.length > 0) {
+      const p = results[0] || {};
       let rawCity: string | undefined =
         p.destinationCity ||
         p.city ||
@@ -733,7 +712,7 @@ function swapOriginDest() {
   }
 
   const ResultsArea: React.FC = () => {
-    if (!showControls && !activeResults && !activeError) return null;
+    if (!showControls && !results && !error) return null;
 
     const exploreCity = getExploreCity();
 
@@ -876,7 +855,7 @@ function swapOriginDest() {
           </div>
         )}
 
-        {activeError && (
+        {error && (
           <div
             style={{
               background: "#fef2f2",
@@ -888,11 +867,11 @@ function swapOriginDest() {
               fontSize: 18,
             }}
           >
-            ⚠ {activeError}
+            ⚠ {error}
           </div>
         )}
 
-        {aiTop3 && activeResults && activeResults.length > 0 && (
+        {aiTop3 && results && results.length > 0 && (
           <div
             style={{
               background: "#0f172a",
@@ -945,7 +924,7 @@ function swapOriginDest() {
               {["best_overall", "best_budget", "best_comfort"].map((key) => {
                 const info = (aiTop3 as any)[key];
                 if (!info?.id) return null;
-                const pkg = activeResults.find(
+                const pkg = results.find(
                   (r) => String(r.id) === String(info.id)
                 );
                 if (!pkg) return null;
@@ -1094,13 +1073,14 @@ function swapOriginDest() {
               marginTop: 4,
             }}
           >
-            You can switch tabs anytime — activeResults stay separate for AI and
+            You can switch tabs anytime — results stay separate for AI and
             Manual modes.
           </div>
         </div>
       )}
 
-      {mode === "ai" && (
+      <div style={{ display: mode === "ai" ? "block" : "none" }}>
+
         <>
           <div className="ai-trip-wrapper">
             <AiTripPlanner key={aiResetKey} onSearchComplete={handleAiSearchComplete} />
@@ -1128,18 +1108,18 @@ function swapOriginDest() {
                   cursor: "pointer",
                 }}
               >
-                Reset AI trip activeResults
+                Reset AI trip results
               </button>
             </div>
           </div>
 
-          {activeResults && activeResults.length > 0 && (
+          {results && results.length > 0 && (
             <div style={{ marginTop: 16 }}>
               {(() => {
                 let cityGuess = aiDestinationCity;
 
                 if (!cityGuess) {
-                  const p = activeResults[0] || {};
+                  const p = results[0] || {};
                   let raw =
                     p.destinationCity ||
                     p.city ||
@@ -1151,7 +1131,6 @@ function swapOriginDest() {
                 }
 
                 const images = getHeroImages(cityGuess);
-                const heroFallbacks = images.map((im) => im.url);
                 const safeIndex =
                   images.length > 0 ? heroImageIndex % images.length : 0;
                 const current = images[safeIndex] || images[0];
@@ -1176,19 +1155,6 @@ function swapOriginDest() {
                       src={current.url}
                       alt={current.alt}
                       className="hero-image"
-                      data-fallbacks={heroFallbacks.join("||")}
-                      data-fbidx="0"
-                      onError={(e) => {
-                        const el = e.currentTarget as HTMLImageElement;
-                        const list = (el.getAttribute("data-fallbacks") || "").split("||").filter(Boolean);
-                        const idx = Number(el.getAttribute("data-fbidx") || "0");
-                        const next = idx + 1;
-                        if (next < list.length) {
-                          el.setAttribute("data-fbidx", String(next));
-                          el.src = list[next];
-                        }
-                      }}
-
                       style={{
                         width: "100%",
                         maxHeight: 260,
@@ -1278,11 +1244,15 @@ function swapOriginDest() {
             </div>
           )}
 
+          <ResultsArea />
           {/* ✅ Pass currency prop so TypeScript is satisfied */}
+          <AiDestinationCompare currency={currency} />
         </>
-      )}
+      
+</div>
 
-      {mode === "manual" && (
+      <div style={{ display: mode === "manual" ? "block" : "none" }}>
+
         <>
           <div
             style={{
@@ -1364,7 +1334,7 @@ function swapOriginDest() {
                 <input
                   type="date"
                   value={departDate}
-                  min={departDate || todayLocal}
+                  min={todayLocal}
                   onChange={(e) => setDepartDate(e.target.value)}
                   style={{
                     width: "100%",
@@ -1401,7 +1371,7 @@ function swapOriginDest() {
                 <input
                   type="date"
                   value={returnDate}
-                  min={departDate || todayLocal}
+                  min={todayLocal}
                   disabled={!roundTrip}
                   onChange={(e) => setReturnDate(e.target.value)}
                   style={{
@@ -1421,7 +1391,7 @@ function swapOriginDest() {
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: mode === "manual" ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+                gridTemplateColumns: "repeat(4, 1fr)",
                 gap: 12,
               }}
             >
@@ -1506,7 +1476,7 @@ function swapOriginDest() {
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: mode === "manual" ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+                gridTemplateColumns: "repeat(4, 1fr)",
                 gap: 12,
                 alignItems: "end",
               }}
@@ -1521,11 +1491,10 @@ function swapOriginDest() {
                   <span style={{ fontWeight: 800 }}>Include hotel</span>
                 </label>
                 <div style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>
-                  If enabled, activeResults include flight + hotel bundle pricing.
+                  If enabled, results include flight + hotel bundle pricing.
                 </div>
               </div>
 
-              {mode !== "manual" && (
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Min budget</div>
                 <input
@@ -1544,9 +1513,7 @@ function swapOriginDest() {
                   }}
                 />
               </div>
-              )}
 
-              {mode !== "manual" && (
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Max budget</div>
                 <input
@@ -1640,11 +1607,10 @@ function swapOriginDest() {
               style={{
                 marginTop: 12,
                 display: "grid",
-                gridTemplateColumns: mode === "manual" ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+                gridTemplateColumns: "repeat(4, 1fr)",
                 gap: 12,
               }}
             >
-              {mode !== "manual" && (
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Currency</div>
                 <select
@@ -1668,9 +1634,7 @@ function swapOriginDest() {
                   <option value="AUD">AUD</option>
                 </select>
               </div>
-              )}
 
-              {mode !== "manual" && (
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
                 <select
@@ -1692,7 +1656,6 @@ function swapOriginDest() {
                   <option value="flexible">Flexible</option>
                 </select>
               </div>
-              )}
 
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
@@ -1776,7 +1739,7 @@ function swapOriginDest() {
               </button>
             </div>
 
-            {activeError && (
+            {error && (
               <div
                 style={{
                   marginTop: 12,
@@ -1788,22 +1751,13 @@ function swapOriginDest() {
                   fontWeight: 700,
                 }}
               >
-                {activeError}
+                {error}
               </div>
             )}
           </div>
         </>
-      )}
-
-
-      <ResultsArea />
-
-      {mode === "ai" && (
-        <div style={{ marginTop: 18 }}>
-          <AiDestinationCompare currency={currency} />
-        </div>
-      )}
-
+      
+</div>
 
       <style jsx global>{`
         html,
