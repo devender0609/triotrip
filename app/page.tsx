@@ -258,19 +258,17 @@ export default function Page() {
   }, []);
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
-  // API expects includeFlight/includeHotel flags. Flights are always included.
+  // Manual search always includes flights. Hotels are included only for "bundle" basis.
   const includeFlight = true;
-  const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
   const [minHotelStar, setMinHotelStar] = useState(0);
-  const [minBudget, setMinBudget] = useState<string>("");
-  const [maxBudget, setMaxBudget] = useState<string>("");
 
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">(
     "flightOnly"
   );
+  const includeHotel = sortBasis === "bundle";
   const [listTab, setListTab] = useState<ListTab>("all");
 
   const [subTab, setSubTab] = useState<SubTab>("explore");
@@ -311,10 +309,6 @@ export default function Page() {
 
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
-
-  useEffect(() => {
-    if (!includeHotel) setSortBasis("flightOnly");
-  }, [includeHotel]);
 
   useEffect(() => {
     if (!roundTrip) setReturnDate("");
@@ -452,8 +446,6 @@ export default function Page() {
         hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
         hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
-        minBudget: typeof sp.minBudget === "number" ? sp.minBudget : undefined,
-        maxBudget: typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
         currency: sp.currency || currency,
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
@@ -506,23 +498,15 @@ export default function Page() {
       setInfants(passengersInfants);
       setChildAges(passengersChildrenAges);
       setCabin(body.cabin as any);
-      setIncludeHotel(includeHotel);
-      if (includeHotel) {
+      // Hotels are controlled by the "Basis" dropdown (bundle vs flight-only).
+      if (body.includeHotel) {
         if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
         if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
         setMinHotelStar(body.minHotelStar || 0);
-        setMinBudget(
-          typeof body.minBudget === "number" ? String(body.minBudget) : ""
-        );
-        setMaxBudget(
-          typeof body.maxBudget === "number" ? String(body.maxBudget) : ""
-        );
       } else {
         setHotelCheckIn("");
         setHotelCheckOut("");
         setMinHotelStar(0);
-        setMinBudget("");
-        setMaxBudget("");
       }
       if (body.currency) setCurrency(body.currency);
       setMaxStops(body.maxStops as 0 | 1 | 2);
@@ -1499,21 +1483,7 @@ export default function Page() {
                 alignItems: "end",
               }}
             >
-              <div style={{ gridColumn: "span 2" }}>
-                <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <input
-                    type="checkbox"
-                    checked={includeHotel}
-                    onChange={(e) => setIncludeHotel(e.target.checked)}
-                  />
-                  <span style={{ fontWeight: 800 }}>Include hotel</span>
-                </label>
-                <div style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>
-                  If enabled, results include flight + hotel bundle pricing.
-                </div>
-              </div>
-
-              {/* Budget controls removed per request */}
+              {/* Hotels are controlled by the "Basis" dropdown below (Flight only vs Flight + Hotel). */}
             </div>
 
             {includeHotel && (
