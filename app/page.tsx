@@ -380,7 +380,7 @@ export default function Page() {
     if (which === "ai" || which === "all") {
       setResultsAI(null);
       setHotelsAI(null);
-      setAiItinerary(null);
+      setItineraryAI("");
     }
     if (which === "manual" || which === "all") {
       setResultsManual(null);
