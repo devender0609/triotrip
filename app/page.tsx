@@ -1812,9 +1812,15 @@ export default function Page() {
                 flexWrap: "wrap",
               }}
             >
+              {/* Manual: user chooses what to search. Default OFF so it doesn't look pre-selected. */}
               <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <input
                   type="checkbox"
+                  checked={includeHotel}
+                  onChange={(e) => setIncludeHotel(e.target.checked)}
+                />
+                <span style={{ fontWeight: 700 }}>Include hotels</span>
+              </label>
 
               <button
                 type="button"
