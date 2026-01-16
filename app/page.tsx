@@ -169,6 +169,7 @@ function getHeroImages(city: string): HeroImage[] {
     ];
   }
 
+  // Neutral city skyline fallback (no cars)
   return [
     {
       url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80",
@@ -257,64 +258,37 @@ export default function Page() {
   }, []);
 
   const [maxStops, setMaxStops] = useState<0 | 1 | 2>(2);
-  // Manual search always includes flights. Hotels are included only for "bundle" basis.
-  const includeFlight = true;
+  const [includeHotel, setIncludeHotel] = useState(false);
   const [hotelCheckIn, setHotelCheckIn] = useState("");
   const [hotelCheckOut, setHotelCheckOut] = useState("");
   const [minHotelStar, setMinHotelStar] = useState(0);
+  const [minBudget, setMinBudget] = useState<string>("");
+  const [maxBudget, setMaxBudget] = useState<string>("");
 
   const [sort, setSort] = useState<SortKey>("best");
   const [sortBasis, setSortBasis] = useState<"flightOnly" | "bundle">(
     "flightOnly"
   );
-  const includeHotel = sortBasis === "bundle";
   const [listTab, setListTab] = useState<ListTab>("all");
 
   const [subTab, setSubTab] = useState<SubTab>("explore");
   const [subPanelOpen, setSubPanelOpen] = useState(false);
 
-  // Manual/AI search runtime state (kept in one place; do not duplicate these)
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(false);
 
-  // Preserve results per-mode so switching tabs doesn't wipe the UI.
-  const savedAiRef = useRef<{
-    results: any[] | null;
-    error: string | null;
-    showControls: boolean;
-  }>({
-    results: null,
-    error: null,
-    showControls: false,
-  });
-  const savedManualRef = useRef<{
-    results: any[] | null;
-    error: string | null;
-    showControls: boolean;
-  }>({
-    results: null,
-    error: null,
-    showControls: false,
-  });
-
-  useEffect(() => {
-    const ref = mode === "ai" ? savedAiRef : savedManualRef;
-    setResults(ref.current.results);
-    setError(ref.current.error);
-    setShowControls(ref.current.showControls);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
-
-  useEffect(() => {
-    const ref = mode === "ai" ? savedAiRef : savedManualRef;
-    ref.current = { results, error, showControls };
-  }, [mode, results, error, showControls]);
-
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
+
+  // AI planner output (separate from flight/hotel result cards)
+  const [aiPlanning, setAiPlanning] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!includeHotel) setSortBasis("flightOnly");
+  }, [includeHotel]);
 
   useEffect(() => {
     if (!roundTrip) setReturnDate("");
@@ -336,14 +310,7 @@ export default function Page() {
     if (roundTrip && returnDate && hotelCheckOut && hotelCheckOut > returnDate) {
       setHotelCheckOut(returnDate);
     }
-  }, [
-    includeHotel,
-    departDate,
-    returnDate,
-    hotelCheckIn,
-    hotelCheckOut,
-    roundTrip,
-  ]);
+  }, [includeHotel, departDate, returnDate, hotelCheckIn, hotelCheckOut, roundTrip]);
 
   useEffect(() => {
     setChildAges((prev) => {
@@ -368,6 +335,10 @@ export default function Page() {
     setListTab("all");
   }
 
+  useEffect(() => {
+    clearResults();
+  }, [mode]);
+
   function swapOriginDest() {
     setOriginCode((oc) => {
       const dc = destCode;
@@ -381,6 +352,7 @@ export default function Page() {
     });
   }
 
+  // normalize IATA codes to city names
   function normalizeCityFromCode(codeOrName: string | undefined): string {
     if (!codeOrName) return "";
     let s = String(codeOrName).trim();
@@ -411,6 +383,7 @@ export default function Page() {
       }
     }
 
+    // Strip airport suffixes like ", MA" or "(BOS)"
     s = s.replace(/\(.*?\)/, "").trim();
     if (s.includes(",")) s = s.split(",")[0].trim();
     return s;
@@ -423,6 +396,8 @@ export default function Page() {
   }) {
     try {
       clearResults();
+      // Store itinerary / plan separately so it doesn't depend on card rendering.
+      setAiPlanning(payload?.planning || null);
       const sp = payload?.searchParams || {};
 
       const origin = sp.origin;
@@ -455,6 +430,8 @@ export default function Page() {
         hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
         hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
+        minBudget: typeof sp.minBudget === "number" ? sp.minBudget : undefined,
+        maxBudget: typeof sp.maxBudget === "number" ? sp.maxBudget : undefined,
         currency: sp.currency || currency,
         maxStops:
           sp.maxStops === 0 || sp.maxStops === 1 || sp.maxStops === 2
@@ -462,6 +439,7 @@ export default function Page() {
             : 2,
       };
 
+      // NEW: capture destination city for hero image
       const rawCity =
         sp.destinationDisplay ||
         sp.destinationCity ||
@@ -506,14 +484,25 @@ export default function Page() {
       setInfants(passengersInfants);
       setChildAges(passengersChildrenAges);
       setCabin(body.cabin as any);
-      if (body.includeHotel) {
+      setIncludeHotel(includeHotel);
+      // Keep the basis in sync so hotel pricing/details show up when included.
+      setSortBasis(includeHotel ? "bundle" : "flightOnly");
+      if (includeHotel) {
         if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
         if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
         setMinHotelStar(body.minHotelStar || 0);
+        setMinBudget(
+          typeof body.minBudget === "number" ? String(body.minBudget) : ""
+        );
+        setMaxBudget(
+          typeof body.maxBudget === "number" ? String(body.maxBudget) : ""
+        );
       } else {
         setHotelCheckIn("");
         setHotelCheckOut("");
         setMinHotelStar(0);
+        setMinBudget("");
+        setMaxBudget("");
       }
       if (body.currency) setCurrency(body.currency);
       setMaxStops(body.maxStops as 0 | 1 | 2);
@@ -547,11 +536,15 @@ export default function Page() {
         passengersChildrenAges: childAges,
         passengersInfants: infants,
         cabin,
-        includeFlight,
         includeHotel,
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
+        minBudget:
+          includeHotel && minBudget ? Number(minBudget) : undefined,
+        maxBudget:
+          includeHotel && maxBudget ? Number(maxBudget) : undefined,
+        currency,
         maxStops,
       };
 
@@ -644,10 +637,12 @@ export default function Page() {
       items.sort(
         (a, b) =>
           (a.flight?.refundable ? 0 : 1) - (b.flight?.refundable ? 0 : 1) ||
-          basis(a)! - basis(b)!
+          basis(a)! - basis(b)!,
       );
     } else {
-      items.sort((a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!);
+      items.sort(
+        (a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!,
+      );
     }
 
     return items;
@@ -664,6 +659,23 @@ export default function Page() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   }
+
+  const sLabel: React.CSSProperties = {
+    fontWeight: 600,
+    color: "#334155",
+    display: "block",
+    marginBottom: 6,
+    fontSize: 18,
+  };
+  const sInput: React.CSSProperties = {
+    height: 48,
+    padding: "0 14px",
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    width: "100%",
+    background: "#fff",
+    fontSize: 18,
+  };
 
   function clickSubTab(tab: SubTab) {
     if (tab === subTab) setSubPanelOpen((v) => !v);
@@ -708,6 +720,23 @@ export default function Page() {
     if (!showControls && !results && !error) return null;
 
     const exploreCity = getExploreCity();
+
+    // If the API returns hotel/bundle fields, show them even when the current
+    // UI basis is "flight only" (prevents "hotels missing" when switching tabs).
+    const itemHasHotel = (pkg: any) =>
+      Boolean(
+        pkg?.hotel ||
+          (Array.isArray(pkg?.hotels) && pkg.hotels.length > 0) ||
+          pkg?.hotel_total ||
+          pkg?.hotelTotal ||
+          pkg?.hotelPrice ||
+          pkg?.hotelTotalUsd ||
+          pkg?.bundle_price ||
+          pkg?.bundlePrice ||
+          pkg?.packagePrice ||
+          pkg?.hotel_nights ||
+          pkg?.hotelNights
+      );
 
     return (
       <>
@@ -790,37 +819,31 @@ export default function Page() {
               marginTop: 10,
             }}
           >
-            {/* ✅ Sort buttons are shown only in AI mode (user requested no Sort in Manual). */}
-            {mode === "ai" && (
-              <>
-                <button
-                  className={`chip ${sort === "best" ? "on" : ""}`}
-                  onClick={() => setSort("best")}
-                >
-                  Best
-                </button>
-                <button
-                  className={`chip ${sort === "cheapest" ? "on" : ""}`}
-                  onClick={() => setSort("cheapest")}
-                >
-                  Cheapest
-                </button>
-                <button
-                  className={`chip ${sort === "fastest" ? "on" : ""}`}
-                  onClick={() => setSort("fastest")}
-                >
-                  Fastest
-                </button>
-                <button
-                  className={`chip ${sort === "flexible" ? "on" : ""}`}
-                  onClick={() => setSort("flexible")}
-                >
-                  Flexible
-                </button>
-                <span style={{ marginLeft: 8 }} />
-              </>
-            )}
-
+            <button
+              className={`chip ${sort === "best" ? "on" : ""}`}
+              onClick={() => setSort("best")}
+            >
+              Best
+            </button>
+            <button
+              className={`chip ${sort === "cheapest" ? "on" : ""}`}
+              onClick={() => setSort("cheapest")}
+            >
+              Cheapest
+            </button>
+            <button
+              className={`chip ${sort === "fastest" ? "on" : ""}`}
+              onClick={() => setSort("fastest")}
+            >
+              Fastest
+            </button>
+            <button
+              className={`chip ${sort === "flexible" ? "on" : ""}`}
+              onClick={() => setSort("flexible")}
+            >
+              Flexible
+            </button>
+            <span style={{ marginLeft: 8 }} />
             <button
               className={`chip ${listTab === "top3" ? "on" : ""}`}
               onClick={() => setListTab("top3")}
@@ -836,7 +859,6 @@ export default function Page() {
             <button className="chip" onClick={() => window.print()}>
               Print
             </button>
-
             <style jsx>{`
               .chip {
                 padding: 8px 14px;
@@ -871,7 +893,7 @@ export default function Page() {
           </div>
         )}
 
-        {aiTop3 && results && results.length > 0 && mode === "ai" && (
+        {aiTop3 && results && results.length > 0 && (
           <div
             style={{
               background: "#0f172a",
@@ -899,13 +921,28 @@ export default function Page() {
               )}
             </div>
 
-            <div style={{ fontSize: 18, opacity: 0.9, marginTop: 2 }}>
-              Shortcuts from your live <strong>flight + hotel bundles</strong>:
-              <strong> best overall</strong>, <strong>best budget</strong>,
-              <strong> best comfort</strong>.
+            <div
+              style={{
+                fontSize: 18,
+                opacity: 0.9,
+                marginTop: 2,
+              }}
+            >
+              Shortcuts from your live{" "}
+              <strong>flight + hotel bundles</strong>:{" "}
+              <strong>best overall</strong>, <strong>best budget</strong>,{" "}
+              <strong>best comfort</strong>. Scroll down to see their full
+              cards and all other options.
             </div>
 
-            <ul style={{ margin: 4, marginLeft: 20, paddingLeft: 0, fontSize: 17 }}>
+            <ul
+              style={{
+                margin: 4,
+                marginLeft: 20,
+                paddingLeft: 0,
+                fontSize: 17,
+              }}
+            >
               {["best_overall", "best_budget", "best_comfort"].map((key) => {
                 const info = (aiTop3 as any)[key];
                 if (!info?.id) return null;
@@ -922,12 +959,16 @@ export default function Page() {
                     : "Best for comfort";
 
                 const destText =
-                  pkg.destination || pkg.destinationName || getExploreCity();
+                  pkg.destination ||
+                  pkg.destinationName ||
+                  getExploreCity();
 
                 return (
                   <li key={key}>
                     <strong>{title}:</strong>{" "}
-                    <span>{destText} – {info.reason || "chosen by AI"}</span>
+                    <span>
+                      {destText} – {info.reason || "chosen by AI"}
+                    </span>
                   </li>
                 );
               })}
@@ -944,7 +985,7 @@ export default function Page() {
                 index={i}
                 currency={currency}
                 pax={totalPax}
-                showHotel={includeHotel}
+                showHotel={includeHotel || itemHasHotel(pkg)}
                 hotelNights={
                   includeHotel ? nightsBetween(hotelCheckIn, hotelCheckOut) : 0
                 }
@@ -975,7 +1016,14 @@ export default function Page() {
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 16 }}>
-      <div style={{ display: "flex", gap: 8, marginBottom: 4, alignItems: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 4,
+          alignItems: "center",
+        }}
+      >
         <button
           type="button"
           onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
@@ -1040,8 +1088,15 @@ export default function Page() {
             top picks, or <strong>Manual Search</strong> to fine-tune every
             detail yourself.
           </div>
-          <div style={{ fontSize: 17, opacity: 0.8, marginTop: 4 }}>
-            You can switch tabs anytime — results stay separate for AI and Manual modes.
+          <div
+            style={{
+              fontSize: 17,
+              opacity: 0.8,
+              marginTop: 4,
+            }}
+          >
+            You can switch tabs anytime — results stay separate for AI and
+            Manual modes.
           </div>
         </div>
       )}
@@ -1051,7 +1106,12 @@ export default function Page() {
           <div className="ai-trip-wrapper">
             <AiTripPlanner key={aiResetKey} onSearchComplete={handleAiSearchComplete} />
 
-            <div style={{ marginTop: 10, textAlign: "right" }}>
+            <div
+              style={{
+                marginTop: 10,
+                textAlign: "right",
+              }}
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -1074,6 +1134,90 @@ export default function Page() {
             </div>
           </div>
 
+          {aiPlanning && (
+            <div
+              style={{
+                marginTop: 16,
+                border: "1px solid #e2e8f0",
+                borderRadius: 18,
+                background: "#ffffff",
+                padding: 14,
+              }}
+            >
+              <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 10 }}>
+                Itinerary
+              </div>
+              {(() => {
+                const it =
+                  aiPlanning?.itinerary ??
+                  aiPlanning?.plan ??
+                  aiPlanning?.itineraryText ??
+                  aiPlanning?.days ??
+                  null;
+
+                // If the planner didn't send a structured itinerary, don't render noise.
+                if (!it) {
+                  return (
+                    <div style={{ color: "#334155", lineHeight: 1.45 }}>
+                      No itinerary was returned for this search.
+                    </div>
+                  );
+                }
+
+                if (typeof it === "string") {
+                  return (
+                    <div style={{ whiteSpace: "pre-wrap", color: "#0f172a", lineHeight: 1.55 }}>
+                      {it}
+                    </div>
+                  );
+                }
+
+                if (Array.isArray(it)) {
+                  return (
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {it.map((d: any, idx: number) => (
+                        <div
+                          key={idx}
+                          style={{
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 14,
+                            padding: 12,
+                            background: "#f8fafc",
+                          }}
+                        >
+                          <div style={{ fontWeight: 900, marginBottom: 6 }}>
+                            {d?.day ? `Day ${d.day}` : `Day ${idx + 1}`}
+                          </div>
+                          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                            {typeof d === "string" ? d : d?.summary || d?.activities || JSON.stringify(d, null, 2)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+
+                // Object fallback
+                return (
+                  <pre
+                    style={{
+                      margin: 0,
+                      whiteSpace: "pre-wrap",
+                      background: "#0b1220",
+                      color: "#e5e7eb",
+                      padding: 12,
+                      borderRadius: 14,
+                      overflowX: "auto",
+                      fontSize: 12,
+                    }}
+                  >
+                    {JSON.stringify(it, null, 2)}
+                  </pre>
+                );
+              })()}
+            </div>
+          )}
+
           {results && results.length > 0 && (
             <div style={{ marginTop: 16 }}>
               {(() => {
@@ -1092,7 +1236,8 @@ export default function Page() {
                 }
 
                 const images = getHeroImages(cityGuess);
-                const safeIndex = images.length > 0 ? heroImageIndex % images.length : 0;
+                const safeIndex =
+                  images.length > 0 ? heroImageIndex % images.length : 0;
                 const current = images[safeIndex] || images[0];
                 const { country, flag } = cityToCountry(cityGuess);
                 const guideUrl = cityGuideUrl(cityGuess);
@@ -1205,6 +1350,7 @@ export default function Page() {
           )}
 
           <ResultsArea />
+          {/* ✅ Pass currency prop so TypeScript is satisfied */}
           <AiDestinationCompare currency={currency} />
         </>
       )}
@@ -1276,9 +1422,18 @@ export default function Page() {
               />
             </div>
 
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div
+              style={{
+                marginTop: 12,
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+              }}
+            >
               <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Departure date</div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                  Departure date
+                </div>
                 <input
                   type="date"
                   value={departDate}
@@ -1296,7 +1451,15 @@ export default function Page() {
               </div>
 
               <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    marginBottom: 6,
+                  }}
+                >
                   <div style={{ fontWeight: 700 }}>Return date</div>
                   <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input
@@ -1327,7 +1490,14 @@ export default function Page() {
               </div>
             </div>
 
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            <div
+              style={{
+                marginTop: 12,
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 12,
+              }}
+            >
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Adults</div>
                 <input
@@ -1405,8 +1575,77 @@ export default function Page() {
               </div>
             </div>
 
+            <div
+              style={{
+                marginTop: 12,
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 12,
+                alignItems: "end",
+              }}
+            >
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={includeHotel}
+                    onChange={(e) => setIncludeHotel(e.target.checked)}
+                  />
+                  <span style={{ fontWeight: 800 }}>Include hotel</span>
+                </label>
+                <div style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>
+                  If enabled, results include flight + hotel bundle pricing.
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Min budget</div>
+                <input
+                  type="number"
+                  min={0}
+                  value={minBudget}
+                  onChange={(e) => setMinBudget(e.target.value)}
+                  placeholder="e.g., 500"
+                  style={{
+                    width: "100%",
+                    height: 54,
+                    borderRadius: 14,
+                    border: "1px solid #e2e8f0",
+                    padding: "0 14px",
+                    fontSize: 18,
+                  }}
+                />
+              </div>
+
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Max budget</div>
+                <input
+                  type="number"
+                  min={0}
+                  value={maxBudget}
+                  onChange={(e) => setMaxBudget(e.target.value)}
+                  placeholder="e.g., 2500"
+                  style={{
+                    width: "100%",
+                    height: 54,
+                    borderRadius: 14,
+                    border: "1px solid #e2e8f0",
+                    padding: "0 14px",
+                    fontSize: 18,
+                  }}
+                />
+              </div>
+            </div>
+
             {includeHotel && (
-              <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: 12,
+                }}
+              >
                 <div>
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>Hotel check-in</div>
                   <input
@@ -1425,7 +1664,9 @@ export default function Page() {
                   />
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Hotel check-out</div>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                    Hotel check-out
+                  </div>
                   <input
                     type="date"
                     value={hotelCheckOut}
@@ -1465,7 +1706,60 @@ export default function Page() {
               </div>
             )}
 
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            <div
+              style={{
+                marginTop: 12,
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 12,
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Currency</div>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: 54,
+                    borderRadius: 14,
+                    border: "1px solid #e2e8f0",
+                    padding: "0 14px",
+                    fontSize: 18,
+                    background: "#fff",
+                  }}
+                >
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                  <option value="CAD">CAD</option>
+                  <option value="INR">INR</option>
+                  <option value="AUD">AUD</option>
+                </select>
+              </div>
+
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as SortKey)}
+                  style={{
+                    width: "100%",
+                    height: 54,
+                    borderRadius: 14,
+                    border: "1px solid #e2e8f0",
+                    padding: "0 14px",
+                    fontSize: 18,
+                    background: "#fff",
+                  }}
+                >
+                  <option value="best">Best</option>
+                  <option value="cheapest">Cheapest</option>
+                  <option value="fastest">Fastest</option>
+                  <option value="flexible">Flexible</option>
+                </select>
+              </div>
+
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
                 <select
@@ -1508,7 +1802,25 @@ export default function Page() {
               </div>
             </div>
 
-            <div style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div
+              style={{
+                marginTop: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={refundable}
+                  onChange={(e) => setRefundable(e.target.checked)}
+                />
+                <span style={{ fontWeight: 800 }}>Refundable</span>
+              </label>
+
               <button
                 type="button"
                 onClick={runSearch}
@@ -1546,17 +1858,14 @@ export default function Page() {
               </div>
             )}
           </div>
-
-          {/* ✅ FIX: Manual mode was not rendering ResultsArea, so it looked like "no results". */}
-          <ResultsArea />
         </>
       )}
 
       <style jsx global>{`
         html,
         body {
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-            sans-serif;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont,
+            "Segoe UI", sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           font-size: 20px;
@@ -1570,6 +1879,7 @@ export default function Page() {
           font-family: inherit;
         }
 
+        /* FORCE larger, clearer fonts in AI planner area */
         .ai-trip-wrapper,
         .ai-trip-wrapper * {
           font-size: 18px !important;
