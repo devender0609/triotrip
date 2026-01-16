@@ -219,8 +219,52 @@ function cityToCountry(city: string): { country: string; flag: string } {
   return { country: "Destination", flag: "🌍" };
 }
 
+
+function currencySymbol(code: string) {
+  const c = String(code || "").toUpperCase().trim();
+  switch (c) {
+    case "USD":
+    case "CAD":
+    case "AUD":
+    case "NZD":
+    case "SGD":
+    case "HKD":
+      return "$";
+    case "EUR":
+      return "€";
+    case "GBP":
+      return "£";
+    case "INR":
+      return "₹";
+    case "JPY":
+    case "CNY":
+      return "¥";
+    case "KRW":
+      return "₩";
+    case "CHF":
+      return "CHF ";
+    case "SEK":
+    case "NOK":
+    case "DKK":
+      return "kr ";
+    case "AED":
+      return "د.إ ";
+    case "SAR":
+      return "﷼ ";
+    case "ZAR":
+      return "R ";
+    case "BRL":
+      return "R$ ";
+    case "MXN":
+      return "$";
+    default:
+      return c ? `${c} ` : "";
+  }
+}
+
+
 export default function Page() {
-  const [mode, setMode] = useState<"ai" | "manual" | "none">("manual");
+  const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
   const [aiResetKey, setAiResetKey] = useState(0);
   const [heroImageIndex, setHeroImageIndex] = useState(0);
 
@@ -336,7 +380,7 @@ export default function Page() {
     if (which === "ai" || which === "all") {
       setResultsAI(null);
       setHotelsAI(null);
-      setItineraryAI("");
+      setAiItinerary(null);
     }
     if (which === "manual" || which === "all") {
       setResultsManual(null);
@@ -481,14 +525,7 @@ export default function Page() {
       setResultsAI(withIds);
       const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
       setHotelsAI(hotelsArr);
-      const itin =
-  payload?.planning?.itinerary ??
-  payload?.planning?.itineraryText ??
-  payload?.planning?.plan ??
-  payload?.planning?.text ??
-  "";
-
-setItineraryAI(typeof itin === "string" ? itin : "");
+      setItineraryAI(typeof itin === "string" ? itin : "");
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
@@ -707,7 +744,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
   const sInput: React.CSSProperties = {
     height: 48,
     padding: "0 14px",
-    border: "1px solid #94a3b8",
+    border: "1px solid #e2e8f0",
     borderRadius: 12,
     width: "100%",
     background: "#fff",
@@ -1097,15 +1134,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
   };
 
   return (
-    <div
-      style={{
-        padding: 12,
-        display: "grid",
-        gap: 16,
-        background: "#f8fafc",
-        minHeight: "calc(100vh - 72px)",
-      }}
-    >
+    <div style={{ padding: 12, display: "grid", gap: 16 }}>
       <div
         style={{
           display: "flex",
@@ -1121,7 +1150,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
             flex: 1,
             padding: 14,
             borderRadius: 999,
-            border: "1px solid #94a3b8",
+            border: "1px solid #e2e8f0",
             background:
               mode === "ai"
                 ? "linear-gradient(135deg,#38bdf8,#6366f1,#ec4899)"
@@ -1141,7 +1170,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
             flex: 1,
             padding: 14,
             borderRadius: 999,
-            border: "1px solid #94a3b8",
+            border: "1px solid #e2e8f0",
             background: mode === "manual" ? "#0f172a" : "#ffffff",
             color: mode === "manual" ? "#ffffff" : "#0f172a",
             fontWeight: 700,
@@ -1212,7 +1241,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                 style={{
                   padding: "8px 16px",
                   borderRadius: 12,
-                  border: "1px solid #94a3b8",
+                  border: "1px solid #e2e8f0",
                   background: "#ffffff",
                   fontWeight: 700,
                   fontSize: 18,
@@ -1369,7 +1398,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
               padding: 16,
               borderRadius: 18,
               background: "#ffffff",
-              border: "1px solid #94a3b8",
+              border: "1px solid #e2e8f0",
               boxShadow: "0 10px 26px rgba(2,6,23,0.08)",
             }}
           >
@@ -1405,7 +1434,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                 style={{
                   height: 54,
                   borderRadius: 14,
-                  border: "1px solid #94a3b8",
+                  border: "1px solid #e2e8f0",
                   background: "#f8fafc",
                   cursor: "pointer",
                   fontSize: 22,
@@ -1449,7 +1478,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                     width: "100%",
                     height: 54,
                     borderRadius: 14,
-                    border: "1px solid #94a3b8",
+                    border: "1px solid #e2e8f0",
                     padding: "0 14px",
                     fontSize: 18,
                   }}
@@ -1486,7 +1515,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                     width: "100%",
                     height: 54,
                     borderRadius: 14,
-                    border: "1px solid #94a3b8",
+                    border: "1px solid #e2e8f0",
                     padding: "0 14px",
                     fontSize: 18,
                     background: roundTrip ? "#ffffff" : "#f1f5f9",
@@ -1511,7 +1540,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                   min={1}
                   value={adults}
                   onChange={(e) => setAdults(Math.max(1, Number(e.target.value) || 1))}
-                  style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 12px", fontSize: 18 }}
+                  style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 12px", fontSize: 18 }}
                 />
               </div>
               <div>
@@ -1521,7 +1550,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                   min={0}
                   value={children}
                   onChange={(e) => setChildren(Math.max(0, Number(e.target.value) || 0))}
-                  style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 12px", fontSize: 18 }}
+                  style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 12px", fontSize: 18 }}
                 />
               </div>
               <div>
@@ -1531,7 +1560,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                   min={0}
                   value={infants}
                   onChange={(e) => setInfants(Math.max(0, Number(e.target.value) || 0))}
-                  style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 12px", fontSize: 18 }}
+                  style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 12px", fontSize: 18 }}
                 />
               </div>
               <div>
@@ -1539,7 +1568,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                 <select
                   value={cabin}
                   onChange={(e) => setCabin(e.target.value as any)}
-                  style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 12px", fontSize: 18, background: "#fff" }}
+                  style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 12px", fontSize: 18, background: "#fff" }}
                 >
                   <option value="ECONOMY">Economy</option>
                   <option value="PREMIUM_ECONOMY">Premium Economy</option>
@@ -1564,7 +1593,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                 <select
                   value={maxStops}
                   onChange={(e) => setMaxStops(Number(e.target.value) as any)}
-                  style={{ height: 44, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 10px", fontSize: 16, background: "#fff" }}
+                  style={{ height: 44, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 10px", fontSize: 16, background: "#fff" }}
                 >
                   <option value={0}>Nonstop</option>
                   <option value={1}>Up to 1 stop</option>
@@ -1577,7 +1606,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value as any)}
-                  style={{ height: 44, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 10px", fontSize: 16, background: "#fff" }}
+                  style={{ height: 44, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 10px", fontSize: 16, background: "#fff" }}
                 >
                   <option value="best">Best</option>
                   <option value="cheapest">Cheapest</option>
@@ -1591,7 +1620,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                 <select
                   value={sortBasis}
                   onChange={(e) => setSortBasis(e.target.value as any)}
-                  style={{ height: 44, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 10px", fontSize: 16, background: "#fff" }}
+                  style={{ height: 44, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 10px", fontSize: 16, background: "#fff" }}
                 >
                   <option value="flightOnly">Flight only</option>
                   <option value="bundle">Flight + hotel</option>
@@ -1606,7 +1635,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                   padding: 12,
                   borderRadius: 14,
                   background: "#f8fafc",
-                  border: "1px solid #94a3b8",
+                  border: "1px solid #e2e8f0",
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr 1fr 1fr",
                   gap: 12,
@@ -1619,7 +1648,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                     value={hotelCheckIn}
                     min={todayLocal}
                     onChange={(e) => setHotelCheckIn(e.target.value)}
-                    style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 12px", fontSize: 16 }}
+                    style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 12px", fontSize: 16 }}
                   />
                 </div>
                 <div>
@@ -1629,7 +1658,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                     value={hotelCheckOut}
                     min={hotelCheckIn || todayLocal}
                     onChange={(e) => setHotelCheckOut(e.target.value)}
-                    style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 12px", fontSize: 16 }}
+                    style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 12px", fontSize: 16 }}
                   />
                 </div>
                 <div>
@@ -1637,7 +1666,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                   <select
                     value={minHotelStar}
                     onChange={(e) => setMinHotelStar(Number(e.target.value) || 0)}
-                    style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 12px", fontSize: 16, background: "#fff" }}
+                    style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 12px", fontSize: 16, background: "#fff" }}
                   >
                     <option value={0}>Any</option>
                     <option value={3}>3+</option>
@@ -1652,7 +1681,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                     value={maxBudget}
                     onChange={(e) => setMaxBudget(e.target.value)}
                     placeholder={`in ${currency}`}
-                    style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #94a3b8", padding: "0 12px", fontSize: 16 }}
+                    style={{ width: "100%", height: 48, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 12px", fontSize: 16 }}
                   />
                 </div>
               </div>
@@ -1687,7 +1716,7 @@ setItineraryAI(typeof itin === "string" ? itin : "");
                   height: 56,
                   padding: "0 18px",
                   borderRadius: 14,
-                  border: "1px solid #94a3b8",
+                  border: "1px solid #e2e8f0",
                   background: "#ffffff",
                   fontWeight: 900,
                   cursor: "pointer",
