@@ -525,6 +525,13 @@ export default function Page() {
       setResultsAI(withIds);
       const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
       setHotelsAI(hotelsArr);
+const itin =
+        payload?.planning?.itinerary ??
+        payload?.planning?.itineraryText ??
+        payload?.planning?.plan ??
+        payload?.planning?.text ??
+        "";
+
       setItineraryAI(typeof itin === "string" ? itin : "");
       setShowControls(true);
       setListTab("all");
