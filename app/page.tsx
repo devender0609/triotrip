@@ -514,150 +514,45 @@ export default function Page() {
       });
       const j = await resp.json();
       if (!resp.ok) throw new Error(j?.error || "Search failed");
+      // === FLIGHTS / PACKAGES (manual search) ===
+      const packages =
+        Array.isArray(j) ? j :
+        Array.isArray((j as any)?.packages) ? (j as any).packages :
+        Array.isArray((j as any)?.results) ? (j as any).results :
+        Array.isArray((j as any)?.data) ? (j as any).data :
+        Array.isArray((j as any)?.items) ? (j as any).items :
+        [];
 
-      const arr = Array.isArray(j.results) ? j.results : [];
-      const withIds = arr.map((res: any, i: number) => ({
-        id: res.id ?? `ai-${i}`,
-        ...body,
-        ...res,
-      }));
-
-      setResultsAI(withIds);
-      const hotelsArr = Array.isArray((j as any)?.hotels)
-        ? (j as any).hotels
-        : Array.isArray((j as any)?.hotelResults)
-        ? (j as any).hotelResults
-        : Array.isArray((j as any)?.hotelsResults)
-        ? (j as any).hotelsResults
-        : Array.isArray((j as any)?.results)
-        ? ((j as any).results
-            .flatMap((r: any) => (Array.isArray(r?.hotels) ? r.hotels : []))
-            .slice(0, 12))
-        : [];
-      setHotelsAI(hotelsArr);
-const itin =
-        payload?.planning?.itinerary ??
-        payload?.planning?.itineraryText ??
-        payload?.planning?.plan ??
-        payload?.planning?.text ??
-        "";
-
-      setItineraryAI(typeof itin === "string" ? itin : "");
-      setShowControls(true);
-      setListTab("all");
-      setSubTab("explore");
-      setSubPanelOpen(false);
-      setComparedIds([]);
-      setMode("manual");
-      setError(null);
-
-      if (origin) setOriginCode(origin);
-      if (destination) setDestCode(destination);
-      setRoundTrip(roundTrip);
-      if (departDate) setDepartDate(departDate);
-      if (returnDate) setReturnDate(returnDate || "");
-      setAdults(passengersAdults);
-      setChildren(passengersChildren);
-      setInfants(passengersInfants);
-      setChildAges(passengersChildrenAges);
-      setCabin(body.cabin as any);
-      setIncludeHotel(includeHotel);
-      if (includeHotel) {
-        if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
-        if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
-        setMinHotelStar(body.minHotelStar || 0);
-        setMinBudget(
-          typeof body.minBudget === "number" ? String(body.minBudget) : ""
-        );
-        setMaxBudget(
-          typeof body.maxBudget === "number" ? String(body.maxBudget) : ""
-        );
-      } else {
-        setHotelCheckIn("");
-        setHotelCheckOut("");
-        setMinHotelStar(0);
-        setMinBudget("");
-        setMaxBudget("");
+      if (!packages.length) {
+        console.warn("Manual search returned no packages:", j);
       }
-      if (body.currency) setCurrency(body.currency);
-      setMaxStops(body.maxStops as 0 | 1 | 2);
-    } catch (err: any) {
-      console.error("handleAiSearchComplete error", err);
-      setError(err?.message || "AI search failed");
-    }
-  }
 
-  async function runSearch() {
-    setLoading(true);
-    clearResults("manual");
-    try {
-      const origin = originCode || extractIATA(originDisplay);
-      const destination = destCode || extractIATA(destDisplay);
-      if (!origin || !destination)
-        throw new Error("Please select origin and destination.");
-      if (!departDate) throw new Error("Please pick a departure date.");
-      if (roundTrip && !returnDate)
-        throw new Error("Please pick a return date.");
-
-      const payload = {
-        id: undefined as any,
-        origin,
-        destination,
-        departDate,
-        returnDate: roundTrip ? returnDate : undefined,
-        roundTrip,
-
-        // passengers
-        passengers: totalPax,
-        passengersAdults: adults,
-        passengersChildren: children,
-        passengersInfants: infants,
-        passengersChildrenAges: childAges,
-
-        cabin,
-
-        includeHotel,
-        hotelCheckIn: includeHotel ? (hotelCheckIn || departDate || undefined) : undefined,
-        hotelCheckOut: includeHotel
-          ? (hotelCheckOut || (roundTrip ? returnDate : plusDays(departDate, 1)) || undefined)
-          : undefined,
-        nights: includeHotel
-          ? nightsBetween(
-              hotelCheckIn || departDate,
-              hotelCheckOut || (roundTrip ? returnDate : plusDays(departDate, 1))
-            ) || 1
-          : undefined,
-        minHotelStar: includeHotel ? minHotelStar : undefined,
-
-        minBudget: minBudget ? Number(minBudget) : undefined,
-        maxBudget: maxBudget ? Number(maxBudget) : undefined,
-        currency,
-
-        sort,
-        sortBasis,
-        maxStops,
-      };
-
-      const r = await fetch(`/api/search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        cache: "no-store",
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || "Search failed");
-
-      const arr = Array.isArray(j.results) ? j.results : [];
-      const withIds = arr.map((res: any, i: number) => ({
-        id: res.id ?? `r-${i}`,
+      const withIds = packages.map((res: any, i: number) => ({
+        id: res.id ?? `m-${i}`,
         ...payload,
         ...res,
       }));
-      setResultsManual(withIds);
-      const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
-      setHotelsManual(hotelsArr);
 
-      setShowControls(true);
+      setResultsManual(withIds);
+
+      // === HOTELS (top-level OR embedded per package) ===
+      const hotelsArr =
+        Array.isArray((j as any)?.hotels) ? (j as any).hotels :
+        Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults :
+        Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults :
+        (Array.isArray(packages)
+          ? packages.flatMap((p: any) =>
+              Array.isArray(p?.hotels)
+                ? p.hotels
+                : Array.isArray(p?.bundle?.hotels)
+                ? p.bundle.hotels
+                : []
+            )
+          : []);
+
+      setHotelsManual(hotelsArr);
+      setMode("manual");
+setShowControls(true);
       setListTab("all");
       setSubTab("explore");
       setSubPanelOpen(false);
