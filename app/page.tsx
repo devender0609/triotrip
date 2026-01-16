@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AirportField from "../components/AirportField";
 import ResultCard from "../components/ResultCard";
 import ComparePanel from "../components/ComparePanel";
@@ -275,51 +275,22 @@ export default function Page() {
   const [subPanelOpen, setSubPanelOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any[] | null>(null);
+  // Keep AI + Manual results separately so switching tabs does not wipe the UI
+  const [resultsAI, setResultsAI] = useState<any[] | null>(null);
+  const [resultsManual, setResultsManual] = useState<any[] | null>(null);
+  const results = mode === "ai" ? resultsAI : resultsManual;
+  const hotels = mode === "ai" ? hotelsAI : hotelsManual;
+
+  // Hotels are returned as a separate array from the API in some responses
+  const [hotelsAI, setHotelsAI] = useState<any[] | null>(null);
+  const [hotelsManual, setHotelsManual] = useState<any[] | null>(null);
+  const hotels = mode === "ai" ? hotelsAI : hotelsManual;
+
+  // AI itinerary / plan text
+  const [itineraryAI, setItineraryAI] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(false);
-  const savedAiRef = useRef<{ results: any[]; error: string | null; showControls: boolean }>({
-    results: [],
-    error: null,
-    showControls: false,
-  });
-  const savedManualRef = useRef<{ results: any[]; error: string | null; showControls: boolean }>({
-    results: [],
-    error: null,
-    showControls: false,
-  });
-
-  const switchMode = (next: "none" | "manual" | "ai") => {
-    if (next === mode) return;
-    // Save current UI state for whichever mode we are leaving.
-    if (mode === "ai") {
-      savedAiRef.current = { results, error, showControls };
-    } else if (mode === "manual") {
-      savedManualRef.current = { results, error, showControls };
-    }
-    setMode(next);
-  };
-
-  useEffect(() => {
-    // Restore previously saved results when switching between AI and Manual.
-    if (mode === "ai") {
-      const st = savedAiRef.current;
-      setResults(st.results || []);
-      setError(st.error);
-      setShowControls(st.showControls);
-      return;
-    }
-    if (mode === "manual") {
-      const st = savedManualRef.current;
-      setResults(st.results || []);
-      setError(st.error);
-      setShowControls(st.showControls);
-      return;
-    }
-    // mode === "none" -> don't forcibly clear; just keep whatever is on screen.
-  }, [mode]);
-
 
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
@@ -362,8 +333,16 @@ export default function Page() {
     setHeroImageIndex(0);
   }, [results, destDisplay, aiDestinationCity]);
 
-  function clearResults() {
-    setResults(null);
+  function clearResults(which: "ai" | "manual" | "all" = "all") {
+    if (which === "ai" || which === "all") {
+      setResultsAI(null);
+      setHotelsAI(null);
+      setAiItinerary(null);
+    }
+    if (which === "manual" || which === "all") {
+      setResultsManual(null);
+      setHotelsManual(null);
+    }
     setError(null);
     setShowControls(false);
     setComparedIds([]);
@@ -373,6 +352,7 @@ export default function Page() {
     setListTab("all");
   }
 
+  // NOTE: Do NOT clear results on mode switch. Users want results to persist between AI and Manual tabs.
 
   function swapOriginDest() {
     setOriginCode((oc) => {
@@ -430,7 +410,7 @@ export default function Page() {
     planning: any;
   }) {
     try {
-      clearResults();
+      clearResults("ai");
       const sp = payload?.searchParams || {};
 
       const origin = sp.origin;
@@ -459,7 +439,7 @@ export default function Page() {
         passengersChildrenAges,
         passengersInfants,
         cabin: sp.cabin || "ECONOMY",
-        includeHotel,
+        includeHotel: true,
         hotelCheckIn: includeHotel ? sp.hotelCheckIn || departDate : undefined,
         hotelCheckOut: includeHotel ? sp.hotelCheckOut || returnDate : undefined,
         minHotelStar: typeof sp.minHotelStar === "number" ? sp.minHotelStar : 0,
@@ -499,7 +479,10 @@ export default function Page() {
         ...res,
       }));
 
-      setResults(withIds);
+      setResultsAI(withIds);
+      const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
+      setHotelsAI(hotelsArr);
+      setItineraryAI(typeof itin === "string" ? itin : "");
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
@@ -545,7 +528,7 @@ export default function Page() {
 
   async function runSearch() {
     setLoading(true);
-    clearResults();
+    clearResults("manual");
     try {
       const origin = originCode || extractIATA(originDisplay);
       const destination = destCode || extractIATA(destDisplay);
@@ -567,8 +550,7 @@ export default function Page() {
         passengersChildrenAges: childAges,
         passengersInfants: infants,
         cabin,
-        includeFlight: true,
-        includeHotel,
+        includeHotel: true,
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
         minHotelStar: includeHotel ? minHotelStar : undefined,
@@ -595,7 +577,9 @@ export default function Page() {
         ...payload,
         ...res,
       }));
-      setResults(withIds);
+      setResultsManual(withIds);
+      const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
+      setHotelsManual(hotelsArr);
 
       setShowControls(true);
       setListTab("all");
@@ -1013,6 +997,68 @@ export default function Page() {
           </div>
         )}
 
+        {mode === "ai" && itineraryAI && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 14,
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.06)",
+            }}
+          >
+            <div style={{ fontWeight: 900, marginBottom: 8 }}>Itinerary</div>
+            <div style={{ lineHeight: 1.45, whiteSpace: "pre-wrap" }}>{itineraryAI}</div>
+          </div>
+        )}
+
+        {hotels && hotels.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 900, marginBottom: 8 }}>Hotels</div>
+            <div style={{ display: "grid", gap: 12 }}>
+              {hotels.map((h: any, i: number) => (
+                <div
+                  key={h.id || h.hotelId || `${i}`}
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(255,255,255,0.04)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {h.name || h.hotelName || h.title || "Hotel"}
+                    </div>
+                    <div style={{ opacity: 0.85, marginTop: 4, fontSize: 13 }}>
+                      {(h.area || h.neighborhood || h.city || "").toString()}
+                      {h.stars ? ` • ${h.stars}★` : ""}
+                    </div>
+                    {h.description && (
+                      <div style={{ opacity: 0.85, marginTop: 8, fontSize: 13, lineHeight: 1.35 }}>
+                        {String(h.description).slice(0, 160)}{String(h.description).length > 160 ? "…" : ""}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <div style={{ fontWeight: 900 }}>
+                      {typeof h.priceTotal === "number"
+                        ? `${currencySymbol(currency)}${h.priceTotal.toFixed(0)}`
+                        : typeof h.price === "number"
+                        ? `${currencySymbol(currency)}${h.price.toFixed(0)}`
+                        : h.priceText || ""}
+                    </div>
+                    {h.nights ? <div style={{ opacity: 0.8, fontSize: 12 }}>{h.nights} nights</div> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {comparedIds.length >= 2 && (
           <ComparePanel
             items={(shown || []).filter((r: any) =>
@@ -1041,7 +1087,7 @@ export default function Page() {
       >
         <button
           type="button"
-          onClick={() => switchMode(mode === "ai" ? "none" : "ai")}
+          onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
           style={{
             flex: 1,
             padding: 14,
@@ -1061,7 +1107,7 @@ export default function Page() {
         </button>
         <button
           type="button"
-          onClick={() => switchMode(mode === "manual" ? "none" : "manual")}
+          onClick={() => setMode((m) => (m === "manual" ? "none" : "manual"))}
           style={{
             flex: 1,
             padding: 14,
@@ -1130,7 +1176,7 @@ export default function Page() {
               <button
                 type="button"
                 onClick={() => {
-                  clearResults();
+                  clearResults("ai");
                   setAiResetKey((k) => k + 1);
                   setAiDestinationCity("");
                 }}
@@ -1392,6 +1438,7 @@ export default function Page() {
                   }}
                 >
                   <div style={{ fontWeight: 700 }}>Return date</div>
+
               <button
                 type="button"
                 onClick={runSearch}
