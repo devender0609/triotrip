@@ -523,7 +523,17 @@ export default function Page() {
       }));
 
       setResultsAI(withIds);
-      const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
+      const hotelsArr = Array.isArray((j as any)?.hotels)
+        ? (j as any).hotels
+        : Array.isArray((j as any)?.hotelResults)
+        ? (j as any).hotelResults
+        : Array.isArray((j as any)?.hotelsResults)
+        ? (j as any).hotelsResults
+        : Array.isArray((j as any)?.results)
+        ? ((j as any).results
+            .flatMap((r: any) => (Array.isArray(r?.hotels) ? r.hotels : []))
+            .slice(0, 12))
+        : [];
       setHotelsAI(hotelsArr);
 const itin =
         payload?.planning?.itinerary ??
@@ -538,6 +548,7 @@ const itin =
       setSubTab("explore");
       setSubPanelOpen(false);
       setComparedIds([]);
+      setMode("manual");
       setError(null);
 
       if (origin) setOriginCode(origin);
