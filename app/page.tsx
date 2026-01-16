@@ -1815,11 +1815,6 @@ export default function Page() {
               <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <input
                   type="checkbox"
-                  checked={refundable}
-                  onChange={(e) => setRefundable(e.target.checked)}
-                />
-                <span style={{ fontWeight: 800 }}>Refundable</span>
-              </label>
 
               <button
                 type="button"
