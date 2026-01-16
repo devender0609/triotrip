@@ -169,7 +169,6 @@ function getHeroImages(city: string): HeroImage[] {
     ];
   }
 
-  // Neutral city skyline fallback (no cars)
   return [
     {
       url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80",
@@ -282,12 +281,20 @@ export default function Page() {
   const [showControls, setShowControls] = useState(false);
 
   // Preserve results per-mode so switching tabs doesn't wipe the UI.
-  const savedAiRef = useRef<{ results: any[] | null; error: string | null; showControls: boolean }>({
+  const savedAiRef = useRef<{
+    results: any[] | null;
+    error: string | null;
+    showControls: boolean;
+  }>({
     results: null,
     error: null,
     showControls: false,
   });
-  const savedManualRef = useRef<{ results: any[] | null; error: string | null; showControls: boolean }>({
+  const savedManualRef = useRef<{
+    results: any[] | null;
+    error: string | null;
+    showControls: boolean;
+  }>({
     results: null,
     error: null,
     showControls: false,
@@ -298,7 +305,6 @@ export default function Page() {
     setResults(ref.current.results);
     setError(ref.current.error);
     setShowControls(ref.current.showControls);
-    // comparedIds is only relevant for AI compare UI; keep current value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
@@ -330,7 +336,14 @@ export default function Page() {
     if (roundTrip && returnDate && hotelCheckOut && hotelCheckOut > returnDate) {
       setHotelCheckOut(returnDate);
     }
-  }, [includeHotel, departDate, returnDate, hotelCheckIn, hotelCheckOut, roundTrip]);
+  }, [
+    includeHotel,
+    departDate,
+    returnDate,
+    hotelCheckIn,
+    hotelCheckOut,
+    roundTrip,
+  ]);
 
   useEffect(() => {
     setChildAges((prev) => {
@@ -355,8 +368,6 @@ export default function Page() {
     setListTab("all");
   }
 
-  // Keep results visible when switching between AI and Manual.
-
   function swapOriginDest() {
     setOriginCode((oc) => {
       const dc = destCode;
@@ -370,7 +381,6 @@ export default function Page() {
     });
   }
 
-  // normalize IATA codes to city names
   function normalizeCityFromCode(codeOrName: string | undefined): string {
     if (!codeOrName) return "";
     let s = String(codeOrName).trim();
@@ -401,7 +411,6 @@ export default function Page() {
       }
     }
 
-    // Strip airport suffixes like ", MA" or "(BOS)"
     s = s.replace(/\(.*?\)/, "").trim();
     if (s.includes(",")) s = s.split(",")[0].trim();
     return s;
@@ -453,7 +462,6 @@ export default function Page() {
             : 2,
       };
 
-      // NEW: capture destination city for hero image
       const rawCity =
         sp.destinationDisplay ||
         sp.destinationCity ||
@@ -498,7 +506,6 @@ export default function Page() {
       setInfants(passengersInfants);
       setChildAges(passengersChildrenAges);
       setCabin(body.cabin as any);
-      // Hotels are controlled by the "Basis" dropdown (bundle vs flight-only).
       if (body.includeHotel) {
         if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
         if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
@@ -637,12 +644,10 @@ export default function Page() {
       items.sort(
         (a, b) =>
           (a.flight?.refundable ? 0 : 1) - (b.flight?.refundable ? 0 : 1) ||
-          basis(a)! - basis(b)!,
+          basis(a)! - basis(b)!
       );
     } else {
-      items.sort(
-        (a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!,
-      );
+      items.sort((a, b) => basis(a)! - basis(b)! || outDur(a)! - outDur(b)!);
     }
 
     return items;
@@ -659,23 +664,6 @@ export default function Page() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   }
-
-  const sLabel: React.CSSProperties = {
-    fontWeight: 600,
-    color: "#334155",
-    display: "block",
-    marginBottom: 6,
-    fontSize: 18,
-  };
-  const sInput: React.CSSProperties = {
-    height: 48,
-    padding: "0 14px",
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
-    width: "100%",
-    background: "#fff",
-    fontSize: 18,
-  };
 
   function clickSubTab(tab: SubTab) {
     if (tab === subTab) setSubPanelOpen((v) => !v);
@@ -802,31 +790,37 @@ export default function Page() {
               marginTop: 10,
             }}
           >
-            <button
-              className={`chip ${sort === "best" ? "on" : ""}`}
-              onClick={() => setSort("best")}
-            >
-              Best
-            </button>
-            <button
-              className={`chip ${sort === "cheapest" ? "on" : ""}`}
-              onClick={() => setSort("cheapest")}
-            >
-              Cheapest
-            </button>
-            <button
-              className={`chip ${sort === "fastest" ? "on" : ""}`}
-              onClick={() => setSort("fastest")}
-            >
-              Fastest
-            </button>
-            <button
-              className={`chip ${sort === "flexible" ? "on" : ""}`}
-              onClick={() => setSort("flexible")}
-            >
-              Flexible
-            </button>
-            <span style={{ marginLeft: 8 }} />
+            {/* ✅ Sort buttons are shown only in AI mode (user requested no Sort in Manual). */}
+            {mode === "ai" && (
+              <>
+                <button
+                  className={`chip ${sort === "best" ? "on" : ""}`}
+                  onClick={() => setSort("best")}
+                >
+                  Best
+                </button>
+                <button
+                  className={`chip ${sort === "cheapest" ? "on" : ""}`}
+                  onClick={() => setSort("cheapest")}
+                >
+                  Cheapest
+                </button>
+                <button
+                  className={`chip ${sort === "fastest" ? "on" : ""}`}
+                  onClick={() => setSort("fastest")}
+                >
+                  Fastest
+                </button>
+                <button
+                  className={`chip ${sort === "flexible" ? "on" : ""}`}
+                  onClick={() => setSort("flexible")}
+                >
+                  Flexible
+                </button>
+                <span style={{ marginLeft: 8 }} />
+              </>
+            )}
+
             <button
               className={`chip ${listTab === "top3" ? "on" : ""}`}
               onClick={() => setListTab("top3")}
@@ -842,6 +836,7 @@ export default function Page() {
             <button className="chip" onClick={() => window.print()}>
               Print
             </button>
+
             <style jsx>{`
               .chip {
                 padding: 8px 14px;
@@ -876,7 +871,7 @@ export default function Page() {
           </div>
         )}
 
-        {aiTop3 && results && results.length > 0 && (
+        {aiTop3 && results && results.length > 0 && mode === "ai" && (
           <div
             style={{
               background: "#0f172a",
@@ -904,28 +899,13 @@ export default function Page() {
               )}
             </div>
 
-            <div
-              style={{
-                fontSize: 18,
-                opacity: 0.9,
-                marginTop: 2,
-              }}
-            >
-              Shortcuts from your live{" "}
-              <strong>flight + hotel bundles</strong>:{" "}
-              <strong>best overall</strong>, <strong>best budget</strong>,{" "}
-              <strong>best comfort</strong>. Scroll down to see their full
-              cards and all other options.
+            <div style={{ fontSize: 18, opacity: 0.9, marginTop: 2 }}>
+              Shortcuts from your live <strong>flight + hotel bundles</strong>:
+              <strong> best overall</strong>, <strong>best budget</strong>,
+              <strong> best comfort</strong>.
             </div>
 
-            <ul
-              style={{
-                margin: 4,
-                marginLeft: 20,
-                paddingLeft: 0,
-                fontSize: 17,
-              }}
-            >
+            <ul style={{ margin: 4, marginLeft: 20, paddingLeft: 0, fontSize: 17 }}>
               {["best_overall", "best_budget", "best_comfort"].map((key) => {
                 const info = (aiTop3 as any)[key];
                 if (!info?.id) return null;
@@ -942,16 +922,12 @@ export default function Page() {
                     : "Best for comfort";
 
                 const destText =
-                  pkg.destination ||
-                  pkg.destinationName ||
-                  getExploreCity();
+                  pkg.destination || pkg.destinationName || getExploreCity();
 
                 return (
                   <li key={key}>
                     <strong>{title}:</strong>{" "}
-                    <span>
-                      {destText} – {info.reason || "chosen by AI"}
-                    </span>
+                    <span>{destText} – {info.reason || "chosen by AI"}</span>
                   </li>
                 );
               })}
@@ -999,14 +975,7 @@ export default function Page() {
 
   return (
     <div style={{ padding: 12, display: "grid", gap: 16 }}>
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginBottom: 4,
-          alignItems: "center",
-        }}
-      >
+      <div style={{ display: "flex", gap: 8, marginBottom: 4, alignItems: "center" }}>
         <button
           type="button"
           onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
@@ -1071,15 +1040,8 @@ export default function Page() {
             top picks, or <strong>Manual Search</strong> to fine-tune every
             detail yourself.
           </div>
-          <div
-            style={{
-              fontSize: 17,
-              opacity: 0.8,
-              marginTop: 4,
-            }}
-          >
-            You can switch tabs anytime — results stay separate for AI and
-            Manual modes.
+          <div style={{ fontSize: 17, opacity: 0.8, marginTop: 4 }}>
+            You can switch tabs anytime — results stay separate for AI and Manual modes.
           </div>
         </div>
       )}
@@ -1089,12 +1051,7 @@ export default function Page() {
           <div className="ai-trip-wrapper">
             <AiTripPlanner key={aiResetKey} onSearchComplete={handleAiSearchComplete} />
 
-            <div
-              style={{
-                marginTop: 10,
-                textAlign: "right",
-              }}
-            >
+            <div style={{ marginTop: 10, textAlign: "right" }}>
               <button
                 type="button"
                 onClick={() => {
@@ -1135,8 +1092,7 @@ export default function Page() {
                 }
 
                 const images = getHeroImages(cityGuess);
-                const safeIndex =
-                  images.length > 0 ? heroImageIndex % images.length : 0;
+                const safeIndex = images.length > 0 ? heroImageIndex % images.length : 0;
                 const current = images[safeIndex] || images[0];
                 const { country, flag } = cityToCountry(cityGuess);
                 const guideUrl = cityGuideUrl(cityGuess);
@@ -1249,7 +1205,6 @@ export default function Page() {
           )}
 
           <ResultsArea />
-          {/* ✅ Pass currency prop so TypeScript is satisfied */}
           <AiDestinationCompare currency={currency} />
         </>
       )}
@@ -1321,18 +1276,9 @@ export default function Page() {
               />
             </div>
 
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-              }}
-            >
+            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                  Departure date
-                </div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Departure date</div>
                 <input
                   type="date"
                   value={departDate}
@@ -1350,15 +1296,7 @@ export default function Page() {
               </div>
 
               <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    marginBottom: 6,
-                  }}
-                >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
                   <div style={{ fontWeight: 700 }}>Return date</div>
                   <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input
@@ -1389,14 +1327,7 @@ export default function Page() {
               </div>
             </div>
 
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-              }}
-            >
+            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Adults</div>
                 <input
@@ -1474,27 +1405,8 @@ export default function Page() {
               </div>
             </div>
 
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-                alignItems: "end",
-              }}
-            >
-              {/* Hotels are controlled by the "Basis" dropdown below (Flight only vs Flight + Hotel). */}
-            </div>
-
             {includeHotel && (
-              <div
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr",
-                  gap: 12,
-                }}
-              >
+              <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 <div>
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>Hotel check-in</div>
                   <input
@@ -1513,9 +1425,7 @@ export default function Page() {
                   />
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                    Hotel check-out
-                  </div>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Hotel check-out</div>
                   <input
                     type="date"
                     value={hotelCheckOut}
@@ -1555,16 +1465,7 @@ export default function Page() {
               </div>
             )}
 
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-              }}
-            >
-              {/* Currency & Sort removed from Manual search (kept in header) */}
-
+            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
                 <select
@@ -1607,16 +1508,7 @@ export default function Page() {
               </div>
             </div>
 
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
+            <div style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <button
                 type="button"
                 onClick={runSearch}
@@ -1654,14 +1546,17 @@ export default function Page() {
               </div>
             )}
           </div>
+
+          {/* ✅ FIX: Manual mode was not rendering ResultsArea, so it looked like "no results". */}
+          <ResultsArea />
         </>
       )}
 
       <style jsx global>{`
         html,
         body {
-          font-family: system-ui, -apple-system, BlinkMacSystemFont,
-            "Segoe UI", sans-serif;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+            sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           font-size: 20px;
@@ -1675,7 +1570,6 @@ export default function Page() {
           font-family: inherit;
         }
 
-        /* FORCE larger, clearer fonts in AI planner area */
         .ai-trip-wrapper,
         .ai-trip-wrapper * {
           font-size: 18px !important;
