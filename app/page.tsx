@@ -279,12 +279,50 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [comparedIds, setComparedIds] = useState<string[]>([]);
   const [showControls, setShowControls] = useState(false);
+  const savedAiRef = useRef<{ results: any[]; error: string | null; showControls: boolean }>({
+    results: [],
+    error: null,
+    showControls: false,
+  });
+  const savedManualRef = useRef<{ results: any[]; error: string | null; showControls: boolean }>({
+    results: [],
+    error: null,
+    showControls: false,
+  });
+
+  const switchMode = (next: "none" | "manual" | "ai") => {
+    if (next === mode) return;
+    // Save current UI state for whichever mode we are leaving.
+    if (mode === "ai") {
+      savedAiRef.current = { results, error, showControls };
+    } else if (mode === "manual") {
+      savedManualRef.current = { results, error, showControls };
+    }
+    setMode(next);
+  };
+
+  useEffect(() => {
+    // Restore previously saved results when switching between AI and Manual.
+    if (mode === "ai") {
+      const st = savedAiRef.current;
+      setResults(st.results || []);
+      setError(st.error);
+      setShowControls(st.showControls);
+      return;
+    }
+    if (mode === "manual") {
+      const st = savedManualRef.current;
+      setResults(st.results || []);
+      setError(st.error);
+      setShowControls(st.showControls);
+      return;
+    }
+    // mode === "none" -> don't forcibly clear; just keep whatever is on screen.
+  }, [mode]);
+
 
   const [aiTop3, setAiTop3] = useState<any | null>(null);
   const [aiTop3Loading, setAiTop3Loading] = useState(false);
-
-  // AI planner output (separate from flight/hotel result cards)
-  const [aiPlanning, setAiPlanning] = useState<any | null>(null);
 
   useEffect(() => {
     if (!includeHotel) setSortBasis("flightOnly");
@@ -335,9 +373,6 @@ export default function Page() {
     setListTab("all");
   }
 
-  useEffect(() => {
-    clearResults();
-  }, [mode]);
 
   function swapOriginDest() {
     setOriginCode((oc) => {
@@ -396,8 +431,6 @@ export default function Page() {
   }) {
     try {
       clearResults();
-      // Store itinerary / plan separately so it doesn't depend on card rendering.
-      setAiPlanning(payload?.planning || null);
       const sp = payload?.searchParams || {};
 
       const origin = sp.origin;
@@ -485,8 +518,6 @@ export default function Page() {
       setChildAges(passengersChildrenAges);
       setCabin(body.cabin as any);
       setIncludeHotel(includeHotel);
-      // Keep the basis in sync so hotel pricing/details show up when included.
-      setSortBasis(includeHotel ? "bundle" : "flightOnly");
       if (includeHotel) {
         if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
         if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
@@ -536,6 +567,7 @@ export default function Page() {
         passengersChildrenAges: childAges,
         passengersInfants: infants,
         cabin,
+        includeFlight: true,
         includeHotel,
         hotelCheckIn: includeHotel ? hotelCheckIn || undefined : undefined,
         hotelCheckOut: includeHotel ? hotelCheckOut || undefined : undefined,
@@ -720,23 +752,6 @@ export default function Page() {
     if (!showControls && !results && !error) return null;
 
     const exploreCity = getExploreCity();
-
-    // If the API returns hotel/bundle fields, show them even when the current
-    // UI basis is "flight only" (prevents "hotels missing" when switching tabs).
-    const itemHasHotel = (pkg: any) =>
-      Boolean(
-        pkg?.hotel ||
-          (Array.isArray(pkg?.hotels) && pkg.hotels.length > 0) ||
-          pkg?.hotel_total ||
-          pkg?.hotelTotal ||
-          pkg?.hotelPrice ||
-          pkg?.hotelTotalUsd ||
-          pkg?.bundle_price ||
-          pkg?.bundlePrice ||
-          pkg?.packagePrice ||
-          pkg?.hotel_nights ||
-          pkg?.hotelNights
-      );
 
     return (
       <>
@@ -985,7 +1000,7 @@ export default function Page() {
                 index={i}
                 currency={currency}
                 pax={totalPax}
-                showHotel={includeHotel || itemHasHotel(pkg)}
+                showHotel={includeHotel}
                 hotelNights={
                   includeHotel ? nightsBetween(hotelCheckIn, hotelCheckOut) : 0
                 }
@@ -1026,7 +1041,7 @@ export default function Page() {
       >
         <button
           type="button"
-          onClick={() => setMode((m) => (m === "ai" ? "none" : "ai"))}
+          onClick={() => switchMode(mode === "ai" ? "none" : "ai")}
           style={{
             flex: 1,
             padding: 14,
@@ -1046,7 +1061,7 @@ export default function Page() {
         </button>
         <button
           type="button"
-          onClick={() => setMode((m) => (m === "manual" ? "none" : "manual"))}
+          onClick={() => switchMode(mode === "manual" ? "none" : "manual")}
           style={{
             flex: 1,
             padding: 14,
@@ -1133,90 +1148,6 @@ export default function Page() {
               </button>
             </div>
           </div>
-
-          {aiPlanning && (
-            <div
-              style={{
-                marginTop: 16,
-                border: "1px solid #e2e8f0",
-                borderRadius: 18,
-                background: "#ffffff",
-                padding: 14,
-              }}
-            >
-              <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 10 }}>
-                Itinerary
-              </div>
-              {(() => {
-                const it =
-                  aiPlanning?.itinerary ??
-                  aiPlanning?.plan ??
-                  aiPlanning?.itineraryText ??
-                  aiPlanning?.days ??
-                  null;
-
-                // If the planner didn't send a structured itinerary, don't render noise.
-                if (!it) {
-                  return (
-                    <div style={{ color: "#334155", lineHeight: 1.45 }}>
-                      No itinerary was returned for this search.
-                    </div>
-                  );
-                }
-
-                if (typeof it === "string") {
-                  return (
-                    <div style={{ whiteSpace: "pre-wrap", color: "#0f172a", lineHeight: 1.55 }}>
-                      {it}
-                    </div>
-                  );
-                }
-
-                if (Array.isArray(it)) {
-                  return (
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {it.map((d: any, idx: number) => (
-                        <div
-                          key={idx}
-                          style={{
-                            border: "1px solid #e2e8f0",
-                            borderRadius: 14,
-                            padding: 12,
-                            background: "#f8fafc",
-                          }}
-                        >
-                          <div style={{ fontWeight: 900, marginBottom: 6 }}>
-                            {d?.day ? `Day ${d.day}` : `Day ${idx + 1}`}
-                          </div>
-                          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
-                            {typeof d === "string" ? d : d?.summary || d?.activities || JSON.stringify(d, null, 2)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                }
-
-                // Object fallback
-                return (
-                  <pre
-                    style={{
-                      margin: 0,
-                      whiteSpace: "pre-wrap",
-                      background: "#0b1220",
-                      color: "#e5e7eb",
-                      padding: 12,
-                      borderRadius: 14,
-                      overflowX: "auto",
-                      fontSize: 12,
-                    }}
-                  >
-                    {JSON.stringify(it, null, 2)}
-                  </pre>
-                );
-              })()}
-            </div>
-          )}
 
           {results && results.length > 0 && (
             <div style={{ marginTop: 16 }}>
@@ -1461,367 +1392,6 @@ export default function Page() {
                   }}
                 >
                   <div style={{ fontWeight: 700 }}>Return date</div>
-                  <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={roundTrip}
-                      onChange={(e) => setRoundTrip(e.target.checked)}
-                    />
-                    <span style={{ fontWeight: 700 }}>Round trip</span>
-                  </label>
-                </div>
-
-                <input
-                  type="date"
-                  value={returnDate}
-                  min={todayLocal}
-                  disabled={!roundTrip}
-                  onChange={(e) => setReturnDate(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    opacity: roundTrip ? 1 : 0.5,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Adults</div>
-                <input
-                  type="number"
-                  min={1}
-                  value={adults}
-                  onChange={(e) => setAdults(Math.max(1, Number(e.target.value || 1)))}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Children</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={children}
-                  onChange={(e) => setChildren(Math.max(0, Number(e.target.value || 0)))}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Infants</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={infants}
-                  onChange={(e) => setInfants(Math.max(0, Number(e.target.value || 0)))}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Cabin</div>
-                <select
-                  value={cabin}
-                  onChange={(e) => setCabin(e.target.value as Cabin)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value="ECONOMY">Economy</option>
-                  <option value="PREMIUM_ECONOMY">Premium Economy</option>
-                  <option value="BUSINESS">Business</option>
-                  <option value="FIRST">First</option>
-                </select>
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-                alignItems: "end",
-              }}
-            >
-              <div style={{ gridColumn: "span 2" }}>
-                <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <input
-                    type="checkbox"
-                    checked={includeHotel}
-                    onChange={(e) => setIncludeHotel(e.target.checked)}
-                  />
-                  <span style={{ fontWeight: 800 }}>Include hotel</span>
-                </label>
-                <div style={{ fontSize: 14, opacity: 0.7, marginTop: 4 }}>
-                  If enabled, results include flight + hotel bundle pricing.
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Min budget</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={minBudget}
-                  onChange={(e) => setMinBudget(e.target.value)}
-                  placeholder="e.g., 500"
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Max budget</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={maxBudget}
-                  onChange={(e) => setMaxBudget(e.target.value)}
-                  placeholder="e.g., 2500"
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                  }}
-                />
-              </div>
-            </div>
-
-            {includeHotel && (
-              <div
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr",
-                  gap: 12,
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Hotel check-in</div>
-                  <input
-                    type="date"
-                    value={hotelCheckIn}
-                    min={todayLocal}
-                    onChange={(e) => setHotelCheckIn(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 54,
-                      borderRadius: 14,
-                      border: "1px solid #e2e8f0",
-                      padding: "0 14px",
-                      fontSize: 18,
-                    }}
-                  />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                    Hotel check-out
-                  </div>
-                  <input
-                    type="date"
-                    value={hotelCheckOut}
-                    min={todayLocal}
-                    onChange={(e) => setHotelCheckOut(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 54,
-                      borderRadius: 14,
-                      border: "1px solid #e2e8f0",
-                      padding: "0 14px",
-                      fontSize: 18,
-                    }}
-                  />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Min hotel stars</div>
-                  <select
-                    value={minHotelStar}
-                    onChange={(e) => setMinHotelStar(Number(e.target.value))}
-                    style={{
-                      width: "100%",
-                      height: 54,
-                      borderRadius: 14,
-                      border: "1px solid #e2e8f0",
-                      padding: "0 14px",
-                      fontSize: 18,
-                      background: "#fff",
-                    }}
-                  >
-                    <option value={0}>Any</option>
-                    <option value={3}>3+</option>
-                    <option value={4}>4+</option>
-                    <option value={5}>5</option>
-                  </select>
-                </div>
-              </div>
-            )}
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Currency</div>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                  <option value="CAD">CAD</option>
-                  <option value="INR">INR</option>
-                  <option value="AUD">AUD</option>
-                </select>
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Sort</div>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as SortKey)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value="best">Best</option>
-                  <option value="cheapest">Cheapest</option>
-                  <option value="fastest">Fastest</option>
-                  <option value="flexible">Flexible</option>
-                </select>
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Basis</div>
-                <select
-                  value={sortBasis}
-                  onChange={(e) => setSortBasis(e.target.value as any)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value="flightOnly">Flight only</option>
-                  <option value="bundle">Flight + hotel</option>
-                </select>
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Max stops</div>
-                <select
-                  value={maxStops}
-                  onChange={(e) => setMaxStops(Number(e.target.value) as any)}
-                  style={{
-                    width: "100%",
-                    height: 54,
-                    borderRadius: 14,
-                    border: "1px solid #e2e8f0",
-                    padding: "0 14px",
-                    fontSize: 18,
-                    background: "#fff",
-                  }}
-                >
-                  <option value={0}>0</option>
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
-                </select>
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              {/* Manual: user chooses what to search. Default OFF so it doesn't look pre-selected. */}
-              <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={includeHotel}
-                  onChange={(e) => setIncludeHotel(e.target.checked)}
-                />
-                <span style={{ fontWeight: 700 }}>Include hotels</span>
-              </label>
-
               <button
                 type="button"
                 onClick={runSearch}
