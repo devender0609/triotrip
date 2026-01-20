@@ -403,6 +403,9 @@ export default function Page() {
       setLoading(true);
       setError(null);
 
+      const origin = originCode;
+      const destination = destCode;
+
       const body = {
         origin,
         destination,
