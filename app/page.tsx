@@ -406,6 +406,18 @@ export default function Page() {
       const origin = originCode;
       const destination = destCode;
 
+      const passengersAdults = Number(adults || 1);
+      const passengersChildren = Number(children || 0);
+      const passengersInfants = Number(infants || 0);
+      const passengers = passengersAdults + passengersChildren + passengersInfants;
+      const passengersChildrenAges = Array.from({ length: passengersChildren }, (_, i) => {
+        const v = Array.isArray(childAges) ? childAges[i] : undefined;
+        const n = typeof v === "number" && Number.isFinite(v) ? v : 8;
+        // clamp to reasonable ages for child ticketing
+        return Math.max(0, Math.min(17, Math.round(n)));
+      });
+
+
       const body = {
         origin,
         destination,
