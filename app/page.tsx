@@ -659,7 +659,7 @@ setShowControls(true);
       setAiTop3(null);
       return;
     }
-    async function runTop3 {
+    async function runTop3() {
       try {
         setAiTop3Loading(true);
         const res = await fetch("/api/ai/top3", {
