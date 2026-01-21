@@ -275,6 +275,19 @@ export default function Page() {
   const [originDisplay, setOriginDisplay] = useState("");
   const [destCode, setDestCode] = useState("");
   const [destDisplay, setDestDisplay] = useState("");
+  // Ensure demo defaults are in React state (AirportField only shows its own initialDisplay unless we set these)
+  useEffect(() => {
+    // If you want different defaults, change these 4 values.
+    if (!originCode && !originDisplay) {
+      setOriginCode("AUS");
+      setOriginDisplay("AUS — Austin — Austin Bergstrom International Airport");
+    }
+    if (!destCode && !destDisplay) {
+      setDestCode("DFW");
+      setDestDisplay("DFW — Dallas-Fort Worth — Dallas Fort Worth International Airport");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [roundTrip, setRoundTrip] = useState(true);
   const [departDate, setDepartDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
@@ -1780,6 +1793,10 @@ setShowControls(true);
                 {error}
               </div>
             )}
+          </div>
+
+          <div style={{ marginTop: 18 }}>
+            <ResultsArea />
           </div>
         </>
       )}
