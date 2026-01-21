@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "NextMove · Decision Assistant",
-  description: "Decide your next move — fast.",
+  title: "TrioTrip",
+  description: "Plan trips with AI or manual search.",
 };
 
 export default function RootLayout({
@@ -19,40 +19,24 @@ export default function RootLayout({
         <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/70 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/50">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-3">
+              {/* Logo size fixed */}
               <img
                 src="/logo.png"
-                alt="NextMove"
-                className="h-8 w-8 rounded-md"
+                alt="TrioTrip"
+                className="h-10 w-auto object-contain"
               />
               <div className="leading-tight">
-                <div className="text-sm font-semibold">NextMove</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  Decision Assistant
-                </div>
+                <div className="text-base font-semibold">TrioTrip</div>
               </div>
             </Link>
 
-            <nav className="flex items-center gap-2">
-              <Link href="/app/decide" className="btn-ghost">
-                App
-              </Link>
-              <Link href="/pricing" className="btn-ghost">
-                Pricing
-              </Link>
-              <Link href="/app/login" className="btn-ghost">
-                Login
-              </Link>
-              <button className="btn-ghost" type="button">
-                Dark
-              </button>
-            </nav>
+            {/* Removed: NextMove / Decision Assistant + App/Pricing/Login/Dark */}
+            <div />
           </div>
         </header>
 
         {/* Page content */}
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-
-        {/* Footer REMOVED */}
       </body>
     </html>
   );
