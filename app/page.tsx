@@ -1101,37 +1101,7 @@ setShowControls(true);
           </div>
         )}
 
-        {hotels && hotels.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 900, marginBottom: 8 }}>Hotels</div>
-            <div style={{ display: "grid", gap: 12 }}>
-              {hotels.map((h: any, i: number) => (
-                <div
-                  key={h.id || h.hotelId || `${i}`}
-                  style={{
-                    padding: 14,
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(255,255,255,0.04)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {h.name || h.hotelName || h.title || "Hotel"}
-                    </div>
-                    <div style={{ opacity: 0.85, marginTop: 4, fontSize: 13 }}>
-                      {(h.area || h.neighborhood || h.city || "").toString()}
-                      {h.stars ? ` • ${h.stars}★` : ""}
-                    </div>
-                    {h.description && (
-                      <div style={{ opacity: 0.85, marginTop: 8, fontSize: 13, lineHeight: 1.35 }}>
-                        {String(h.description).slice(0, 160)}{String(h.description).length > 160 ? "…" : ""}
-                      </div>
-                    )}
-                  </div>
+                          </div>
                   <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <div style={{ fontWeight: 900 }}>
                       {typeof h.priceTotal === "number"
@@ -1609,45 +1579,57 @@ setShowControls(true);
               </div>
             </div>
 
-            <div style={{ marginTop: 12 }}>
-  <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800 }}>
-    <input
-      type="checkbox"
-      checked={includeHotel}
-      onChange={(e) => setIncludeHotel(e.target.checked)}
-    />
-    Include hotel
-  </label>
-</div>
+            <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800 }}>
+                <input
+                  type="checkbox"
+                  checked={includeHotel}
+                  onChange={(e) => setIncludeHotel(e.target.checked)}
+                />
+                Include hotel
+              </label>
 
-<div style={{ marginTop: 10, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-    <span style={{ fontWeight: 700 }}>Max stops</span>
-    <select
-      value={maxStops}
-      onChange={(e) => setMaxStops(Number(e.target.value) as any)}
-      style={{ height: 44, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 10px", fontSize: 16, background: "#fff" }}
-    >
-      <option value={0}>Nonstop</option>
-      <option value={1}>Up to 1 stop</option>
-      <option value={2}>Up to 2 stops</option>
-    </select>
-  </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontWeight: 700 }}>Max stops</span>
+                <select
+                  value={maxStops}
+                  onChange={(e) => setMaxStops(Number(e.target.value) as any)}
+                  style={{ height: 44, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 10px", fontSize: 16, background: "#fff" }}
+                >
+                  <option value={0}>Nonstop</option>
+                  <option value={1}>Up to 1 stop</option>
+                  <option value={2}>Up to 2 stops</option>
+                </select>
+              </div>
 
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-    <span style={{ fontWeight: 700 }}>Price basis</span>
-    <select
-      value={sortBasis}
-      onChange={(e) => setSortBasis(e.target.value as any)}
-      style={{ height: 44, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 10px", fontSize: 16, background: "#fff" }}
-    >
-      <option value="flightOnly">Flight only</option>
-      <option value="bundle">Flight + hotel</option>
-    </select>
-  </div>
-</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontWeight: 700 }}>Sort</span>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as any)}
+                  style={{ height: 44, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 10px", fontSize: 16, background: "#fff" }}
+                >
+                  <option value="best">Best</option>
+                  <option value="cheapest">Cheapest</option>
+                  <option value="fastest">Fastest</option>
+                  <option value="flexible">Flexible</option>
+                </select>
+              </div>
 
-{includeHotel && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontWeight: 700 }}>Price basis</span>
+                <select
+                  value={sortBasis}
+                  onChange={(e) => setSortBasis(e.target.value as any)}
+                  style={{ height: 44, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 10px", fontSize: 16, background: "#fff" }}
+                >
+                  <option value="flightOnly">Flight only</option>
+                  <option value="bundle">Flight + hotel</option>
+                </select>
+              </div>
+            </div>
+
+            {includeHotel && (
               <div
                 style={{
                   marginTop: 12,
@@ -1781,10 +1763,6 @@ setShowControls(true);
                 {error}
               </div>
             )}
-          </div>
-
-          <div style={{ marginTop: 18 }}>
-            <ResultsArea />
           </div>
         </>
       )}
