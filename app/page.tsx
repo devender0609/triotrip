@@ -1633,20 +1633,6 @@ setShowControls(true);
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontWeight: 700 }}>Sort</span>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as any)}
-                  style={{ height: 44, borderRadius: 12, border: "1px solid #e2e8f0", padding: "0 10px", fontSize: 16, background: "#fff" }}
-                >
-                  <option value="best">Best</option>
-                  <option value="cheapest">Cheapest</option>
-                  <option value="fastest">Fastest</option>
-                  <option value="flexible">Flexible</option>
-                </select>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontWeight: 700 }}>Price basis</span>
                 <select
                   value={sortBasis}
