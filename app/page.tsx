@@ -1101,7 +1101,6 @@ setShowControls(true);
           </div>
         )}
 
-        )}
 
         {comparedIds.length >= 2 && (
           <ComparePanel
