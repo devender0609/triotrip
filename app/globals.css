@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ==========================================================================
    Global base + colorful themes
    This file is safe to drop in; keeps your current layout and components.
