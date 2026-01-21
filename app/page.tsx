@@ -1101,21 +1101,6 @@ setShowControls(true);
           </div>
         )}
 
-                          </div>
-                  <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                    <div style={{ fontWeight: 900 }}>
-                      {typeof h.priceTotal === "number"
-                        ? `${currencySymbol(currency)}${h.priceTotal.toFixed(0)}`
-                        : typeof h.price === "number"
-                        ? `${currencySymbol(currency)}${h.price.toFixed(0)}`
-                        : h.priceText || ""}
-                    </div>
-                    {h.nights ? <div style={{ opacity: 0.8, fontSize: 12 }}>{h.nights} nights</div> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         )}
 
         {comparedIds.length >= 2 && (
