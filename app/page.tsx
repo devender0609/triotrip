@@ -1,4 +1,8 @@
 "use client";
+
+// Helpers
+function currencySymbol(cur: string){const c=(cur||"USD").toUpperCase();if(c==="USD")return "$";if(c==="EUR")return "€";if(c==="GBP")return "£";if(c==="INR")return "₹";if(c==="JPY")return "¥";return c+" ";}
+
 export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -219,50 +223,6 @@ function cityToCountry(city: string): { country: string; flag: string } {
   return { country: "Destination", flag: "🌍" };
 }
 
-
-function currencySymbol(code: string) {
-  const c = String(code || "").toUpperCase().trim();
-  switch (c) {
-    case "USD":
-    case "CAD":
-    case "AUD":
-    case "NZD":
-    case "SGD":
-    case "HKD":
-      return "$";
-    case "EUR":
-      return "€";
-    case "GBP":
-      return "£";
-    case "INR":
-      return "₹";
-    case "JPY":
-    case "CNY":
-      return "¥";
-    case "KRW":
-      return "₩";
-    case "CHF":
-      return "CHF ";
-    case "SEK":
-    case "NOK":
-    case "DKK":
-      return "kr ";
-    case "AED":
-      return "د.إ ";
-    case "SAR":
-      return "﷼ ";
-    case "ZAR":
-      return "R ";
-    case "BRL":
-      return "R$ ";
-    case "MXN":
-      return "$";
-    default:
-      return c ? `${c} ` : "";
-  }
-}
-
-
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
   const [aiResetKey, setAiResetKey] = useState(0);
@@ -288,62 +248,7 @@ export default function Page() {
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
   const [currency, setCurrency] = useState("USD");
-  
-  // Manual search (flights + optional hotels)
-  async function runSearch() {
-    if (!originCode || !destCode || !departDate || (roundTrip && !returnDate)) {
-      alert("Please enter From, To, and a departure date (and return date for round-trip).");
-      return;
-    }
-
-    const body: any = {
-      origin: originCode,
-      destination: destCode,
-      departDate,
-      returnDate: roundTrip ? returnDate : undefined,
-      passengersAdults: adults,
-      passengersChildren: children,
-      passengersInfants: infants,
-      cabin,
-      includeHotel,
-      maxStops,
-      priceBasis: sortBasis,
-      currency,
-    };
-
-    try {
-      setLoading(true);
-      setResultsManual(null);
-      setHotelsManual(null);
-
-      const res = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Search failed (${res.status})`);
-      }
-
-      const data = await res.json();
-
-      // Support both shapes: { results, hotels } and { flights, hotels }
-      const flights = (data?.results ?? data?.flights ?? null) as any;
-      const hotels = (data?.hotels ?? null) as any;
-
-      setResultsManual(Array.isArray(flights) ? flights : []);
-      setHotelsManual(Array.isArray(hotels) ? hotels : null);
-    } catch (e: any) {
-      console.error(e);
-      alert(e?.message || "Search failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-useEffect(() => {
+  useEffect(() => {
     try {
       const cur = localStorage.getItem("triptrio:currency");
       if (cur) setCurrency(cur);
@@ -435,7 +340,7 @@ useEffect(() => {
     if (which === "ai" || which === "all") {
       setResultsAI(null);
       setHotelsAI(null);
-      setItineraryAI("");
+      setAiItinerary(null);
     }
     if (which === "manual" || which === "all") {
       setResultsManual(null);
@@ -569,45 +474,132 @@ useEffect(() => {
       });
       const j = await resp.json();
       if (!resp.ok) throw new Error(j?.error || "Search failed");
-      // === FLIGHTS / PACKAGES (manual search) ===
-      const packages =
-        Array.isArray(j) ? j :
-        Array.isArray((j as any)?.packages) ? (j as any).packages :
-        Array.isArray((j as any)?.results) ? (j as any).results :
-        Array.isArray((j as any)?.data) ? (j as any).data :
-        Array.isArray((j as any)?.items) ? (j as any).items :
-        [];
 
-      if (!packages.length) {
-        console.warn("Manual search returned no packages:", j);
-      }
-
-      const withIds = packages.map((res: any, i: number) => ({
-        id: res.id ?? `m-${i}`,
-        ...payload,
+      const arr = Array.isArray(j.results) ? j.results : [];
+      const withIds = arr.map((res: any, i: number) => ({
+        id: res.id ?? `ai-${i}`,
+        ...body,
         ...res,
       }));
 
+      setResultsAI(withIds);
+      const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
+      setHotelsAI(hotelsArr);
+      setItineraryAI(typeof itin === "string" ? itin : "");
+      setShowControls(true);
+      setListTab("all");
+      setSubTab("explore");
+      setSubPanelOpen(false);
+      setComparedIds([]);
+      setError(null);
+
+      if (origin) setOriginCode(origin);
+      if (destination) setDestCode(destination);
+      setRoundTrip(roundTrip);
+      if (departDate) setDepartDate(departDate);
+      if (returnDate) setReturnDate(returnDate || "");
+      setAdults(passengersAdults);
+      setChildren(passengersChildren);
+      setInfants(passengersInfants);
+      setChildAges(passengersChildrenAges);
+      setCabin(body.cabin as any);
+      setIncludeHotel(includeHotel);
+      if (includeHotel) {
+        if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
+        if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
+        setMinHotelStar(body.minHotelStar || 0);
+        setMinBudget(
+          typeof body.minBudget === "number" ? String(body.minBudget) : ""
+        );
+        setMaxBudget(
+          typeof body.maxBudget === "number" ? String(body.maxBudget) : ""
+        );
+      } else {
+        setHotelCheckIn("");
+        setHotelCheckOut("");
+        setMinHotelStar(0);
+        setMinBudget("");
+        setMaxBudget("");
+      }
+      if (body.currency) setCurrency(body.currency);
+      setMaxStops(body.maxStops as 0 | 1 | 2);
+    } catch (err: any) {
+      console.error("handleAiSearchComplete error", err);
+      setError(err?.message || "AI search failed");
+    }
+  }
+
+  async function runSearch() {
+    setLoading(true);
+    clearResults("manual");
+    try {
+      const origin = originCode || extractIATA(originDisplay);
+      const destination = destCode || extractIATA(destDisplay);
+      if (!origin || !destination)
+        throw new Error("Please select origin and destination.");
+      if (!departDate) throw new Error("Please pick a departure date.");
+      if (roundTrip && !returnDate)
+        throw new Error("Please pick a return date.");
+
+      const payload = {
+        id: undefined as any,
+        origin,
+        destination,
+        departDate,
+        returnDate: roundTrip ? returnDate : undefined,
+        roundTrip,
+
+        // passengers
+        passengers: totalPax,
+        passengersAdults: adults,
+        passengersChildren: children,
+        passengersInfants: infants,
+        passengersChildrenAges: childAges,
+
+        cabin,
+
+        includeHotel,
+        hotelCheckIn: includeHotel ? (hotelCheckIn || departDate || undefined) : undefined,
+        hotelCheckOut: includeHotel
+          ? (hotelCheckOut || (roundTrip ? returnDate : plusDays(departDate, 1)) || undefined)
+          : undefined,
+        nights: includeHotel
+          ? nightsBetween(
+              hotelCheckIn || departDate,
+              hotelCheckOut || (roundTrip ? returnDate : plusDays(departDate, 1))
+            ) || 1
+          : undefined,
+        minHotelStar: includeHotel ? minHotelStar : undefined,
+
+        minBudget: minBudget ? Number(minBudget) : undefined,
+        maxBudget: maxBudget ? Number(maxBudget) : undefined,
+        currency,
+
+        sort,
+        sortBasis,
+        maxStops,
+      };
+
+      const r = await fetch(`/api/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        cache: "no-store",
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || "Search failed");
+
+      const arr = Array.isArray(j.results) ? j.results : [];
+      const withIds = arr.map((res: any, i: number) => ({
+        id: res.id ?? `r-${i}`,
+        ...payload,
+        ...res,
+      }));
       setResultsManual(withIds);
-
-      // === HOTELS (top-level OR embedded per package) ===
-      const hotelsArr =
-        Array.isArray((j as any)?.hotels) ? (j as any).hotels :
-        Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults :
-        Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults :
-        (Array.isArray(packages)
-          ? packages.flatMap((p: any) =>
-              Array.isArray(p?.hotels)
-                ? p.hotels
-                : Array.isArray(p?.bundle?.hotels)
-                ? p.bundle.hotels
-                : []
-            )
-          : []);
-
+      const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
       setHotelsManual(hotelsArr);
-      setMode("manual");
-setShowControls(true);
+
+      setShowControls(true);
       setListTab("all");
       setSubTab("explore");
       setSubPanelOpen(false);
@@ -624,7 +616,7 @@ setShowControls(true);
       setAiTop3(null);
       return;
     }
-    async function runSearch() {
+    async function go() {
       try {
         setAiTop3Loading(true);
         const res = await fetch("/api/ai/top3", {
@@ -640,8 +632,8 @@ setShowControls(true);
         setAiTop3Loading(false);
       }
     }
-    runSearch();
-}, [results]);
+    go();
+  }, [results]);
 
   const sortedResults = useMemo(() => {
     if (!results) return null;
@@ -1038,7 +1030,23 @@ setShowControls(true);
           </div>
         )}
 
-        
+
+                  </div>
+                  <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <div style={{ fontWeight: 900 }}>
+                      {typeof h.priceTotal === "number"
+                        ? `${currencySymbol(currency)}${h.priceTotal.toFixed(0)}`
+                        : typeof h.price === "number"
+                        ? `${currencySymbol(currency)}${h.price.toFixed(0)}`
+                        : h.priceText || ""}
+                    </div>
+                    {h.nights ? <div style={{ opacity: 0.8, fontSize: 12 }}>{h.nights} nights</div> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {comparedIds.length >= 2 && (
           <ComparePanel

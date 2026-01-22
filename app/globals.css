@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* ==========================================================================
    Global base + colorful themes
    This file is safe to drop in; keeps your current layout and components.
@@ -267,4 +263,47 @@ body *{
 }
 button, input, select, textarea{
   font: inherit;
+}
+
+/* --- trioTrip header (added) --- */
+.tt-header{
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+  background: rgba(0,0,0,0.55);
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+.tt-header-inner{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display:flex;
+  align-items:center;
+}
+.tt-main{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.tt-brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.tt-brand-dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg,#22c55e,#60a5fa,#a78bfa);
+  box-shadow: 0 0 18px rgba(96,165,250,0.35);
+}
+.tt-brand-text{
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  font-size: 20px;
+  background: linear-gradient(135deg,#60a5fa,#a78bfa,#22c55e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
