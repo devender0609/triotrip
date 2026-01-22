@@ -288,7 +288,62 @@ export default function Page() {
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
 
   const [currency, setCurrency] = useState("USD");
-  useEffect(() => {
+  
+  // Manual search (flights + optional hotels)
+  async function runSearch() {
+    if (!originCode || !destCode || !departDate || (roundTrip && !returnDate)) {
+      alert("Please enter From, To, and a departure date (and return date for round-trip).");
+      return;
+    }
+
+    const body: any = {
+      origin: originCode,
+      destination: destCode,
+      departDate,
+      returnDate: roundTrip ? returnDate : undefined,
+      passengersAdults,
+      passengersChildren,
+      passengersInfants,
+      cabin,
+      includeHotel,
+      maxStops,
+      priceBasis,
+      currency,
+    };
+
+    try {
+      setLoading(true);
+      setResultsManual(null);
+      setHotelsManual(null);
+
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Search failed (${res.status})`);
+      }
+
+      const data = await res.json();
+
+      // Support both shapes: { results, hotels } and { flights, hotels }
+      const flights = (data?.results ?? data?.flights ?? null) as any;
+      const hotels = (data?.hotels ?? null) as any;
+
+      setResultsManual(Array.isArray(flights) ? flights : []);
+      setHotelsManual(Array.isArray(hotels) ? hotels : null);
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message || "Search failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+useEffect(() => {
     try {
       const cur = localStorage.getItem("triptrio:currency");
       if (cur) setCurrency(cur);
