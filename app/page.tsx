@@ -336,7 +336,7 @@ export default function Page() {
     if (which === "ai" || which === "all") {
       setResultsAI(null);
       setHotelsAI(null);
-      setAiItinerary(null);
+      setItineraryAI("");
     }
     if (which === "manual" || which === "all") {
       setResultsManual(null);
@@ -481,7 +481,8 @@ export default function Page() {
       setResultsAI(withIds);
       const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
       setHotelsAI(hotelsArr);
-      setItineraryAI(typeof itin === "string" ? itin : "");
+      const itinText = (j as any)?.planning?.itinerary ?? (j as any)?.planning?.text ?? (j as any)?.itinerary ?? (j as any)?.itineraryText ?? "";
+      setItineraryAI(typeof itinText === "string" ? itinText : "");
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
