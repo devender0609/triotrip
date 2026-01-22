@@ -1,58 +1,35 @@
-﻿import "./globals.css";
-import type { Metadata } from "next";
-import Link from "next/link";
+'use client';
 
-export const metadata: Metadata = {
-  title: "NextMove · Decision Assistant",
-  description: "Decide your next move — fast.",
-};
+import './globals.css';
+import Image from 'next/image';
+import Link from 'next/link';
+import React from 'react';
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-        {/* Top nav */}
-        <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/70 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/50">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-            <Link href="/" className="flex items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="NextMove"
-                className="h-8 w-8 rounded-md"
+    <html lang="en">
+      <body>
+        <header className="w-full bg-slate-50 border-b border-slate-200">
+          <div className="max-w-7xl mx-auto flex items-center gap-3 px-4 py-3">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2">
+              <Image
+                src="/tourism-logo.png"
+                alt="TrioTrip logo"
+                width={36}
+                height={36}
+                priority
               />
-              <div className="leading-tight">
-                <div className="text-sm font-semibold">NextMove</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  Decision Assistant
-                </div>
-              </div>
+              <span className="text-lg font-extrabold tracking-wide text-teal-700">
+                TrioTrip
+              </span>
             </Link>
-
-            <nav className="flex items-center gap-2">
-              <Link href="/app/decide" className="btn-ghost">
-                App
-              </Link>
-              <Link href="/pricing" className="btn-ghost">
-                Pricing
-              </Link>
-              <Link href="/app/login" className="btn-ghost">
-                Login
-              </Link>
-              <button className="btn-ghost" type="button">
-                Dark
-              </button>
-            </nav>
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-
-        {/* Footer REMOVED */}
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          {children}
+        </main>
       </body>
     </html>
   );
