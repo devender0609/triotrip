@@ -58,35 +58,6 @@ function nightsBetween(a?: string, b?: string) {
 const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
-function currencySymbol(code: string) {
-  const c = String(code || "").toUpperCase();
-  switch (c) {
-    case "USD":
-    case "AUD":
-    case "CAD":
-    case "NZD":
-      return "$";
-    case "EUR":
-      return "€";
-    case "GBP":
-      return "£";
-    case "INR":
-      return "₹";
-    case "JPY":
-      return "¥";
-    case "CNY":
-      return "¥";
-    case "HKD":
-      return "HK$";
-    case "SGD":
-      return "S$";
-    case "AED":
-      return "د.إ";
-    default:
-      return c ? `${c} ` : "";
-  }
-}
-
 // ----- Hero image + city helpers -----
 
 type HeroImage = { url: string; alt: string };
@@ -247,6 +218,50 @@ function cityToCountry(city: string): { country: string; flag: string } {
 
   return { country: "Destination", flag: "🌍" };
 }
+
+
+function currencySymbol(code: string) {
+  const c = String(code || "").toUpperCase().trim();
+  switch (c) {
+    case "USD":
+    case "CAD":
+    case "AUD":
+    case "NZD":
+    case "SGD":
+    case "HKD":
+      return "$";
+    case "EUR":
+      return "€";
+    case "GBP":
+      return "£";
+    case "INR":
+      return "₹";
+    case "JPY":
+    case "CNY":
+      return "¥";
+    case "KRW":
+      return "₩";
+    case "CHF":
+      return "CHF ";
+    case "SEK":
+    case "NOK":
+    case "DKK":
+      return "kr ";
+    case "AED":
+      return "د.إ ";
+    case "SAR":
+      return "﷼ ";
+    case "ZAR":
+      return "R ";
+    case "BRL":
+      return "R$ ";
+    case "MXN":
+      return "$";
+    default:
+      return c ? `${c} ` : "";
+  }
+}
+
 
 export default function Page() {
   const [mode, setMode] = useState<"ai" | "manual" | "none">("none");
@@ -499,133 +514,45 @@ export default function Page() {
       });
       const j = await resp.json();
       if (!resp.ok) throw new Error(j?.error || "Search failed");
+      // === FLIGHTS / PACKAGES (manual search) ===
+      const packages =
+        Array.isArray(j) ? j :
+        Array.isArray((j as any)?.packages) ? (j as any).packages :
+        Array.isArray((j as any)?.results) ? (j as any).results :
+        Array.isArray((j as any)?.data) ? (j as any).data :
+        Array.isArray((j as any)?.items) ? (j as any).items :
+        [];
 
-      const arr = Array.isArray(j.results) ? j.results : [];
-      const withIds = arr.map((res: any, i: number) => ({
-        id: res.id ?? `ai-${i}`,
-        ...body,
-        ...res,
-      }));
-
-      setResultsAI(withIds);
-      const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
-      setHotelsAI(hotelsArr);
-      const itinText = (j as any)?.planning?.itinerary ?? (j as any)?.planning?.text ?? (j as any)?.itinerary ?? (j as any)?.itineraryText ?? "";
-      setItineraryAI(typeof itinText === "string" ? itinText : "");
-      setShowControls(true);
-      setListTab("all");
-      setSubTab("explore");
-      setSubPanelOpen(false);
-      setComparedIds([]);
-      setError(null);
-
-      if (origin) setOriginCode(origin);
-      if (destination) setDestCode(destination);
-      setRoundTrip(roundTrip);
-      if (departDate) setDepartDate(departDate);
-      if (returnDate) setReturnDate(returnDate || "");
-      setAdults(passengersAdults);
-      setChildren(passengersChildren);
-      setInfants(passengersInfants);
-      setChildAges(passengersChildrenAges);
-      setCabin(body.cabin as any);
-      setIncludeHotel(includeHotel);
-      if (includeHotel) {
-        if (body.hotelCheckIn) setHotelCheckIn(body.hotelCheckIn);
-        if (body.hotelCheckOut) setHotelCheckOut(body.hotelCheckOut);
-        setMinHotelStar(body.minHotelStar || 0);
-        setMinBudget(
-          typeof body.minBudget === "number" ? String(body.minBudget) : ""
-        );
-        setMaxBudget(
-          typeof body.maxBudget === "number" ? String(body.maxBudget) : ""
-        );
-      } else {
-        setHotelCheckIn("");
-        setHotelCheckOut("");
-        setMinHotelStar(0);
-        setMinBudget("");
-        setMaxBudget("");
+      if (!packages.length) {
+        console.warn("Manual search returned no packages:", j);
       }
-      if (body.currency) setCurrency(body.currency);
-      setMaxStops(body.maxStops as 0 | 1 | 2);
-    } catch (err: any) {
-      console.error("handleAiSearchComplete error", err);
-      setError(err?.message || "AI search failed");
-    }
-  }
 
-  async function runSearch() {
-    setLoading(true);
-    clearResults("manual");
-    try {
-      const origin = originCode || extractIATA(originDisplay);
-      const destination = destCode || extractIATA(destDisplay);
-      if (!origin || !destination)
-        throw new Error("Please select origin and destination.");
-      if (!departDate) throw new Error("Please pick a departure date.");
-      if (roundTrip && !returnDate)
-        throw new Error("Please pick a return date.");
-
-      const payload = {
-        id: undefined as any,
-        origin,
-        destination,
-        departDate,
-        returnDate: roundTrip ? returnDate : undefined,
-        roundTrip,
-
-        // passengers
-        passengers: totalPax,
-        passengersAdults: adults,
-        passengersChildren: children,
-        passengersInfants: infants,
-        passengersChildrenAges: childAges,
-
-        cabin,
-
-        includeHotel,
-        hotelCheckIn: includeHotel ? (hotelCheckIn || departDate || undefined) : undefined,
-        hotelCheckOut: includeHotel
-          ? (hotelCheckOut || (roundTrip ? returnDate : plusDays(departDate, 1)) || undefined)
-          : undefined,
-        nights: includeHotel
-          ? nightsBetween(
-              hotelCheckIn || departDate,
-              hotelCheckOut || (roundTrip ? returnDate : plusDays(departDate, 1))
-            ) || 1
-          : undefined,
-        minHotelStar: includeHotel ? minHotelStar : undefined,
-
-        minBudget: minBudget ? Number(minBudget) : undefined,
-        maxBudget: maxBudget ? Number(maxBudget) : undefined,
-        currency,
-
-        sort,
-        sortBasis,
-        maxStops,
-      };
-
-      const r = await fetch(`/api/search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        cache: "no-store",
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || "Search failed");
-
-      const arr = Array.isArray(j.results) ? j.results : [];
-      const withIds = arr.map((res: any, i: number) => ({
-        id: res.id ?? `r-${i}`,
+      const withIds = packages.map((res: any, i: number) => ({
+        id: res.id ?? `m-${i}`,
         ...payload,
         ...res,
       }));
-      setResultsManual(withIds);
-      const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
-      setHotelsManual(hotelsArr);
 
-      setShowControls(true);
+      setResultsManual(withIds);
+
+      // === HOTELS (top-level OR embedded per package) ===
+      const hotelsArr =
+        Array.isArray((j as any)?.hotels) ? (j as any).hotels :
+        Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults :
+        Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults :
+        (Array.isArray(packages)
+          ? packages.flatMap((p: any) =>
+              Array.isArray(p?.hotels)
+                ? p.hotels
+                : Array.isArray(p?.bundle?.hotels)
+                ? p.bundle.hotels
+                : []
+            )
+          : []);
+
+      setHotelsManual(hotelsArr);
+      setMode("manual");
+setShowControls(true);
       setListTab("all");
       setSubTab("explore");
       setSubPanelOpen(false);
@@ -642,7 +569,7 @@ export default function Page() {
       setAiTop3(null);
       return;
     }
-    async function go() {
+    async function runSearch() {
       try {
         setAiTop3Loading(true);
         const res = await fetch("/api/ai/top3", {
@@ -658,8 +585,8 @@ export default function Page() {
         setAiTop3Loading(false);
       }
     }
-    go();
-  }, [results]);
+    runSearch();
+}, [results]);
 
   const sortedResults = useMemo(() => {
     if (!results) return null;
@@ -1056,52 +983,7 @@ export default function Page() {
           </div>
         )}
 
-        {hotels && hotels.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 900, marginBottom: 8 }}>Hotels</div>
-            <div style={{ display: "grid", gap: 12 }}>
-              {hotels.map((h: any, i: number) => (
-                <div
-                  key={h.id || h.hotelId || `${i}`}
-                  style={{
-                    padding: 14,
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(255,255,255,0.04)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {h.name || h.hotelName || h.title || "Hotel"}
-                    </div>
-                    <div style={{ opacity: 0.85, marginTop: 4, fontSize: 13 }}>
-                      {(h.area || h.neighborhood || h.city || "").toString()}
-                      {h.stars ? ` • ${h.stars}★` : ""}
-                    </div>
-                    {h.description && (
-                      <div style={{ opacity: 0.85, marginTop: 8, fontSize: 13, lineHeight: 1.35 }}>
-                        {String(h.description).slice(0, 160)}{String(h.description).length > 160 ? "…" : ""}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                    <div style={{ fontWeight: 900 }}>
-                      {typeof h.priceTotal === "number"
-                        ? `${currencySymbol(currency)}${h.priceTotal.toFixed(0)}`
-                        : typeof h.price === "number"
-                        ? `${currencySymbol(currency)}${h.price.toFixed(0)}`
-                        : h.priceText || ""}
-                    </div>
-                    {h.nights ? <div style={{ opacity: 0.8, fontSize: 12 }}>{h.nights} nights</div> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        
 
         {comparedIds.length >= 2 && (
           <ComparePanel
