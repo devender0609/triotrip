@@ -307,7 +307,7 @@ export default function Page() {
       cabin,
       includeHotel,
       maxStops,
-      priceBasis,
+      priceBasis: sortBasis,
       currency,
     };
 
