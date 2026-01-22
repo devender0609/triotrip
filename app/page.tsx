@@ -58,6 +58,35 @@ function nightsBetween(a?: string, b?: string) {
 const num = (v: any) =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
+function currencySymbol(code: string) {
+  const c = String(code || "").toUpperCase();
+  switch (c) {
+    case "USD":
+    case "AUD":
+    case "CAD":
+    case "NZD":
+      return "$";
+    case "EUR":
+      return "€";
+    case "GBP":
+      return "£";
+    case "INR":
+      return "₹";
+    case "JPY":
+      return "¥";
+    case "CNY":
+      return "¥";
+    case "HKD":
+      return "HK$";
+    case "SGD":
+      return "S$";
+    case "AED":
+      return "د.إ";
+    default:
+      return c ? `${c} ` : "";
+  }
+}
+
 // ----- Hero image + city helpers -----
 
 type HeroImage = { url: string; alt: string };
