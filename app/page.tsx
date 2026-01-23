@@ -484,9 +484,10 @@ export default function Page() {
       }));
 
       setResultsAI(withIds);
+      const itinRaw = (j as any)?.itinerary ?? (j as any)?.itin ?? (j as any)?.plan ?? (j as any)?.itineraryText ?? "";
       const hotelsArr = Array.isArray((j as any)?.hotels) ? (j as any).hotels : Array.isArray((j as any)?.hotelResults) ? (j as any).hotelResults : Array.isArray((j as any)?.hotelsResults) ? (j as any).hotelsResults : [];
       setHotelsAI(hotelsArr);
-      setItineraryAI(typeof itin === "string" ? itin : "");
+      setItineraryAI(typeof itinRaw === "string" ? itinRaw : String(itinRaw ?? ""));
       setShowControls(true);
       setListTab("all");
       setSubTab("explore");
