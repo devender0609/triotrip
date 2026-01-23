@@ -340,7 +340,8 @@ export default function Page() {
     if (which === "ai" || which === "all") {
       setResultsAI(null);
       setHotelsAI(null);
-      setAiItinerary(null);
+      // NOTE: state setter is named setItineraryAI
+      setItineraryAI("");
     }
     if (which === "manual" || which === "all") {
       setResultsManual(null);
