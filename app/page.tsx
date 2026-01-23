@@ -1032,8 +1032,6 @@ export default function Page() {
           </div>
         )}
 
-        )}
-
         {comparedIds.length >= 2 && (
           <ComparePanel
             items={(shown || []).filter((r: any) =>
